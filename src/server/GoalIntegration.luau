@@ -4,8 +4,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local GoalService = require(script.Parent.services.GoalService)
-local DataService = require(script.Parent.services.DataService)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local GoalService = SafeRequire.require(script.Parent.services.GoalService)
+local DataService = SafeRequire.require(script.Parent.services.DataService)
 local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 
 local GoalIntegration = {}
@@ -25,7 +26,7 @@ end
 
 function GoalIntegration:SetupLevelingIntegration()
     -- Track level changes for "Reach Level 10" goal
-    local LevelingService = require(script.Parent.services.LevelingService)
+    local LevelingService = SafeRequire.require(script.Parent.services.LevelingService)
     
     -- Hook into level up events
     if LevelingService.PlayerLeveledUp then

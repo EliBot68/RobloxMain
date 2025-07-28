@@ -6,7 +6,8 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
-local ControllerBase = require(ReplicatedStorage.Shared.utils.ControllerBase)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ControllerBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ControllerBase)
 
 local UpgradeController = ControllerBase.new("UpgradeController", {
     enableDetailedLogging = true,

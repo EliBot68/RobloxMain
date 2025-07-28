@@ -8,7 +8,8 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 
-local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 
 local GameTrackService = ServiceBase.new("GameTrackService", {
     enableDetailedLogging = true,

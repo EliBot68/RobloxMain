@@ -12,14 +12,12 @@ local ContextActionService = game:GetService("ContextActionService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Safe require for RemoteEvents
-local RemoteEvents
-local success, err = pcall(function()
-    RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-end)
+-- Safe require for RemoteEvents using SafeRequire utility
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
-if not success then
-    warn("❌ Failed to load RemoteEvents: " .. (err or "Unknown error"))
+if not RemoteEvents then
+    warn("❌ Failed to load RemoteEvents")
     return
 end
 

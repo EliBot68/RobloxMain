@@ -10,7 +10,8 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 
 local HubManagerService = ServiceBase.new("HubManagerService", {
     enableDetailedLogging = true,

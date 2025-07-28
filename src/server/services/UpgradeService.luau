@@ -8,7 +8,8 @@ local Workspace = game:GetService("Workspace")
 local DataStoreService = game:GetService("DataStoreService")
 local TweenService = game:GetService("TweenService")
 
-local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 
 local UpgradeService = ServiceBase.new("UpgradeService", {
     enableDetailedLogging = true,

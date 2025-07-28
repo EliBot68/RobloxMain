@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 
 local DifficultyService = ServiceBase.new("DifficultyService", {
     enableDetailedLogging = true,

@@ -9,12 +9,11 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Wait for RemoteEvents to be available
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents
 repeat
     wait(0.1)
-    pcall(function()
-        RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-    end)
+    RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 until RemoteEvents
 
 -- Demo UI
