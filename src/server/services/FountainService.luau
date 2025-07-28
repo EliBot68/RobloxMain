@@ -8,8 +8,10 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.PlayerService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 -- Forward declare QuestService to avoid circular dependency
 local QuestService = nil
@@ -351,6 +353,28 @@ end
 
 function FountainService:Initialize()
     print("🌊 FountainService initializing...")
+    
+    -- Validate fountain-related world objects
+    print("🔍 Validating fountain world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ FountainService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate fountain object specifically
+    local fountainExists = WorldObjectValidator.validateObjectWithWait("workspace.Hub.Fountain", 5)
+    if not fountainExists then
+        -- Try alternative path
+        fountainExists = WorldObjectValidator.validateObjectWithWait("workspace.MarketPlaza.CentralFountain", 5)
+        if not fountainExists then
+            warn("⚠️ FountainService: Fountain object not found in expected locations")
+            return false
+        end
+    end
+    print("✅ FountainService: Fountain object validated")
     
     -- Wait for workspace to be ready
     wait(1)

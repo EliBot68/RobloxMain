@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local UpgradeService = ServiceBase.new("UpgradeService", {
     enableDetailedLogging = true,
@@ -105,6 +106,24 @@ local UPGRADE_DEFINITIONS = {
 
 -- Service-specific initialization
 function UpgradeService:OnInit()
+    -- Validate required world objects for upgrade stalls
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ UpgradeService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Ensure Hub folder exists or can be created
+    local hubExists, hubObject = WorldObjectValidator.validateObjectWithWait("workspace.Hub", 3)
+    if not hubExists then
+        warn("⚠️ UpgradeService: Hub folder not found, attempting to create...")
+        WorldObjectValidator.createObjectIfMissing("workspace.Hub", "Folder", "workspace")
+    else
+        print("✅ UpgradeService: Hub folder validated")
+    end
+    
     -- Initialize DataStore fallback
     upgradeDataStore = DataStoreService:GetDataStore("PlayerUpgrades")
     
@@ -175,13 +194,20 @@ function UpgradeService:SetupUpgradeStalls()
     game.Loaded:Wait()
     wait(2)
     
-    -- Create upgrade stalls if they don't exist
-    local hubFolder = Workspace:FindFirstChild("Hub") or Workspace:FindFirstChild("World")
-    if hubFolder then
-        self:CreateUpgradeStall(hubFolder)
-    else
-        warn("⚠️ UpgradeService: Hub folder not found, upgrade stalls not created")
+    -- Validate and wait for Hub folder
+    local hubObject = WorldObjectValidator.waitForObject("workspace.Hub", 10)
+    if not hubObject then
+        -- Try alternative locations
+        hubObject = WorldObjectValidator.waitForObject("workspace.World", 5)
+        if not hubObject then
+            warn("⚠️ UpgradeService: No suitable parent found for upgrade stalls")
+            return
+        end
     end
+    
+    -- Create upgrade stalls
+    self:CreateUpgradeStall(hubObject)
+    print("✅ UpgradeService: Upgrade stalls setup completed")
 end
 
 -- Create upgrade stall in world

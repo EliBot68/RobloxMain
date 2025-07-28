@@ -8,8 +8,10 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local PlayerService = require(script.Parent.PlayerService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local ExclusiveService = {}
 
@@ -599,6 +601,32 @@ end
 
 function ExclusiveService:Initialize()
     print("🌟 ExclusiveService initializing...")
+    
+    -- Validate exclusive-related world objects
+    print("🔍 Validating exclusive world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ ExclusiveService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate MarketPlaza for exclusive displays
+    local marketExists = WorldObjectValidator.validateObjectWithWait("workspace.MarketPlaza", 5)
+    if not marketExists then
+        warn("⚠️ ExclusiveService: MarketPlaza not found - exclusive displays may not work")
+    else
+        print("✅ ExclusiveService: MarketPlaza validated for exclusive displays")
+    end
+    
+    -- Validate billboard anchors for countdown displays
+    local billboardsExist = WorldObjectValidator.validateObjectWithWait("workspace.BillboardAnchors", 3)
+    if not billboardsExist then
+        warn("⚠️ ExclusiveService: BillboardAnchors not found - countdown displays may not appear")
+    else
+        print("✅ ExclusiveService: BillboardAnchors validated")
+    end
     
     -- Wait for workspace to be ready
     wait(2)

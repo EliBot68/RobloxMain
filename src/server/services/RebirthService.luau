@@ -4,6 +4,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+
 local RebirthService = {}
 
 -- Forward declare services
@@ -667,7 +670,27 @@ checkRebirthRemote.OnServerInvoke = function(player)
 end
 
 function RebirthService:Init()
-    print("RebirthService initialized")
+    print("🔄 RebirthService initializing...")
+    
+    -- Validate rebirth-related world objects
+    print("🔍 Validating rebirth world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ RebirthService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate rebirth statue
+    local rebirthStatueExists = WorldObjectValidator.validateObjectWithWait("workspace.Hub.RebirthStatue", 5)
+    if not rebirthStatueExists then
+        warn("⚠️ RebirthService: RebirthStatue not found - rebirth interface may not work")
+    else
+        print("✅ RebirthService: RebirthStatue validated")
+    end
+    
+    print("✅ RebirthService initialized")
 end
 
 return RebirthService

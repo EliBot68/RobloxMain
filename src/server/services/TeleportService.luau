@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local TeleportService = ServiceBase.new("TeleportService", {
     enableDetailedLogging = true,
@@ -400,6 +401,30 @@ end
 
 -- Service-specific initialization
 function TeleportService:OnInit()
+    -- Validate teleportation-related world objects
+    print("🔍 Validating teleportation world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ TeleportService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate spawn location for teleport destination
+    local spawnExists = WorldObjectValidator.validateObjectWithWait("workspace.SpawnLocation", 5)
+    if not spawnExists then
+        warn("⚠️ TeleportService: SpawnLocation missing - teleports may fail")
+    else
+        print("✅ TeleportService: SpawnLocation validated for teleportation")
+    end
+    
+    -- Validate teleport pads if they exist
+    local teleportPadsFolder = WorldObjectValidator.validateObjectWithWait("workspace.TeleportPads", 3)
+    if teleportPadsFolder then
+        print("✅ TeleportService: TeleportPads folder found")
+    end
+    
     return true
 end
 

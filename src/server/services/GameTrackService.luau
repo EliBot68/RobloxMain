@@ -10,6 +10,7 @@ local Debris = game:GetService("Debris")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local GameTrackService = ServiceBase.new("GameTrackService", {
     enableDetailedLogging = true,
@@ -99,6 +100,32 @@ local trackModels = {}
 
 -- Service-specific initialization
 function GameTrackService:OnInit()
+    -- Validate track-related world objects
+    print("🔍 Validating game track world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ GameTrackService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate teleport pads for difficulty selection
+    local teleportPadsValidated = 0
+    local teleportPads = {"workspace.TeleportPads.EasyPad", "workspace.TeleportPads.MediumPad", "workspace.TeleportPads.HardPad"}
+    for _, padPath in ipairs(teleportPads) do
+        local exists = WorldObjectValidator.validateObjectWithWait(padPath, 3)
+        if exists then
+            teleportPadsValidated = teleportPadsValidated + 1
+        else
+            warn("⚠️ GameTrackService: Missing teleport pad: " .. padPath)
+        end
+    end
+    
+    if teleportPadsValidated > 0 then
+        print("✅ GameTrackService: " .. teleportPadsValidated .. " teleport pads validated")
+    end
+    
     -- Initialize game state
     activeGames = {}
     trackModels = {}

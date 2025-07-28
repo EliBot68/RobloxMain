@@ -8,8 +8,10 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local PlayerService = require(script.Parent.PlayerService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local PetService = {}
 
@@ -1641,6 +1643,34 @@ end
 
 function PetService:Initialize()
     print("🐾 PetService initializing...")
+    
+    -- Validate pet-related world objects
+    print("🔍 Validating pet world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ PetService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate pet hatcher locations
+    local petHatchersExists = WorldObjectValidator.validateObjectWithWait("workspace.PetHatchers", 3)
+    if not petHatchersExists then
+        warn("⚠️ PetService: PetHatchers folder not found")
+        -- Try to create it
+        WorldObjectValidator.createObjectIfMissing("workspace.PetHatchers", "Folder", "workspace")
+    else
+        print("✅ PetService: PetHatchers folder validated")
+    end
+    
+    -- Validate marketplace for pet vendor
+    local marketExists = WorldObjectValidator.validateObjectWithWait("workspace.MarketPlaza", 3)
+    if not marketExists then
+        warn("⚠️ PetService: MarketPlaza not found - pet vendor may not work")
+    else
+        print("✅ PetService: MarketPlaza validated for pet vendor")
+    end
     
     -- Wait for workspace to be ready
     wait(1)

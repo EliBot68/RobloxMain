@@ -9,6 +9,9 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Debris = game:GetService("Debris")
 
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+
 local TrackGeneratorService = {}
 
 -- Track Configuration
@@ -154,6 +157,35 @@ local performanceMetrics = {
 
 function TrackGeneratorService:Initialize()
     print("🛤️ Initializing Track Generator Service...")
+    
+    -- Validate workspace structure for tracks
+    print("🔍 Validating track-related world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ TrackGeneratorService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate critical track objects with wait
+    local gameTrackExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack", 5)
+    if not gameTrackExists then
+        warn("⚠️ TrackGeneratorService: GameTrack not found, attempting to create...")
+        WorldObjectValidator.createObjectIfMissing("workspace.GameTrack", "Folder", "workspace")
+    end
+    
+    local startLineExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack.StartLine", 3)
+    if not startLineExists then
+        WorldObjectValidator.createObjectIfMissing("workspace.GameTrack.StartLine", "Part", "workspace.GameTrack")
+    end
+    
+    local finishLineExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack.FinishLine", 3)
+    if not finishLineExists then
+        WorldObjectValidator.createObjectIfMissing("workspace.GameTrack.FinishLine", "Part", "workspace.GameTrack")
+    end
+    
+    print("✅ Track world object validation completed")
     
     -- Setup track folder structure
     self:SetupTrackFolders()

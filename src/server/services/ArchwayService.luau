@@ -7,8 +7,10 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local GameService = require(script.Parent.GameService)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local GameService = SafeRequire.require(script.Parent.GameService)
 
 local ArchwayService = {}
 
@@ -516,6 +518,33 @@ end
 
 function ArchwayService:Initialize()
     print("🏛️ ArchwayService initializing...")
+    
+    -- Validate archway-related world objects
+    print("🔍 Validating archway world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ ArchwayService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate game archway specifically
+    local archwayExists = WorldObjectValidator.validateObjectWithWait("workspace.MarketPlaza.GameArchway", 5)
+    if not archwayExists then
+        warn("⚠️ ArchwayService: GameArchway not found - game start may not work")
+    else
+        print("✅ ArchwayService: GameArchway validated")
+    end
+    
+    -- Validate start and finish lines
+    local startLineExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack.StartLine", 3)
+    local finishLineExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack.FinishLine", 3)
+    if not startLineExists or not finishLineExists then
+        warn("⚠️ ArchwayService: Start/Finish lines missing - game boundaries may not work")
+    else
+        print("✅ ArchwayService: Game boundaries validated")
+    end
     
     -- Wait for workspace to be ready
     wait(1)

@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
     enableDetailedLogging = true,
@@ -30,6 +31,38 @@ local trackObstacles = {}
 
 -- Service-specific initialization
 function MovingObstacleService:OnInit()
+    -- Validate obstacle-related world objects
+    print("🔍 Validating moving obstacle world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ MovingObstacleService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate game tracks for obstacle placement
+    local gameTrackExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack", 3)
+    if not gameTrackExists then
+        warn("⚠️ MovingObstacleService: GameTrack not found - obstacles may not spawn correctly")
+    else
+        print("✅ MovingObstacleService: GameTrack validated for obstacle placement")
+    end
+    
+    -- Validate specific track folders
+    local trackFolders = {"workspace.GameTracks.Easy", "workspace.GameTracks.Medium", "workspace.GameTracks.Hard"}
+    local validatedTracks = 0
+    for _, trackPath in ipairs(trackFolders) do
+        local exists = WorldObjectValidator.validateObjectWithWait(trackPath, 2)
+        if exists then
+            validatedTracks = validatedTracks + 1
+        end
+    end
+    
+    if validatedTracks > 0 then
+        print("✅ MovingObstacleService: " .. validatedTracks .. " track folders validated")
+    end
+    
     if not self.MovingObstacle then
         warn("❌ Failed to load MovingObstacle module - service disabled")
         return false

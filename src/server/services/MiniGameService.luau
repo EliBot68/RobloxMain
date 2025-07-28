@@ -8,9 +8,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local PlayerService = require(script.Parent.PlayerService)
-local QuestService = require(script.Parent.QuestService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local QuestService = SafeRequire.require(script.Parent.QuestService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local MiniGameService = {}
 
@@ -51,6 +53,32 @@ local MINI_GAMES = {
 
 function MiniGameService:Init()
     print("🎮 MiniGameService initializing...")
+    
+    -- Validate mini-game-related world objects
+    print("🔍 Validating mini-game world objects...")
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ MiniGameService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Validate hub area for mini-games
+    local hubExists = WorldObjectValidator.validateObjectWithWait("workspace.Hub", 5)
+    if not hubExists then
+        warn("⚠️ MiniGameService: Hub not found - mini-games may not work properly")
+    else
+        print("✅ MiniGameService: Hub validated for mini-game placement")
+    end
+    
+    -- Validate coin spawners area
+    local coinSpawnersExist = WorldObjectValidator.validateObjectWithWait("workspace.CoinSpawners", 3)
+    if not coinSpawnersExist then
+        warn("⚠️ MiniGameService: CoinSpawners folder not found - coin clicker game may not work")
+    else
+        print("✅ MiniGameService: CoinSpawners validated")
+    end
     
     wait(2) -- Wait for workspace to be ready
     

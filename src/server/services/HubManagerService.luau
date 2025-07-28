@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local HubManagerService = ServiceBase.new("HubManagerService", {
     enableDetailedLogging = true,
@@ -624,6 +625,30 @@ end
 
 -- Service-specific initialization
 function HubManagerService:OnInit()
+	-- Validate hub-related world objects
+	print("🔍 Validating hub world objects...")
+	local missingObjects = WorldObjectValidator.validateAllRequired()
+	if #missingObjects > 0 then
+		warn("⚠️ HubManagerService: Missing required world objects:")
+		for _, missing in ipairs(missingObjects) do
+			warn("  • " .. missing)
+		end
+	end
+	
+	-- Ensure critical hub objects exist
+	local hubExists = WorldObjectValidator.validateObjectWithWait("workspace.Hub", 5)
+	if not hubExists then
+		print("🔧 HubManagerService: Creating Hub folder...")
+		WorldObjectValidator.createObjectIfMissing("workspace.Hub", "Folder", "workspace")
+	end
+	
+	-- Validate spawn location
+	local spawnExists = WorldObjectValidator.validateObjectWithWait("workspace.SpawnLocation", 3)
+	if not spawnExists then
+		warn("⚠️ HubManagerService: SpawnLocation missing - players may spawn incorrectly")
+	end
+	
+	print("✅ Hub world object validation completed")
 	return true
 end
 
