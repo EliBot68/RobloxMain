@@ -1,415 +1,494 @@
 -- UpgradeController.luau
--- Handles client-side upgrade shop interface
+-- Manages upgrade stall UI with Speed Boost, Coin Bonus, and XP Boost upgrades (Standardized Enhanced Controller)
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local ControllerBase = require(ReplicatedStorage.Shared.utils.ControllerBase)
 
-local UpgradeController = {}
+local UpgradeController = ControllerBase.new("UpgradeController", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
+
+-- Define dependencies
+UpgradeController.Dependencies = {
+    { path = ReplicatedStorage.Shared.modules.RemoteEvents, name = "RemoteEvents", optional = false },
+}
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- UI Variables
+-- GUI state
 local upgradeGui = nil
-local upgradeFrame = nil
-local upgradeList = nil
 local currentUpgrades = {}
-local availableUpgrades = {}
+local isOpen = false
 
--- UI Colors
-local COLORS = {
-    background = Color3.new(0.1, 0.1, 0.15),
-    panel = Color3.new(0.15, 0.15, 0.2),
-    accent = Color3.new(1, 0.8, 0.2),
-    text = Color3.new(0.9, 0.9, 0.9),
-    success = Color3.new(0.2, 0.8, 0.2),
-    error = Color3.new(0.8, 0.2, 0.2),
-    disabled = Color3.new(0.5, 0.5, 0.5)
+-- Sound effects
+local upgradeSuccessSound = nil
+local buttonHoverSound = nil
+
+-- Upgrade definitions
+local UPGRADE_DEFINITIONS = {
+    speed_boost = {
+        name = "Speed Boost",
+        description = "Increase movement speed during runs",
+        icon = "🏃",
+        baseCost = 100,
+        maxLevel = 10,
+        costMultiplier = 1.5,
+        bonusPerLevel = 0.1, -- 10% speed increase per level
+        color = Color3.fromRGB(0, 162, 255)
+    },
+    coin_bonus = {
+        name = "Coin Bonus",
+        description = "Earn more coins from runs and activities",
+        icon = "💰",
+        baseCost = 150,
+        maxLevel = 10,
+        costMultiplier = 1.6,
+        bonusPerLevel = 0.15, -- 15% coin bonus per level
+        color = Color3.fromRGB(255, 215, 0)
+    },
+    xp_boost = {
+        name = "XP Boost", 
+        description = "Gain more experience from all activities",
+        icon = "⭐",
+        baseCost = 200,
+        maxLevel = 10,
+        costMultiplier = 1.7,
+        bonusPerLevel = 0.2, -- 20% XP bonus per level
+        color = Color3.fromRGB(138, 43, 226)
+    }
 }
 
-function UpgradeController:CreateUpgradeGUI()
-    -- Main GUI
+-- Controller-specific initialization
+function UpgradeController:OnInit()
+    -- Initialize GUI state
+    upgradeGui = nil
+    currentUpgrades = {}
+    isOpen = false
+    
+    -- Load sounds
+    self:LoadSounds()
+    
+    return true
+end
+
+-- Controller-specific start logic
+function UpgradeController:OnStart()
+    print("⬆️ UpgradeController started")
+    return true
+end
+
+function UpgradeController:Init()
+    -- Legacy method compatibility - use OnInit instead
+    return self:OnInit()
+end
+
+function UpgradeController:LoadSounds()
+    -- Upgrade success sound
+    upgradeSuccessSound = Instance.new("Sound")
+    upgradeSuccessSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+    upgradeSuccessSound.Volume = 0.7
+    upgradeSuccessSound.Pitch = 1.3
+    upgradeSuccessSound.Parent = SoundService
+    
+    -- Button hover sound
+    buttonHoverSound = Instance.new("Sound")
+    buttonHoverSound.SoundId = "rbxasset://sounds/impact_water.mp3"
+    buttonHoverSound.Volume = 0.2
+    buttonHoverSound.Pitch = 2.0
+    buttonHoverSound.Parent = SoundService
+end
+
+function UpgradeController:SetupRemoteEvents()
+    if self.RemoteEvents then
+        -- Handle upgrade stall interactions
+        local showUpgradeShopEvent = self.RemoteEvents:GetRemoteEvent("ShowUpgradeShop")
+        if showUpgradeShopEvent then
+            self.Connections.ShowUpgradeShop = showUpgradeShopEvent.OnClientEvent:Connect(function(playerUpgrades)
+                self:OpenUpgradeShop(playerUpgrades)
+            end)
+        end
+        
+        -- Handle upgrade purchase results
+        local purchaseResultEvent = self.RemoteEvents:GetRemoteEvent("UpgradePurchaseResult")
+        if purchaseResultEvent then
+            self.Connections.UpgradePurchaseResult = purchaseResultEvent.OnClientEvent:Connect(function(success, upgradeType, newLevel, message)
+                self:HandleUpgradeResult(success, upgradeType, newLevel, message)
+            end)
+        end
+    end
+end
+
+-- Setup connections  
+function UpgradeController:SetupConnections()
+    if self.RemoteEvents then
+        -- Handle upgrade data updates
+        local upgradeDataUpdatedEvent = self.RemoteEvents:GetRemoteEvent("UpgradeDataUpdated")
+        if upgradeDataUpdatedEvent then
+            self.Connections.UpgradeDataUpdated = upgradeDataUpdatedEvent.OnClientEvent:Connect(function(playerUpgrades)
+                currentUpgrades = playerUpgrades
+                if isOpen then
+                    self:RefreshUpgradeDisplay()
+                end
+            end)
+        end
+    end
+end
+    end)
+end
+
+function UpgradeController:OpenUpgradeShop(playerUpgrades)
+    if isOpen then
+        self:CloseUpgradeShop()
+        return
+    end
+    
+    currentUpgrades = playerUpgrades or {}
+    isOpen = true
+    
+    self:CreateUpgradeShopGui()
+end
+
+function UpgradeController:CreateUpgradeShopGui()
+    -- Remove existing GUI
+    local existingGui = playerGui:FindFirstChild("EnhancedUpgradeGui")
+    if existingGui then
+        existingGui:Destroy()
+    end
+    
+    -- Create main GUI
     upgradeGui = Instance.new("ScreenGui")
-    upgradeGui.Name = "UpgradeShop"
-    upgradeGui.ResetOnSpawn = false
+    upgradeGui.Name = "EnhancedUpgradeGui"
     upgradeGui.Parent = playerGui
     
-    -- Background
-    local background = Instance.new("Frame")
-    background.Name = "Background"
-    background.Size = UDim2.new(1, 0, 1, 0)
-    background.Position = UDim2.new(0, 0, 0, 0)
-    background.BackgroundColor3 = Color3.new(0, 0, 0)
-    background.BackgroundTransparency = 0.3
-    background.BorderSizePixel = 0
-    background.Parent = upgradeGui
+    -- Background overlay
+    local overlay = Instance.new("Frame")
+    overlay.Name = "Overlay"
+    overlay.Size = UDim2.new(1, 0, 1, 0)
+    overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    overlay.BackgroundTransparency = 0.6
+    overlay.BorderSizePixel = 0
+    overlay.Parent = upgradeGui
     
-    -- Main Frame
-    upgradeFrame = Instance.new("Frame")
+    -- Main upgrade frame
+    local upgradeFrame = Instance.new("Frame")
     upgradeFrame.Name = "UpgradeFrame"
-    upgradeFrame.Size = UDim2.new(0, 800, 0, 600)
-    upgradeFrame.Position = UDim2.new(0.5, -400, 0.5, -300)
-    upgradeFrame.BackgroundColor3 = COLORS.background
+    upgradeFrame.Size = UDim2.new(0, 600, 0, 500)
+    upgradeFrame.Position = UDim2.new(0.5, -300, 0.5, -250)
+    upgradeFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     upgradeFrame.BorderSizePixel = 0
-    upgradeFrame.Parent = background
+    upgradeFrame.Parent = overlay
     
-    -- Round corners
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = upgradeFrame
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 15)
+    frameCorner.Parent = upgradeFrame
     
-    -- Header
-    local header = Instance.new("Frame")
-    header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 80)
-    header.Position = UDim2.new(0, 0, 0, 0)
-    header.BackgroundColor3 = COLORS.accent
-    header.BorderSizePixel = 0
-    header.Parent = upgradeFrame
-    
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 12)
-    headerCorner.Parent = header
-    
-    -- Fix corner overlap
-    local headerFix = Instance.new("Frame")
-    headerFix.Size = UDim2.new(1, 0, 0, 12)
-    headerFix.Position = UDim2.new(0, 0, 1, -12)
-    headerFix.BackgroundColor3 = COLORS.accent
-    headerFix.BorderSizePixel = 0
-    headerFix.Parent = header
+    local frameBorder = Instance.new("UIStroke")
+    frameBorder.Color = Color3.fromRGB(100, 100, 100)
+    frameBorder.Thickness = 2
+    frameBorder.Parent = upgradeFrame
     
     -- Title
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Size = UDim2.new(1, -100, 1, 0)
-    title.Position = UDim2.new(0, 20, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "⚡ UPGRADE SHOP"
-    title.TextColor3 = Color3.new(0, 0, 0)
-    title.TextScaled = true
-    title.Font = Enum.Font.SourceSansBold
-    title.Parent = header
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, -20, 0, 60)
+    titleLabel.Position = UDim2.new(0, 10, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "⬆️ UPGRADE STALL ⬆️"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = upgradeFrame
     
-    -- Close Button
+    -- Close button
     local closeButton = Instance.new("TextButton")
     closeButton.Name = "CloseButton"
-    closeButton.Size = UDim2.new(0, 60, 0, 60)
-    closeButton.Position = UDim2.new(1, -70, 0, 10)
-    closeButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-    closeButton.Text = "✕"
-    closeButton.TextColor3 = Color3.new(1, 1, 1)
-    closeButton.TextScaled = true
-    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Size = UDim2.new(0, 40, 0, 40)
+    closeButton.Position = UDim2.new(1, -50, 0, 10)
+    closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     closeButton.BorderSizePixel = 0
-    closeButton.Parent = header
+    closeButton.Text = "✕"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Parent = upgradeFrame
     
     local closeCorner = Instance.new("UICorner")
     closeCorner.CornerRadius = UDim.new(0, 8)
     closeCorner.Parent = closeButton
     
     closeButton.MouseButton1Click:Connect(function()
-        self:HideUpgradeShop()
+        self:CloseUpgradeShop()
     end)
     
-    -- Content Area
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Name = "Content"
-    contentFrame.Size = UDim2.new(1, -40, 1, -120)
-    contentFrame.Position = UDim2.new(0, 20, 0, 100)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.Parent = upgradeFrame
+    -- Upgrades container
+    local upgradesContainer = Instance.new("Frame")
+    upgradesContainer.Name = "UpgradesContainer"
+    upgradesContainer.Size = UDim2.new(1, -20, 0, 400)
+    upgradesContainer.Position = UDim2.new(0, 10, 0, 80)
+    upgradesContainer.BackgroundTransparency = 1
+    upgradesContainer.Parent = upgradeFrame
     
-    -- Scroll Frame for upgrades
-    upgradeList = Instance.new("ScrollingFrame")
-    upgradeList.Name = "UpgradeList"
-    upgradeList.Size = UDim2.new(1, 0, 1, 0)
-    upgradeList.Position = UDim2.new(0, 0, 0, 0)
-    upgradeList.BackgroundTransparency = 1
-    upgradeList.BorderSizePixel = 0
-    upgradeList.ScrollBarThickness = 8
-    upgradeList.ScrollBarImageColor3 = COLORS.accent
-    upgradeList.Parent = contentFrame
+    -- Create upgrade cards
+    local upgradeOrder = {"speed_boost", "coin_bonus", "xp_boost"}
     
-    -- List Layout
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 10)
-    listLayout.Parent = upgradeList
+    for i, upgradeType in ipairs(upgradeOrder) do
+        self:CreateUpgradeCard(upgradesContainer, upgradeType, i)
+    end
     
-    -- Close when clicking background
-    background.MouseButton1Click:Connect(function()
-        self:HideUpgradeShop()
-    end)
-    
-    -- Prevent closing when clicking the main frame
-    upgradeFrame.MouseButton1Click:Connect(function()
-        -- Do nothing (prevent event from reaching background)
-    end)
-    
-    upgradeGui.Enabled = false
+    -- Animate in
+    upgradeFrame.Size = UDim2.new(0, 0, 0, 0)
+    local animateIn = TweenService:Create(
+        upgradeFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Size = UDim2.new(0, 600, 0, 500)}
+    )
+    animateIn:Play()
 end
 
-function UpgradeController:CreateUpgradeEntry(upgrade)
-    local currentLevel = currentUpgrades[upgrade.id] or 0
+function UpgradeController:CreateUpgradeCard(parent, upgradeType, index)
+    local upgrade = UPGRADE_DEFINITIONS[upgradeType]
+    if not upgrade then return end
+    
+    local currentLevel = currentUpgrades[upgradeType] or 0
+    local nextLevel = currentLevel + 1
+    local cost = self:CalculateUpgradeCost(upgradeType, nextLevel)
     local isMaxLevel = currentLevel >= upgrade.maxLevel
-    local nextCost = isMaxLevel and 0 or math.floor(upgrade.baseCost * (upgrade.costMultiplier ^ currentLevel))
     
-    -- Main entry frame
-    local entry = Instance.new("Frame")
-    entry.Name = upgrade.id
-    entry.Size = UDim2.new(1, -20, 0, 120)
-    entry.BackgroundColor3 = COLORS.panel
-    entry.BorderSizePixel = 0
-    entry.Parent = upgradeList
+    -- Card frame
+    local cardFrame = Instance.new("Frame")
+    cardFrame.Name = upgradeType .. "Card"
+    cardFrame.Size = UDim2.new(1, 0, 0, 120)
+    cardFrame.Position = UDim2.new(0, 0, 0, (index - 1) * 130)
+    cardFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    cardFrame.BorderSizePixel = 0
+    cardFrame.Parent = parent
     
-    local entryCorner = Instance.new("UICorner")
-    entryCorner.CornerRadius = UDim.new(0, 8)
-    entryCorner.Parent = entry
+    local cardCorner = Instance.new("UICorner")
+    cardCorner.CornerRadius = UDim.new(0, 10)
+    cardCorner.Parent = cardFrame
+    
+    local cardBorder = Instance.new("UIStroke")
+    cardBorder.Color = upgrade.color
+    cardBorder.Thickness = 2
+    cardBorder.Parent = cardFrame
     
     -- Icon
-    local icon = Instance.new("TextLabel")
-    icon.Name = "Icon"
-    icon.Size = UDim2.new(0, 60, 0, 60)
-    icon.Position = UDim2.new(0, 15, 0, 15)
-    icon.BackgroundTransparency = 1
-    icon.Text = upgrade.icon
-    icon.TextColor3 = COLORS.accent
-    icon.TextScaled = true
-    icon.Font = Enum.Font.SourceSans
-    icon.Parent = entry
+    local iconLabel = Instance.new("TextLabel")
+    iconLabel.Name = "Icon"
+    iconLabel.Size = UDim2.new(0, 80, 0, 80)
+    iconLabel.Position = UDim2.new(0, 10, 0, 20)
+    iconLabel.BackgroundTransparency = 1
+    iconLabel.Text = upgrade.icon
+    iconLabel.TextScaled = true
+    iconLabel.Font = Enum.Font.SourceSansBold
+    iconLabel.Parent = cardFrame
+    
+    -- Info section
+    local infoFrame = Instance.new("Frame")
+    infoFrame.Name = "InfoFrame"
+    infoFrame.Size = UDim2.new(0, 300, 0, 100)
+    infoFrame.Position = UDim2.new(0, 100, 0, 10)
+    infoFrame.BackgroundTransparency = 1
+    infoFrame.Parent = cardFrame
     
     -- Name
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Name = "NameLabel"
-    nameLabel.Size = UDim2.new(0, 300, 0, 25)
-    nameLabel.Position = UDim2.new(0, 90, 0, 10)
+    nameLabel.Size = UDim2.new(1, 0, 0, 30)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.Text = upgrade.name
-    nameLabel.TextColor3 = COLORS.text
-    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.TextScaled = true
-    nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.Parent = entry
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    nameLabel.Parent = infoFrame
     
     -- Description
-    local description = Instance.new("TextLabel")
-    description.Name = "Description"
-    description.Size = UDim2.new(0, 300, 0, 20)
-    description.Position = UDim2.new(0, 90, 0, 35)
-    description.BackgroundTransparency = 1
-    description.Text = upgrade.description
-    description.TextColor3 = Color3.new(0.7, 0.7, 0.7)
-    description.TextXAlignment = Enum.TextXAlignment.Left
-    description.TextScaled = true
-    description.Font = Enum.Font.SourceSans
-    description.Parent = entry
+    local descLabel = Instance.new("TextLabel")
+    descLabel.Name = "DescLabel"
+    descLabel.Size = UDim2.new(1, 0, 0, 40)
+    descLabel.Position = UDim2.new(0, 0, 0, 35)
+    descLabel.BackgroundTransparency = 1
+    descLabel.Text = upgrade.description
+    descLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    descLabel.TextScaled = true
+    descLabel.Font = Enum.Font.Gotham
+    descLabel.TextXAlignment = Enum.TextXAlignment.Left
+    descLabel.TextWrapped = true
+    descLabel.Parent = infoFrame
     
-    -- Level indicator
+    -- Level display
     local levelLabel = Instance.new("TextLabel")
     levelLabel.Name = "LevelLabel"
-    levelLabel.Size = UDim2.new(0, 200, 0, 20)
-    levelLabel.Position = UDim2.new(0, 90, 0, 60)
+    levelLabel.Size = UDim2.new(1, 0, 0, 25)
+    levelLabel.Position = UDim2.new(0, 0, 0, 75)
     levelLabel.BackgroundTransparency = 1
-    levelLabel.Text = "Level: " .. currentLevel .. "/" .. upgrade.maxLevel
-    levelLabel.TextColor3 = isMaxLevel and COLORS.success or COLORS.text
-    levelLabel.TextXAlignment = Enum.TextXAlignment.Left
+    levelLabel.Text = "Level: " .. currentLevel .. " / " .. upgrade.maxLevel
+    levelLabel.TextColor3 = upgrade.color
     levelLabel.TextScaled = true
-    levelLabel.Font = Enum.Font.SourceSans
-    levelLabel.Parent = entry
-    
-    -- Effect display
-    local effectValue = upgrade.baseEffect * currentLevel
-    local effectText = ""
-    
-    if upgrade.effectType == "speed_multiplier" or upgrade.effectType == "score_multiplier" then
-        effectText = "+" .. math.floor(effectValue * 100) .. "%"
-    elseif upgrade.effectType == "bonus_coins" then
-        effectText = "+" .. effectValue .. " coins"
-    elseif upgrade.effectType == "penalty_reduction" then
-        effectText = "-" .. math.floor(effectValue * 100) .. "% penalty"
-    elseif upgrade.effectType == "time_slowdown" then
-        effectText = "+" .. math.floor(effectValue * 100) .. "% time"
-    elseif upgrade.effectType == "ghost_victory_bonus" then
-        effectText = "+" .. effectValue .. " coins/victory"
-    else
-        effectText = "Level " .. currentLevel
-    end
-    
-    local effectLabel = Instance.new("TextLabel")
-    effectLabel.Name = "EffectLabel"
-    effectLabel.Size = UDim2.new(0, 200, 0, 20)
-    effectLabel.Position = UDim2.new(0, 90, 0, 85)
-    effectLabel.BackgroundTransparency = 1
-    effectLabel.Text = "Current: " .. effectText
-    effectLabel.TextColor3 = COLORS.success
-    effectLabel.TextXAlignment = Enum.TextXAlignment.Left
-    effectLabel.TextScaled = true
-    effectLabel.Font = Enum.Font.SourceSansBold
-    effectLabel.Parent = entry
+    levelLabel.Font = Enum.Font.GothamBold
+    levelLabel.TextXAlignment = Enum.TextXAlignment.Left
+    levelLabel.Parent = infoFrame
     
     -- Purchase button
     local purchaseButton = Instance.new("TextButton")
     purchaseButton.Name = "PurchaseButton"
-    purchaseButton.Size = UDim2.new(0, 150, 0, 40)
-    purchaseButton.Position = UDim2.new(1, -170, 0, 40)
+    purchaseButton.Size = UDim2.new(0, 160, 0, 60)
+    purchaseButton.Position = UDim2.new(0, 420, 0, 30)
     purchaseButton.BorderSizePixel = 0
-    purchaseButton.Font = Enum.Font.SourceSansBold
     purchaseButton.TextScaled = true
-    purchaseButton.Parent = entry
+    purchaseButton.Font = Enum.Font.GothamBold
+    purchaseButton.Parent = cardFrame
     
     local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.CornerRadius = UDim.new(0, 8)
     buttonCorner.Parent = purchaseButton
     
     if isMaxLevel then
+        purchaseButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
         purchaseButton.Text = "MAX LEVEL"
-        purchaseButton.BackgroundColor3 = COLORS.disabled
-        purchaseButton.TextColor3 = Color3.new(0.3, 0.3, 0.3)
+        purchaseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
         purchaseButton.Active = false
     else
-        purchaseButton.Text = "💰 " .. nextCost
-        purchaseButton.BackgroundColor3 = COLORS.accent
-        purchaseButton.TextColor3 = Color3.new(0, 0, 0)
+        purchaseButton.BackgroundColor3 = upgrade.color
+        purchaseButton.Text = "UPGRADE\n💰 " .. cost .. " Coins"
+        purchaseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         purchaseButton.Active = true
         
-        purchaseButton.MouseButton1Click:Connect(function()
-            self:PurchaseUpgrade(upgrade.id)
-        end)
-        
-        -- Hover effect
+        -- Button interactions
         purchaseButton.MouseEnter:Connect(function()
-            if purchaseButton.Active then
-                purchaseButton.BackgroundColor3 = Color3.new(1, 0.9, 0.3)
-            end
+            if buttonHoverSound then buttonHoverSound:Play() end
+            local hoverTween = TweenService:Create(
+                purchaseButton,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                {BackgroundColor3 = Color3.new(
+                    math.min(upgrade.color.R + 0.2, 1),
+                    math.min(upgrade.color.G + 0.2, 1),
+                    math.min(upgrade.color.B + 0.2, 1)
+                )}
+            )
+            hoverTween:Play()
         end)
         
         purchaseButton.MouseLeave:Connect(function()
-            if purchaseButton.Active then
-                purchaseButton.BackgroundColor3 = COLORS.accent
-            end
+            local normalTween = TweenService:Create(
+                purchaseButton,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                {BackgroundColor3 = upgrade.color}
+            )
+            normalTween:Play()
+        end)
+        
+        purchaseButton.MouseButton1Click:Connect(function()
+            self:PurchaseUpgrade(upgradeType)
         end)
     end
-    
-    return entry
 end
 
-function UpgradeController:RefreshUpgradeList()
-    -- Clear existing entries
-    for _, child in pairs(upgradeList:GetChildren()) do
-        if child:IsA("Frame") then
-            child:Destroy()
+function UpgradeController:CalculateUpgradeCost(upgradeType, level)
+    local upgrade = UPGRADE_DEFINITIONS[upgradeType]
+    if not upgrade then return 0 end
+    
+    return math.floor(upgrade.baseCost * (upgrade.costMultiplier ^ (level - 1)))
+end
+
+function UpgradeController:PurchaseUpgrade(upgradeType)
+    -- Send purchase request with confirmation
+    local upgrade = UPGRADE_DEFINITIONS[upgradeType]
+    local currentLevel = currentUpgrades[upgradeType] or 0
+    local nextLevel = currentLevel + 1
+    local cost = self:CalculateUpgradeCost(upgradeType, nextLevel)
+    
+    local purchaseData = {
+        itemType = "upgrade",
+        itemId = upgradeType,
+        upgradeType = upgradeType,
+        name = upgrade.name,
+        description = "Upgrade to Level " .. nextLevel,
+        price = cost,
+        icon = upgrade.icon,
+        maxLevel = upgrade.maxLevel,
+        currentLevel = currentLevel
+    }
+    
+    if self.RemoteEvents then
+        local showPurchaseConfirmationEvent = self.RemoteEvents:GetRemoteEvent("ShowPurchaseConfirmation")
+        if showPurchaseConfirmationEvent then
+            showPurchaseConfirmationEvent:FireServer(purchaseData)
         end
     end
-    
-    -- Create new entries
-    for _, upgrade in pairs(availableUpgrades) do
-        self:CreateUpgradeEntry(upgrade)
+end
+
+function UpgradeController:HandleUpgradeResult(success, upgradeType, newLevel, message)
+    if success and upgradeSuccessSound then
+        upgradeSuccessSound:Play()
+        
+        -- Update local data
+        currentUpgrades[upgradeType] = newLevel
+        
+        -- Refresh display
+        if isOpen then
+            self:RefreshUpgradeDisplay()
+        end
+        
+        -- Show success notification
+        self:ShowUpgradeSuccessNotification(upgradeType, newLevel)
     end
-    
-    -- Update canvas size
-    upgradeList.CanvasSize = UDim2.new(0, 0, 0, #availableUpgrades * 130)
 end
 
-function UpgradeController:ShowUpgradeShop(upgrades, playerUpgrades)
-    availableUpgrades = upgrades or {}
-    currentUpgrades = playerUpgrades or {}
+function UpgradeController:ShowUpgradeSuccessNotification(upgradeType, newLevel)
+    local upgrade = UPGRADE_DEFINITIONS[upgradeType]
+    if not upgrade then return end
     
-    if not upgradeGui then
-        self:CreateUpgradeGUI()
-    end
-    
-    self:RefreshUpgradeList()
-    
-    upgradeGui.Enabled = true
-    
-    -- Animate entrance
-    upgradeFrame.Size = UDim2.new(0, 0, 0, 0)
-    upgradeFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    
-    local tween = TweenService:Create(
-        upgradeFrame,
-        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {
-            Size = UDim2.new(0, 800, 0, 600),
-            Position = UDim2.new(0.5, -400, 0.5, -300)
-        }
-    )
-    tween:Play()
-    
-    print("⚡ Upgrade shop opened")
-end
-
-function UpgradeController:HideUpgradeShop()
-    if not upgradeGui or not upgradeGui.Enabled then return end
-    
-    -- Animate exit
-    local tween = TweenService:Create(
-        upgradeFrame,
-        TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-        {
-            Size = UDim2.new(0, 0, 0, 0),
-            Position = UDim2.new(0.5, 0, 0.5, 0)
-        }
-    )
-    
-    tween:Play()
-    tween.Completed:Connect(function()
-        upgradeGui.Enabled = false
-    end)
-    
-    print("⚡ Upgrade shop closed")
-end
-
-function UpgradeController:PurchaseUpgrade(upgradeId)
-    print("⚡ Attempting to purchase upgrade: " .. upgradeId)
-    RemoteEvents.PurchaseUpgrade:FireServer(upgradeId)
-end
-
-function UpgradeController:ShowPurchaseResult(success, message, upgradeId)
-    -- Create notification
+    -- Create success notification
     local notification = Instance.new("Frame")
-    notification.Name = "UpgradeNotification"
+    notification.Name = "UpgradeSuccess"
     notification.Size = UDim2.new(0, 300, 0, 80)
-    notification.Position = UDim2.new(0.5, -150, 0, -100)
-    notification.BackgroundColor3 = success and COLORS.success or COLORS.error
+    notification.Position = UDim2.new(0.5, -150, 0, 100)
+    notification.BackgroundColor3 = upgrade.color
     notification.BorderSizePixel = 0
-    notification.Parent = playerGui
+    notification.Parent = upgradeGui
     
     local notifCorner = Instance.new("UICorner")
-    notifCorner.CornerRadius = UDim.new(0, 8)
+    notifCorner.CornerRadius = UDim.new(0, 10)
     notifCorner.Parent = notification
     
-    local notifText = Instance.new("TextLabel")
-    notifText.Size = UDim2.new(1, -20, 1, 0)
-    notifText.Position = UDim2.new(0, 10, 0, 0)
-    notifText.BackgroundTransparency = 1
-    notifText.Text = message
-    notifText.TextColor3 = Color3.new(1, 1, 1)
-    notifText.TextScaled = true
-    notifText.Font = Enum.Font.SourceSansBold
-    notifText.Parent = notification
+    local successText = Instance.new("TextLabel")
+    successText.Size = UDim2.new(1, -20, 1, 0)
+    successText.Position = UDim2.new(0, 10, 0, 0)
+    successText.BackgroundTransparency = 1
+    successText.Text = upgrade.icon .. " " .. upgrade.name .. " upgraded to Level " .. newLevel .. "!"
+    successText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    successText.TextScaled = true
+    successText.Font = Enum.Font.GothamBold
+    successText.TextWrapped = true
+    successText.Parent = notification
     
-    -- Animate in
+    -- Animate notification
     notification.Position = UDim2.new(0.5, -150, 0, -100)
     local slideIn = TweenService:Create(
         notification,
-        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = UDim2.new(0.5, -150, 0, 20)}
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Position = UDim2.new(0.5, -150, 0, 100)}
     )
     slideIn:Play()
     
-    -- Auto-remove after 3 seconds
+    -- Auto-remove
     spawn(function()
         wait(3)
         local slideOut = TweenService:Create(
             notification,
-            TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
             {Position = UDim2.new(0.5, -150, 0, -100)}
         )
         slideOut:Play()
@@ -419,41 +498,87 @@ function UpgradeController:ShowPurchaseResult(success, message, upgradeId)
     end)
 end
 
-function UpgradeController:UpdateUpgradeData(upgrades, playerUpgrades)
-    availableUpgrades = upgrades or {}
-    currentUpgrades = playerUpgrades or {}
+function UpgradeController:RefreshUpgradeDisplay()
+    if not upgradeGui then return end
     
-    if upgradeGui and upgradeGui.Enabled then
-        self:RefreshUpgradeList()
+    local container = upgradeGui.Overlay.UpgradeFrame.UpgradesContainer
+    
+    -- Update each upgrade card
+    for upgradeType, upgrade in pairs(UPGRADE_DEFINITIONS) do
+        local card = container:FindFirstChild(upgradeType .. "Card")
+        if card then
+            local currentLevel = currentUpgrades[upgradeType] or 0
+            local nextLevel = currentLevel + 1
+            local cost = self:CalculateUpgradeCost(upgradeType, nextLevel)
+            local isMaxLevel = currentLevel >= upgrade.maxLevel
+            
+            -- Update level display
+            local levelLabel = card.InfoFrame.LevelLabel
+            levelLabel.Text = "Level: " .. currentLevel .. " / " .. upgrade.maxLevel
+            
+            -- Update purchase button
+            local purchaseButton = card.PurchaseButton
+            if isMaxLevel then
+                purchaseButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+                purchaseButton.Text = "MAX LEVEL"
+                purchaseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+                purchaseButton.Active = false
+            else
+                purchaseButton.BackgroundColor3 = upgrade.color
+                purchaseButton.Text = "UPGRADE\n💰 " .. cost .. " Coins"
+                purchaseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                purchaseButton.Active = true
+            end
+        end
     end
 end
 
-function UpgradeController:Init()
-    print("⚡ UpgradeController initializing...")
+function UpgradeController:CloseUpgradeShop()
+    if not upgradeGui then return end
     
-    -- Connect remote events
-    RemoteEvents.ShowUpgradeShop.OnClientEvent:Connect(function(upgrades, playerUpgrades)
-        self:ShowUpgradeShop(upgrades, playerUpgrades)
+    local upgradeFrame = upgradeGui.Overlay.UpgradeFrame
+    
+    local animateOut = TweenService:Create(
+        upgradeFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {Size = UDim2.new(0, 0, 0, 0)}
+    )
+    
+    animateOut:Play()
+    animateOut.Completed:Connect(function()
+        upgradeGui:Destroy()
+        upgradeGui = nil
+        isOpen = false
     end)
+end
+
+function UpgradeController:GetUpgradeDefinitions()
+    return UPGRADE_DEFINITIONS
+end
+
+-- Controller-specific cleanup
+function UpgradeController:OnCleanup()
+    if upgradeGui then
+        upgradeGui:Destroy()
+        upgradeGui = nil
+    end
+    isOpen = false
+    currentUpgrades = {}
     
-    RemoteEvents.UpgradePurchaseResult.OnClientEvent:Connect(function(success, message, upgradeId)
-        self:ShowPurchaseResult(success, message, upgradeId)
-    end)
-    
-    RemoteEvents.UpdateUpgradeData.OnClientEvent:Connect(function(upgrades, playerUpgrades)
-        self:UpdateUpgradeData(upgrades, playerUpgrades)
-    end)
-    
-    -- Handle ESC key to close shop
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.KeyCode == Enum.KeyCode.Escape and upgradeGui and upgradeGui.Enabled then
-            self:HideUpgradeShop()
-        end
-    end)
-    
-    print("✅ UpgradeController initialized successfully!")
+    -- Clean up sounds
+    if upgradeSuccessSound then
+        upgradeSuccessSound:Destroy()
+        upgradeSuccessSound = nil
+    end
+    if buttonHoverSound then
+        buttonHoverSound:Destroy()
+        buttonHoverSound = nil
+    end
+end
+
+function UpgradeController:Cleanup()
+    -- Legacy method compatibility - use OnCleanup instead
+    return self:OnCleanup()
 end
 
 return UpgradeController
