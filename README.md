@@ -29,7 +29,7 @@
 - [Aftman](https://github.com/LPGhatguy/aftman) for tool management (optional)
 
 ### Getting Started
-1. Clone this repository
+1. Clone this repository: `git clone https://github.com/EliBot68/Roblox.git`
 2. Install the Rojo plugin in Roblox Studio
 3. Run `rojo serve` in the project directory
 4. Connect Roblox Studio to the Rojo server
