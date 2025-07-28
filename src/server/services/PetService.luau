@@ -1356,6 +1356,14 @@ function PetService:SavePlayerPets(player, data)
     end
 end
 
+--[[
+    Processes a pet purchase for a player. Validates the pet exists, checks player's
+    currency, handles ownership verification, and awards the pet.
+    
+    @param player {Player} - The player purchasing the pet
+    @param petId {string} - The ID of the pet to purchase
+    @return {boolean, string} - Success status and error message if failed
+]]
 function PetService:PurchasePet(player, petId)
     local petData = nil
     for _, pet in pairs(PET_DATABASE) do
@@ -1641,6 +1649,12 @@ function PetService:SetupPetVendor()
     floatTween:Play()
 end
 
+--[[
+    Initializes the PetService system. Sets up world objects, remote events,
+    player connections, and validates the pet environment.
+    
+    @return {void}
+]]
 function PetService:Initialize()
     print("🐾 PetService initializing...")
     

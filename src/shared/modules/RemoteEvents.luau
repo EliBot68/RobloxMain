@@ -92,8 +92,11 @@ RemoteEvents.ClaimQuestReward = RemoteEvents:GetRemoteEvent("ClaimQuestReward")
 
 -- Tutorial Events
 RemoteEvents.ShowTutorial = RemoteEvents:GetRemoteEvent("ShowTutorial")
+RemoteEvents.StartTutorial = RemoteEvents:GetRemoteEvent("StartTutorial")
 RemoteEvents.StartNewPlayerTutorial = RemoteEvents:GetRemoteEvent("StartNewPlayerTutorial")
 RemoteEvents.CompleteTutorial = RemoteEvents:GetRemoteEvent("CompleteTutorial")
+RemoteEvents.ShowWelcomeMessage = RemoteEvents:GetRemoteEvent("ShowWelcomeMessage")
+RemoteEvents.ShowNotification = RemoteEvents:GetRemoteEvent("ShowNotification")
 
 -- Mobile UI Events
 RemoteEvents.CloseAllMenus = RemoteEvents:GetRemoteEvent("CloseAllMenus")
@@ -424,5 +427,46 @@ RemoteEvents.PlayerJumped = RemoteEvents:GetRemoteEvent("PlayerJumped")
 RemoteEvents.JumpValidated = RemoteEvents:GetRemoteEvent("JumpValidated")
 RemoteEvents.UpdateJumpState = RemoteEvents:GetRemoteEvent("UpdateJumpState")
 RemoteEvents.RequestJumpState = RemoteEvents:GetRemoteEvent("RequestJumpState")
+
+-- Friend System Events
+RemoteEvents.SendFriendRequest = RemoteEvents:GetRemoteEvent("SendFriendRequest")
+RemoteEvents.AcceptFriendRequest = RemoteEvents:GetRemoteEvent("AcceptFriendRequest")
+RemoteEvents.DeclineFriendRequest = RemoteEvents:GetRemoteEvent("DeclineFriendRequest")
+RemoteEvents.RemoveFriend = RemoteEvents:GetRemoteEvent("RemoveFriend")
+RemoteEvents.GetFriendsList = RemoteEvents:GetRemoteEvent("GetFriendsList")
+RemoteEvents.GetFriendRequests = RemoteEvents:GetRemoteEvent("GetFriendRequests")
+RemoteEvents.FriendRequestReceived = RemoteEvents:GetRemoteEvent("FriendRequestReceived")
+RemoteEvents.FriendRequestSent = RemoteEvents:GetRemoteEvent("FriendRequestSent")
+RemoteEvents.FriendRequestAccepted = RemoteEvents:GetRemoteEvent("FriendRequestAccepted")
+RemoteEvents.FriendRequestDeclined = RemoteEvents:GetRemoteEvent("FriendRequestDeclined")
+RemoteEvents.FriendAdded = RemoteEvents:GetRemoteEvent("FriendAdded")
+RemoteEvents.FriendRemoved = RemoteEvents:GetRemoteEvent("FriendRemoved")
+RemoteEvents.FriendsListUpdated = RemoteEvents:GetRemoteEvent("FriendsListUpdated")
+RemoteEvents.GetOnlineFriends = RemoteEvents:GetRemoteEvent("GetOnlineFriends")
+RemoteEvents.OnlineFriendsUpdated = RemoteEvents:GetRemoteEvent("OnlineFriendsUpdated")
+RemoteEvents.InviteFriendToGame = RemoteEvents:GetRemoteEvent("InviteFriendToGame")
+RemoteEvents.FriendGameInviteReceived = RemoteEvents:GetRemoteEvent("FriendGameInviteReceived")
+
+-- Social Leaderboard Events
+RemoteEvents.GetFriendsLeaderboard = RemoteEvents:GetRemoteEvent("GetFriendsLeaderboard")
+RemoteEvents.FriendsLeaderboardUpdated = RemoteEvents:GetRemoteEvent("FriendsLeaderboardUpdated")
+RemoteEvents.GetGlobalLeaderboard = RemoteEvents:GetRemoteEvent("GetGlobalLeaderboard")
+RemoteEvents.GlobalLeaderboardUpdated = RemoteEvents:GetRemoteEvent("GlobalLeaderboardUpdated")
+RemoteEvents.GetPartyLeaderboard = RemoteEvents:GetRemoteEvent("GetPartyLeaderboard")
+RemoteEvents.PartyLeaderboardUpdated = RemoteEvents:GetRemoteEvent("PartyLeaderboardUpdated")
+RemoteEvents.RequestSocialLeaderboard = RemoteEvents:GetRemoteEvent("RequestSocialLeaderboard")
+RemoteEvents.SocialLeaderboardData = RemoteEvents:GetRemoteEvent("SocialLeaderboardData")
+
+-- Social Engagement Events
+RemoteEvents.SendSocialMessage = RemoteEvents:GetRemoteEvent("SendSocialMessage")
+RemoteEvents.SocialMessageReceived = RemoteEvents:GetRemoteEvent("SocialMessageReceived")
+RemoteEvents.LikePlayerScore = RemoteEvents:GetRemoteEvent("LikePlayerScore")
+RemoteEvents.ScoreLikeReceived = RemoteEvents:GetRemoteEvent("ScoreLikeReceived")
+RemoteEvents.ChallengePlayer = RemoteEvents:GetRemoteEvent("ChallengePlayer")
+RemoteEvents.ChallengeReceived = RemoteEvents:GetRemoteEvent("ChallengeReceived")
+RemoteEvents.ChallengeAccepted = RemoteEvents:GetRemoteEvent("ChallengeAccepted")
+RemoteEvents.ChallengeCompleted = RemoteEvents:GetRemoteEvent("ChallengeCompleted")
+RemoteEvents.ShareAchievement = RemoteEvents:GetRemoteEvent("ShareAchievement")
+RemoteEvents.AchievementShared = RemoteEvents:GetRemoteEvent("AchievementShared")
 
 return RemoteEvents

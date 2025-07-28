@@ -68,6 +68,34 @@ ControllerRegistry.Controllers = {
         category = "enhancement",
         critical = false,
         autoStart = true
+    },
+    
+    -- Social Controllers
+    SocialController = {
+        path = script.Parent.Parent.client.controllers.SocialController,
+        category = "social",
+        critical = false,
+        autoStart = true
+    },
+    LeaderboardController = {
+        path = script.Parent.Parent.client.controllers.LeaderboardController,
+        category = "social",
+        critical = false,
+        autoStart = true
+    },
+    SocialEngagementController = {
+        path = script.Parent.Parent.client.controllers.SocialEngagementController,
+        category = "social",
+        critical = false,
+        autoStart = true
+    },
+    
+    -- Achievement Controllers
+    AchievementController = {
+        path = script.Parent.Parent.client.controllers.AchievementControllerComplete,
+        category = "progression",
+        critical = false,
+        autoStart = true
     }
 }
 

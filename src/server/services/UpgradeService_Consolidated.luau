@@ -104,7 +104,12 @@ local UPGRADE_DEFINITIONS = {
     }
 }
 
--- Service-specific initialization
+--[[
+    Initializes the UpgradeService. Validates world objects, sets up upgrade stalls,
+    initializes data storage, and handles existing players.
+    
+    @return {void}
+]]
 function UpgradeService:OnInit()
     -- Validate required world objects for upgrade stalls
     local missingObjects = WorldObjectValidator.validateAllRequired()
@@ -138,7 +143,11 @@ function UpgradeService:OnInit()
     return true
 end
 
--- Service-specific start logic
+--[[
+    Starts the UpgradeService by setting up physical upgrade stalls in the game world.
+    
+    @return {boolean} - True if service started successfully
+]]
 function UpgradeService:OnStart()
     -- Setup upgrade stalls in the world
     self:SetupUpgradeStalls()
@@ -147,7 +156,12 @@ function UpgradeService:OnStart()
     return true
 end
 
--- Setup remote events
+--[[
+    Sets up remote event connections for client-server communication.
+    Handles upgrade purchases, data requests, and shop interactions.
+    
+    @return {void}
+]]
 function UpgradeService:SetupRemoteEvents()
     if self.RemoteEvents then
         -- Purchase upgrade
@@ -422,7 +436,14 @@ function UpgradeService:CalculateUpgradeCost(upgradeId, currentLevel, playerLeve
     return math.floor(cost)
 end
 
--- Purchase upgrade
+--[[
+    Processes a player's upgrade purchase. Validates the upgrade, checks player's
+    coins, deducts the cost, and updates the player's upgrade level.
+    
+    @param player {Player} - The player making the purchase
+    @param upgradeId {string} - The ID of the upgrade to purchase
+    @return {table} - Result table with success boolean and error message if failed
+]]
 function UpgradeService:PurchaseUpgrade(player, upgradeId)
     local upgrade = UPGRADE_DEFINITIONS[upgradeId]
     if not upgrade then

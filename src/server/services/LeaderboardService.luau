@@ -23,6 +23,13 @@ local coinsLeaderboard = {}
 local LEADERBOARD_UPDATE_INTERVAL = 30 -- seconds
 local lastUpdate = 0
 
+--[[
+    Retrieves the top players from a specified DataStore in descending order.
+    
+    @param dataStore {OrderedDataStore} - The DataStore to query
+    @param count {number?} - Number of top players to retrieve (default: 5)
+    @return {table} - Array of leaderboard entries with rank, userId, value, and playerName
+]]
 function LeaderboardService:GetTopPlayers(dataStore, count)
     local success, result = pcall(function()
         return dataStore:GetSortedAsync(false, count or 5)
@@ -48,6 +55,13 @@ function LeaderboardService:GetTopPlayers(dataStore, count)
     end
 end
 
+--[[
+    Resolves player names from user IDs for leaderboard display.
+    Updates the leaderboard entries with actual player names.
+    
+    @param leaderboardData {table} - Array of leaderboard entries to resolve names for
+    @return {void}
+]]
 function LeaderboardService:ResolvePlayerNames(leaderboardData)
     for _, entry in pairs(leaderboardData) do
         local success, playerName = pcall(function()
@@ -62,6 +76,14 @@ function LeaderboardService:ResolvePlayerNames(leaderboardData)
     end
 end
 
+--[[
+    Updates a player's high score in the global leaderboard if the new score
+    is higher than their current best.
+    
+    @param userId {number} - The user ID of the player
+    @param newHighScore {number} - The new high score to potentially record
+    @return {void}
+]]
 function LeaderboardService:UpdatePlayerScore(userId, newHighScore)
     local success = pcall(function()
         -- Get current score

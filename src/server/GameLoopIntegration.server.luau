@@ -158,7 +158,7 @@ local function stopGame(player, reason)
 end
 
 -- Main game loop for individual player
-function startPlayerGameLoop(player)
+local function startPlayerGameLoop(player)
     local gameState = gameStates[player.UserId]
     
     gameLoopConnections[player.UserId] = RunService.Heartbeat:Connect(function(deltaTime)
@@ -184,7 +184,7 @@ function startPlayerGameLoop(player)
 end
 
 -- Update player position and calculate distance traveled
-function updatePlayerPosition(player, deltaTime)
+local function updatePlayerPosition(player, deltaTime)
     local gameState = gameStates[player.UserId]
     
     if not gameState.character or not gameState.humanoid then
@@ -208,7 +208,7 @@ function updatePlayerPosition(player, deltaTime)
 end
 
 -- Update game speed based on current difficulty
-function updateGameSpeed(player)
+local function updateGameSpeed(player)
     local gameState = gameStates[player.UserId]
     local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
     
@@ -224,7 +224,7 @@ function updateGameSpeed(player)
 end
 
 -- Handle obstacle spawning based on difficulty spawn rate
-function handleObstacleSpawning(player, deltaTime)
+local function handleObstacleSpawning(player, deltaTime)
     local gameState = gameStates[player.UserId]
     local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
     
@@ -244,7 +244,7 @@ function handleObstacleSpawning(player, deltaTime)
 end
 
 -- Spawn obstacle based on current difficulty complexity
-function spawnObstacleForPlayer(player, difficulty)
+local function spawnObstacleForPlayer(player, difficulty)
     if not Services.MovingObstacleService then
         return -- MovingObstacleService not available
     end
@@ -292,7 +292,7 @@ function spawnObstacleForPlayer(player, difficulty)
 end
 
 -- Check win/lose conditions
-function checkGameConditions(player)
+local function checkGameConditions(player)
     local gameState = gameStates[player.UserId]
     
     if not gameState.character or not gameState.humanoid then
@@ -321,7 +321,7 @@ function checkGameConditions(player)
 end
 
 -- Update difficulty system with current progress
-function updateDifficultySystem(player)
+local function updateDifficultySystem(player)
     local gameState = gameStates[player.UserId]
     local currentTime = tick()
     

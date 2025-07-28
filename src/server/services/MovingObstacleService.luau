@@ -29,7 +29,12 @@ local obstacleCounter = 0
 -- Track configuration
 local trackObstacles = {}
 
--- Service-specific initialization
+--[[
+    Initializes the MovingObstacleService by validating world objects and
+    setting up the obstacle management system.
+    
+    @return {boolean} - True if initialization was successful
+]]
 function MovingObstacleService:OnInit()
     -- Validate obstacle-related world objects
     print("🔍 Validating moving obstacle world objects...")
@@ -95,6 +100,14 @@ function MovingObstacleService:SetupObstacleCleanup()
     end)
 end
 
+--[[
+    Creates a new moving obstacle with the specified configuration and position.
+    
+    @param config {table} - Configuration table for the obstacle behavior
+    @param position {Vector3} - World position where the obstacle should be created
+    @param parent {Instance} - Parent instance for the obstacle
+    @return {string?} - Unique obstacle ID if creation was successful, nil otherwise
+]]
 function MovingObstacleService:CreateObstacle(config, position, parent)
     if not MovingObstacle then
         warn("❌ MovingObstacle module not available")

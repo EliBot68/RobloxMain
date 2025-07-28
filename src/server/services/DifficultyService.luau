@@ -35,7 +35,12 @@ DifficultyService.RemoteEvents = {
     SpikeActivated = nil
 }
 
--- Service-specific initialization
+--[[
+    Initializes the DifficultyService by loading the DifficultyManager module
+    and setting up global difficulty configuration.
+    
+    @return {boolean} - True if initialization was successful
+]]
 function DifficultyService:OnInit()
     if not self.DifficultyManager then
         warn("❌ Failed to load DifficultyManager module - service disabled")
@@ -48,7 +53,12 @@ function DifficultyService:OnInit()
     return true
 end
 
--- Service-specific start logic
+--[[
+    Starts the DifficultyService by setting up player management systems
+    and establishing connections.
+    
+    @return {boolean} - True if service started successfully
+]]
 function DifficultyService:OnStart()
     -- Setup player management
     self:SetupPlayerManagement()
@@ -90,6 +100,12 @@ function DifficultyService:SetupPlayerManagement()
     end
 end
 
+--[[
+    Loads the global difficulty configuration from the DifficultyManager presets.
+    This sets the baseline difficulty settings for all players.
+    
+    @return {void}
+]]
 function DifficultyService:LoadGlobalConfiguration()
     -- Load default difficulty configuration
     globalDifficultyConfig = self.DifficultyManager.GetPresetConfigs().normal
@@ -97,6 +113,13 @@ function DifficultyService:LoadGlobalConfiguration()
     print("🎚️ Loaded global difficulty configuration")
 end
 
+--[[
+    Initializes difficulty management for a specific player. Creates a new
+    DifficultyManager instance and sets up event handlers.
+    
+    @param player {Player} - The player to initialize difficulty for
+    @return {void}
+]]
 function DifficultyService:InitializePlayerDifficulty(player)
     if playerDifficulties[player.UserId] then
         return -- Already initialized

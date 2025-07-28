@@ -248,7 +248,7 @@ function ControllerBase.new(controllerName, config)
     
     -- Get controller status
     function controller:GetStatus()
-        local function table_length(t)
+        local function tableLength(t)
             local count = 0
             for _ in pairs(t) do count = count + 1 end
             return count
@@ -261,8 +261,8 @@ function ControllerBase.new(controllerName, config)
             isStarted = self.IsStarted,
             initializationTime = self.InitializationTime,
             dependencyCount = self.Dependencies and #self.Dependencies or 0,
-            serviceCount = self.Services and table_length(self.Services) or 0,
-            connectionCount = table_length(self.Connections)
+            serviceCount = self.Services and tableLength(self.Services) or 0,
+            connectionCount = tableLength(self.Connections)
         }
     end
     
