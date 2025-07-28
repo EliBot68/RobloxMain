@@ -1,0 +1,556 @@
+-- ArchwayService.luau
+-- Handles the game entrance archway and game start sequence
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local GameService = require(script.Parent.GameService)
+
+local ArchwayService = {}
+
+-- Track active game starts to prevent spam
+local activeGameStarts = {}
+
+-- Multiplayer queue system
+local multiplayerQueue = {}
+local currentMultiplayerSession = nil
+local MAX_QUEUE_SIZE = 6 -- Up to 6 players can play together
+local QUEUE_TIMEOUT = 30 -- Auto-start after 30 seconds if queue isn't full
+
+-- Available game start positions (corresponding to tracks)
+local GAME_START_POSITIONS = {
+    Vector3.new(100, 6, -10),   -- Track 1 start
+    Vector3.new(-100, 6, -10),  -- Track 2 start
+    Vector3.new(0, 6, 140)      -- Track 3 start
+}
+
+function ArchwayService:SetupArchwayDisplay()
+    local archway = Workspace.MarketPlaza.GameArchway
+    if not archway then
+        warn("Game archway not found!")
+        return
+    end
+    
+    local centerGem = archway:FindFirstChild("CenterGem")
+    local portal = archway:FindFirstChild("MagicPortal")
+    local glowOrb1 = archway:FindFirstChild("GlowOrb1")
+    local glowOrb2 = archway:FindFirstChild("GlowOrb2")
+    
+    -- Add floating "PLAY" text
+    local archTop = archway:FindFirstChild("ArchTop")
+    if archTop then
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Size = UDim2.new(0, 400, 0, 100)
+        billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+        billboardGui.Parent = archTop
+        
+        local playLabel = Instance.new("TextLabel")
+        playLabel.Size = UDim2.new(1, 0, 1, 0)
+        playLabel.BackgroundTransparency = 1
+        playLabel.Text = "🎮 PLAY"
+        playLabel.TextColor3 = Color3.new(1, 1, 0.6)
+        playLabel.TextScaled = true
+        playLabel.Font = Enum.Font.SourceSansBold
+        playLabel.TextStrokeTransparency = 0
+        playLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+        playLabel.Parent = billboardGui
+        
+        -- Pulsing animation
+        local pulseTween = TweenService:Create(
+            playLabel,
+            TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {
+                TextTransparency = 0.3,
+                TextSize = 24
+            }
+        )
+        pulseTween:Play()
+        
+        -- Floating animation
+        local floatTween = TweenService:Create(
+            billboardGui,
+            TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {StudsOffset = Vector3.new(0, 4, 0)}
+        )
+        floatTween:Play()
+    end
+    
+    -- Add subtitle text
+    if portal then
+        local subtitleGui = Instance.new("BillboardGui")
+        subtitleGui.Size = UDim2.new(0, 300, 0, 50)
+        subtitleGui.StudsOffset = Vector3.new(0, -3, 0)
+        subtitleGui.Parent = portal
+        
+        local subtitleLabel = Instance.new("TextLabel")
+        subtitleLabel.Size = UDim2.new(1, 0, 1, 0)
+        subtitleLabel.BackgroundTransparency = 1
+        subtitleLabel.Text = "Walk through to start!"
+        subtitleLabel.TextColor3 = Color3.new(0.8, 0.9, 1)
+        subtitleLabel.TextScaled = true
+        subtitleLabel.Font = Enum.Font.SourceSansItalic
+        subtitleLabel.TextStrokeTransparency = 0
+        subtitleLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+        subtitleLabel.Parent = subtitleGui
+        
+        -- Gentle pulsing
+        local subtitlePulse = TweenService:Create(
+            subtitleLabel,
+            TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {TextTransparency = 0.4}
+        )
+        subtitlePulse:Play()
+    end
+    
+    -- Center gem rotation and pulsing
+    if centerGem then
+        local rotateTween = TweenService:Create(
+            centerGem,
+            TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
+            {CFrame = centerGem.CFrame * CFrame.Angles(0, math.pi * 2, 0)}
+        )
+        rotateTween:Play()
+        
+        local gemPulse = TweenService:Create(
+            centerGem,
+            TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Size = centerGem.Size * 1.2}
+        )
+        gemPulse:Play()
+    end
+    
+    -- Orb pulsing (alternating)
+    if glowOrb1 then
+        local orb1Pulse = TweenService:Create(
+            glowOrb1,
+            TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Transparency = 0.5}
+        )
+        orb1Pulse:Play()
+    end
+    
+    if glowOrb2 then
+        -- Offset the second orb animation
+        spawn(function()
+            wait(1)
+            local orb2Pulse = TweenService:Create(
+                glowOrb2,
+                TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                {Transparency = 0.5}
+            )
+            orb2Pulse:Play()
+        end)
+    end
+    
+    -- Portal shimmer effect
+    if portal then
+        local shimmerTween = TweenService:Create(
+            portal,
+            TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+            {Transparency = 0.3}
+        )
+        shimmerTween:Play()
+    end
+end
+
+function ArchwayService:AddPlayerToQueue(player)
+    -- Check if player is already in queue
+    for _, queuedPlayer in pairs(multiplayerQueue) do
+        if queuedPlayer == player then
+            return false -- Already in queue
+        end
+    end
+    
+    -- Check if queue is full
+    if #multiplayerQueue >= MAX_QUEUE_SIZE then
+        RemoteEvents.QueueFull:FireClient(player)
+        return false
+    end
+    
+    -- Add player to queue
+    table.insert(multiplayerQueue, player)
+    
+    -- Notify player they joined the queue
+    RemoteEvents.JoinedQueue:FireClient(player, #multiplayerQueue, MAX_QUEUE_SIZE)
+    
+    -- Notify all players in queue of updated count
+    self:NotifyQueueUpdate()
+    
+    print("🎮 " .. player.Name .. " joined multiplayer queue (" .. #multiplayerQueue .. "/" .. MAX_QUEUE_SIZE .. ")")
+    
+    -- Start queue timer if this is the first player
+    if #multiplayerQueue == 1 then
+        self:StartQueueTimer()
+    end
+    
+    -- Auto-start if queue is full
+    if #multiplayerQueue >= MAX_QUEUE_SIZE then
+        self:StartMultiplayerGame()
+    end
+    
+    return true
+end
+
+function ArchwayService:RemovePlayerFromQueue(player)
+    for i, queuedPlayer in pairs(multiplayerQueue) do
+        if queuedPlayer == player then
+            table.remove(multiplayerQueue, i)
+            
+            -- Notify player they left the queue
+            RemoteEvents.LeftQueue:FireClient(player)
+            
+            -- Notify remaining players
+            self:NotifyQueueUpdate()
+            
+            print("👋 " .. player.Name .. " left multiplayer queue (" .. #multiplayerQueue .. "/" .. MAX_QUEUE_SIZE .. ")")
+            return true
+        end
+    end
+    return false
+end
+
+function ArchwayService:NotifyQueueUpdate()
+    for _, player in pairs(multiplayerQueue) do
+        if player and player.Parent then
+            RemoteEvents.QueueUpdate:FireClient(player, #multiplayerQueue, MAX_QUEUE_SIZE, self:GetQueuePlayerNames())
+        end
+    end
+end
+
+function ArchwayService:GetQueuePlayerNames()
+    local names = {}
+    for _, player in pairs(multiplayerQueue) do
+        if player and player.Parent then
+            table.insert(names, player.Name)
+        end
+    end
+    return names
+end
+
+function ArchwayService:StartQueueTimer()
+    spawn(function()
+        wait(QUEUE_TIMEOUT)
+        
+        -- Check if we still have players and no active session
+        if #multiplayerQueue > 1 and not currentMultiplayerSession then
+            print("⏰ Queue timer expired, starting game with " .. #multiplayerQueue .. " players")
+            self:StartMultiplayerGame()
+        end
+    end)
+end
+
+function ArchwayService:StartMultiplayerGame()
+    if #multiplayerQueue < 1 then
+        return false
+    end
+    
+    -- Create multiplayer session
+    currentMultiplayerSession = {
+        players = {},
+        startTime = tick(),
+        sessionId = tostring(tick())
+    }
+    
+    -- Move players from queue to session
+    for _, player in pairs(multiplayerQueue) do
+        if player and player.Parent then
+            table.insert(currentMultiplayerSession.players, player)
+        end
+    end
+    
+    -- Clear the queue
+    multiplayerQueue = {}
+    
+    print("🎮 Starting multiplayer game with " .. #currentMultiplayerSession.players .. " players")
+    
+    -- Start the synchronized game sequence
+    self:StartSynchronizedGameSequence(currentMultiplayerSession.players)
+    
+    return true
+end
+
+function ArchwayService:StartSynchronizedGameSequence(players)
+    -- Disable movement for all players and start fade
+    for _, player in pairs(players) do
+        if player and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.PlatformStand = true
+            end
+            
+            -- Trigger client fade to black
+            RemoteEvents.GameFadeToBlack:FireClient(player)
+        end
+    end
+    
+    -- Wait for fade
+    wait(1.5)
+    
+    -- Assign players to different tracks
+    local trackAssignments = self:AssignPlayersToTracks(players)
+    
+    -- Teleport all players simultaneously
+    for i, player in pairs(players) do
+        if player and player.Character then
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            
+            if humanoidRootPart and humanoid then
+                local trackPosition = trackAssignments[i]
+                humanoidRootPart.CFrame = CFrame.new(trackPosition)
+                
+                -- Re-enable movement
+                humanoid.PlatformStand = false
+                
+                print("🚀 " .. player.Name .. " transported to track " .. i)
+            end
+        end
+    end
+    
+    -- Start synchronized countdown
+    self:StartSynchronizedCountdown(players)
+end
+
+function ArchwayService:AssignPlayersToTracks(players)
+    local assignments = {}
+    local trackPositions = {
+        Vector3.new(100, 6, -10),   -- Track 1
+        Vector3.new(-100, 6, -10),  -- Track 2  
+        Vector3.new(0, 6, 140),     -- Track 3
+        Vector3.new(200, 6, -10),   -- Track 4 (new)
+        Vector3.new(-200, 6, -10),  -- Track 5 (new)
+        Vector3.new(100, 6, 240)    -- Track 6 (new)
+    }
+    
+    for i, player in pairs(players) do
+        -- Use modulo to cycle through available tracks
+        local trackIndex = ((i - 1) % #trackPositions) + 1
+        assignments[i] = trackPositions[trackIndex]
+    end
+    
+    return assignments
+end
+
+function ArchwayService:StartSynchronizedCountdown(players)
+    -- Fade from black for all players
+    for _, player in pairs(players) do
+        if player and player.Parent then
+            RemoteEvents.GameFadeFromBlack:FireClient(player)
+        end
+    end
+    
+    -- Wait for fade in to complete
+    wait(1)
+    
+    -- Start synchronized countdown for all players
+    for _, player in pairs(players) do
+        if player and player.Parent then
+            RemoteEvents.GameCountdownStart:FireClient(player)
+            RemoteEvents.MultiplayerGameInfo:FireClient(player, {
+                sessionId = currentMultiplayerSession.sessionId,
+                playerCount = #players,
+                playerNames = self:GetSessionPlayerNames(players)
+            })
+        end
+    end
+    
+    -- Server-side countdown
+    for i = 3, 1, -1 do
+        -- Notify all players of countdown
+        for _, player in pairs(players) do
+            if player and player.Parent then
+                RemoteEvents.SynchronizedCountdown:FireClient(player, i)
+            end
+        end
+        print("⏰ Multiplayer countdown: " .. i)
+        wait(1)
+    end
+    
+    -- Start the actual game for all players simultaneously
+    local startedGames = 0
+    for _, player in pairs(players) do
+        if player and player.Parent then
+            local success = GameService:StartMultiplayerGame(player, currentMultiplayerSession.sessionId, players)
+            if success then
+                startedGames = startedGames + 1
+            end
+        end
+    end
+    
+    print("🎮 Started multiplayer game for " .. startedGames .. "/" .. #players .. " players")
+    
+    -- Schedule session cleanup
+    self:ScheduleSessionCleanup()
+end
+
+function ArchwayService:GetSessionPlayerNames(players)
+    local names = {}
+    for _, player in pairs(players) do
+        if player and player.Parent then
+            table.insert(names, player.Name)
+        end
+    end
+    return names
+end
+
+function ArchwayService:ScheduleSessionCleanup()
+    -- Clean up session after 5 minutes
+    spawn(function()
+        wait(300) -- 5 minutes
+        
+        if currentMultiplayerSession then
+            print("🧹 Cleaning up multiplayer session: " .. currentMultiplayerSession.sessionId)
+            currentMultiplayerSession = nil
+        end
+    end)
+end
+
+function ArchwayService:ShowQueueInterface(player)
+    -- Check if player wants to join solo or multiplayer
+    RemoteEvents.ShowGameModeSelection:FireClient(player)
+end
+
+function ArchwayService:StartGameSequence(player, character)
+    local userId = tostring(player.UserId)
+    
+    -- Prevent game start spam
+    if activeGameStarts[userId] and tick() - activeGameStarts[userId] < 5 then
+        return
+    end
+    
+    activeGameStarts[userId] = tick()
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not humanoidRootPart then return end
+    
+    print("🎮 " .. player.Name .. " is starting a new game...")
+    
+    -- Disable player movement
+    humanoid.PlatformStand = true
+    
+    -- Trigger client fade to black
+    RemoteEvents.GameFadeToBlack:FireClient(player)
+    
+    -- Wait for fade
+    wait(1.5)
+    
+    -- Choose random track start position
+    local startPosition = GAME_START_POSITIONS[math.random(1, #GAME_START_POSITIONS)]
+    
+    -- Teleport player to track start
+    humanoidRootPart.CFrame = CFrame.new(startPosition)
+    
+    -- Re-enable movement
+    humanoid.PlatformStand = false
+    
+    -- Start countdown sequence
+    self:StartCountdown(player)
+    
+    print("🚀 " .. player.Name .. " transported to game track!")
+end
+
+function ArchwayService:StartCountdown(player)
+    -- Fade from black
+    RemoteEvents.GameFadeFromBlack:FireClient(player)
+    
+    -- Wait for fade in to complete
+    wait(1)
+    
+    -- Start countdown on client
+    RemoteEvents.GameCountdownStart:FireClient(player)
+    
+    -- Server-side countdown
+    for i = 3, 1, -1 do
+        print("⏰ Countdown for " .. player.Name .. ": " .. i)
+        wait(1)
+    end
+    
+    -- Start the actual game
+    local success = GameService:StartGame(player)
+    if success then
+        print("🎮 Game started for " .. player.Name)
+    else
+        print("❌ Failed to start game for " .. player.Name)
+    end
+    
+    -- Clear countdown state
+    local userId = tostring(player.UserId)
+    activeGameStarts[userId] = nil
+end
+
+function ArchwayService:SetupTriggerDetection()
+    local archway = Workspace.MarketPlaza.GameArchway
+    if not archway then return end
+    
+    local triggerZone = archway:FindFirstChild("TriggerZone")
+    if not triggerZone then
+        warn("Trigger zone not found in archway!")
+        return
+    end
+    
+    -- Setup touch detection
+    local connection
+    connection = triggerZone.Touched:Connect(function(hit)
+        local character = hit.Parent
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local player = Players:GetPlayerFromCharacter(character)
+        
+        if player and humanoid then
+            -- Check if player is coming from the market plaza side
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart and humanoidRootPart.Position.Z > -23 then
+                -- Show game mode selection instead of immediately starting
+                self:ShowQueueInterface(player)
+            end
+        end
+    end)
+    
+    print("🎮 Archway trigger detection setup complete")
+end
+
+function ArchwayService:Initialize()
+    print("🏛️ ArchwayService initializing...")
+    
+    -- Wait for workspace to be ready
+    wait(1)
+    
+    -- Setup archway display and animations
+    self:SetupArchwayDisplay()
+    
+    -- Setup trigger detection
+    self:SetupTriggerDetection()
+    
+    -- Setup remote event handlers for queue system
+    RemoteEvents.JoinSoloGame.OnServerEvent:Connect(function(player)
+        -- Start solo game immediately
+        if player.Character then
+            self:StartGameSequence(player, player.Character)
+        end
+    end)
+    
+    RemoteEvents.JoinMultiplayerQueue.OnServerEvent:Connect(function(player)
+        self:AddPlayerToQueue(player)
+    end)
+    
+    RemoteEvents.LeaveMultiplayerQueue.OnServerEvent:Connect(function(player)
+        self:RemovePlayerFromQueue(player)
+    end)
+    
+    -- Handle player leaving to clean up queue
+    Players.PlayerRemoving:Connect(function(player)
+        self:RemovePlayerFromQueue(player)
+    end)
+    
+    print("✅ ArchwayService initialized successfully!")
+end
+
+-- Auto-initialize when required
+ArchwayService:Initialize()
+
+return ArchwayService
