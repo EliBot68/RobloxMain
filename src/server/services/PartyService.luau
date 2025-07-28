@@ -9,12 +9,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 
-local PlayerService = require(script.Parent.PlayerService)
-local GameService = require(script.Parent.GameService)
-local LevelingService = require(script.Parent.LevelingService)
-local QuestService = require(script.Parent.QuestService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local GameService = SafeRequire.require(script.Parent.GameService)
+local LevelingService = SafeRequire.require(script.Parent.LevelingService)
+local QuestService = SafeRequire.require(script.Parent.QuestService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local GameConstants = SafeRequire.require(ReplicatedStorage.Shared.constants.GameConstants)
 
 local PartyService = {}
 

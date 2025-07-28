@@ -7,8 +7,9 @@ local DataStoreService = game:GetService("DataStoreService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.PlayerService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local QuestService = {}
 
