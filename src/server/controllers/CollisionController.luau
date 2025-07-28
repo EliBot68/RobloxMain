@@ -146,6 +146,18 @@ local Events = {}
 function CollisionController:Initialize()
     print("💥 Initializing Collision Controller...")
     
+    -- Get AnalyticsService reference
+    local success, analyticsService = pcall(function()
+        return require(script.Parent.Parent.services.AnalyticsService)
+    end)
+    
+    if success then
+        self.AnalyticsService = analyticsService
+        print("📊 CollisionController: AnalyticsService connected")
+    else
+        warn("⚠️ CollisionController: Could not connect to AnalyticsService")
+    end
+    
     -- Setup events
     self:SetupRemoteEvents()
     
@@ -185,6 +197,14 @@ function CollisionController:SetupRemoteEvents()
     Events.CollectibleCollected = self:CreateEvent("CollectibleCollected", eventsFolder)
     Events.CheckpointReached = self:CreateEvent("CheckpointReached", eventsFolder)
     Events.ObstacleHit = self:CreateEvent("ObstacleHit", eventsFolder)
+    
+    -- Screen Effects Events
+    Events.TriggerScreenShake = self:CreateEvent("TriggerScreenShake", eventsFolder)
+    Events.TriggerFlashEffect = self:CreateEvent("TriggerFlashEffect", eventsFolder)
+    Events.TriggerFOVZoom = self:CreateEvent("TriggerFOVZoom", eventsFolder)
+    Events.TriggerJumpEffect = self:CreateEvent("TriggerJumpEffect", eventsFolder)
+    Events.TriggerSpeedBoostEffect = self:CreateEvent("TriggerSpeedBoostEffect", eventsFolder)
+    Events.TriggerColorMismatchEffect = self:CreateEvent("TriggerColorMismatchEffect", eventsFolder)
     
     -- Setup client request handlers
     Events.RequestColorChange = self:CreateEvent("RequestColorChange", eventsFolder)
@@ -576,6 +596,10 @@ function CollisionController:ProcessObstacleCollision(player, collisionInfo)
             perfectMatch = true
             damage = 0 -- No damage for perfect color match
             
+            -- Perfect color match screen effects
+            Events.TriggerFlashEffect:FireClient(player, Color3.fromRGB(100, 255, 100), 0.2, 0.3) -- Green flash
+            Events.TriggerScreenShake:FireClient(player, 0.1, 0.2) -- Light shake for satisfaction
+            
             -- Potential healing for perfect matches
             if COLLISION_CONFIG.perfectColorMatchHealing > 0 then
                 self:HealPlayer(player, COLLISION_CONFIG.perfectColorMatchHealing)
@@ -587,6 +611,14 @@ function CollisionController:ProcessObstacleCollision(player, collisionInfo)
         else
             colorMatch = false
             damage = COLLISION_CONFIG.colorMismatchDamage
+            
+            -- Color mismatch screen effects
+            Events.TriggerColorMismatchEffect:FireClient(player, {
+                playerColor = playerData.currentColor,
+                obstacleColor = collisionInfo.color,
+                intensity = 0.6
+            })
+            
             playerData.colorMismatches = playerData.colorMismatches + 1
             performanceMetrics.colorMismatches = performanceMetrics.colorMismatches + 1
         end
@@ -600,6 +632,32 @@ function CollisionController:ProcessObstacleCollision(player, collisionInfo)
         self:DamagePlayer(player, damage, "obstacle", collisionInfo)
         playerData.statistics.obstaclesHit = playerData.statistics.obstaclesHit + 1
         playerData.statistics.totalDamageDealt = playerData.statistics.totalDamageDealt + damage
+    end
+    
+    -- Analytics tracking for obstacle hits
+    if self.AnalyticsService then
+        self.AnalyticsService:TrackEvent(player, "obstacle_hit", {
+            obstacleType = collisionInfo.objectName or "unknown",
+            obstacleColor = collisionInfo.color,
+            playerColor = playerData.currentColor,
+            damage = damage,
+            colorMatch = colorMatch,
+            perfectMatch = perfectMatch,
+            position = {
+                x = math.floor(collisionInfo.position.X),
+                y = math.floor(collisionInfo.position.Y),
+                z = math.floor(collisionInfo.position.Z)
+            },
+            playerHealth = playerData.health,
+            playerLives = playerData.lives,
+            playerScore = playerData.score,
+            gameTime = gameStartTime and (tick() - gameStartTime) or 0,
+            sessionId = gameSession and gameSession.id or "no_session",
+            totalObstaclesHit = playerData.statistics.obstaclesHit,
+            perfectColorMatches = playerData.statistics.perfectColorMatches,
+            hitSequence = playerData.statistics.obstaclesHit, -- For pattern analysis
+            isInvincible = playerData.isInvincible
+        })
     end
     
     -- Trigger visual and audio effects
@@ -633,6 +691,26 @@ function CollisionController:ProcessCollectibleCollision(player, collisionInfo)
     end
     
     playerData.statistics.collectiblesCollected = playerData.statistics.collectiblesCollected + 1
+    
+    -- Analytics tracking for collectible collection
+    if self.AnalyticsService then
+        self.AnalyticsService:TrackEvent(player, "collectible_collected", {
+            collectibleType = collisionInfo.objectName or "unknown",
+            collectibleValue = collisionInfo.type.healing or 0,
+            position = {
+                x = math.floor(collisionInfo.position.X),
+                y = math.floor(collisionInfo.position.Y),
+                z = math.floor(collisionInfo.position.Z)
+            },
+            playerHealth = playerData.health,
+            playerLives = playerData.lives,
+            playerScore = playerData.score,
+            totalCollected = playerData.statistics.collectiblesCollected,
+            gameTime = gameStartTime and (tick() - gameStartTime) or 0,
+            sessionId = gameSession and gameSession.id or "no_session",
+            collectionRate = playerData.statistics.collectiblesCollected / math.max(1, playerData.statistics.obstaclesHit + playerData.statistics.collectiblesCollected)
+        })
+    end
     
     -- Remove collectible from world
     if collisionInfo.object and collisionInfo.object.Parent then
@@ -719,6 +797,23 @@ function CollisionController:DamagePlayer(player, damage, source, collisionInfo)
     -- Update humanoid health
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.Health = playerData.health
+    end
+    
+    -- Trigger screen effects based on damage type
+    if source == "obstacle" then
+        -- Collision screen shake based on damage intensity
+        local shakeIntensity = math.min(0.8, damage / 50) -- Scale with damage
+        Events.TriggerScreenShake:FireClient(player, shakeIntensity, 0.5)
+        
+        -- Flash effect for obstacle hit
+        local flashColor = Color3.fromRGB(255, 100, 100) -- Red flash
+        Events.TriggerFlashEffect:FireClient(player, flashColor, 0.3, 0.2)
+        
+    elseif source == "hazard" then
+        -- More intense effects for hazards
+        Events.TriggerScreenShake:FireClient(player, 0.6, 0.8)
+        local flashColor = Color3.fromRGB(255, 50, 50) -- Bright red flash
+        Events.TriggerFlashEffect:FireClient(player, flashColor, 0.5, 0.3)
     end
     
     -- Fire health changed event
@@ -954,8 +1049,8 @@ function CollisionController:ApplyColorToCharacter(player, character, colorName)
                 end
                 
                 pointLight.Color = colorData.color3
-                pointLight.Brightness = 0.5
-                pointLight.Range = 10
+                pointLight.Brightness = 0.3  -- Reduced for professional look
+                pointLight.Range = 8  -- Reduced range for better performance
             else
                 -- Remove glow for neutral
                 local pointLight = part:FindFirstChild("ColorLight")

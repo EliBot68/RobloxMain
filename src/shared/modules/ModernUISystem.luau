@@ -237,7 +237,9 @@ local BACKGROUND_STYLES = {
             UI_DESIGN.colors.secondary,
             UI_DESIGN.colors.primaryDark
         },
-        gradientRotation = 45
+        gradientRotation = 45,
+        backgroundColor = UI_DESIGN.colors.primary,
+        backgroundTransparency = 0
     },
     
     gameHUD = {
@@ -247,6 +249,57 @@ local BACKGROUND_STYLES = {
         backgroundTransparency = 0.3,
         blurEnabled = true
     },
+    
+    -- Additional styles needed for migration
+    menu = {
+        name = "MenuBackground",
+        description = "General menu background",
+        backgroundColor = UI_DESIGN.colors.backgroundMedium,
+        backgroundTransparency = 0.15,
+        gradientColors = {
+            UI_DESIGN.colors.backgroundMedium,
+            UI_DESIGN.colors.backgroundDark
+        },
+        gradientRotation = 90
+    },
+    
+    game = {
+        name = "GameBackground", 
+        description = "In-game UI background",
+        backgroundColor = UI_DESIGN.colors.backgroundDark,
+        backgroundTransparency = 0.3,
+        borderColor = UI_DESIGN.colors.primary,
+        shadowEnabled = false
+    },
+    
+    default = {
+        name = "DefaultBackground",
+        description = "Default frame background",
+        backgroundColor = UI_DESIGN.colors.white,
+        backgroundTransparency = 0.1,
+        borderColor = UI_DESIGN.colors.light,
+        shadowEnabled = false
+    },
+    
+    modal = {
+        name = "ModalBackground",
+        description = "Modal dialog background",
+        backgroundColor = UI_DESIGN.colors.backgroundMedium,
+        backgroundTransparency = 0.1,
+        overlayColor = UI_DESIGN.colors.black,
+        overlayTransparency = 0.5,
+        borderColor = UI_DESIGN.colors.primary
+    },
+    
+    card = {
+        name = "CardBackground",
+        description = "Card/panel background",
+        backgroundColor = UI_DESIGN.colors.white,
+        backgroundTransparency = 0.05,
+        borderColor = UI_DESIGN.colors.light,
+        shadowEnabled = true
+    }
+}
     
     modal = {
         name = "ModalBackground",
@@ -669,6 +722,158 @@ end
 
 function ModernUISystem.getBackgroundStyle(styleName)
     return BACKGROUND_STYLES[styleName] or BACKGROUND_STYLES.card
+end
+
+-- Additional required functions for UIPlaceholderMigration
+function ModernUISystem.replaceUIElement(oldElement, newConfig)
+    -- Replace an existing UI element with a modern equivalent
+    local parent = oldElement.Parent
+    if not parent then return nil end
+    
+    local elementType = oldElement.ClassName
+    local newElement = nil
+    
+    if elementType == "TextButton" or elementType == "ImageButton" then
+        newElement = ModernUISystem.createModernButton({
+            name = oldElement.Name,
+            text = oldElement.Text or "Button",
+            style = newConfig.style or "primary",
+            size = oldElement.Size,
+            position = oldElement.Position
+        })
+    elseif elementType == "Frame" then
+        newElement = ModernUISystem.createModernFrame({
+            name = oldElement.Name,
+            style = newConfig.style or "default",
+            size = oldElement.Size,
+            position = oldElement.Position
+        })
+    elseif elementType == "ImageLabel" then
+        newElement = ModernUISystem.createIconButton({
+            name = oldElement.Name,
+            icon = newConfig.icon or "star",
+            style = "minimal",
+            size = oldElement.Size,
+            position = oldElement.Position
+        })
+    else
+        -- Default frame replacement for unknown types
+        newElement = ModernUISystem.createModernFrame({
+            name = oldElement.Name,
+            style = "default",
+            size = oldElement.Size,
+            position = oldElement.Position
+        })
+    end
+    
+    if newElement then
+        -- Copy common properties
+        newElement.Visible = oldElement.Visible
+        newElement.ZIndex = oldElement.ZIndex
+        if oldElement:GetAttribute("LayoutOrder") then
+            newElement.LayoutOrder = oldElement.LayoutOrder
+        end
+        
+        -- Move children to new element
+        for _, child in pairs(oldElement:GetChildren()) do
+            if not child:IsA("UICorner") and not child:IsA("UIGradient") and not child:IsA("UIStroke") then
+                child.Parent = newElement
+            end
+        end
+        
+        -- Replace in parent
+        newElement.Parent = parent
+        oldElement:Destroy()
+    end
+    
+    return newElement
+end
+
+function ModernUISystem.enhanceExistingElement(element, config)
+    -- Enhance an existing element with modern styling without replacing it
+    config = config or {}
+    
+    if element:IsA("TextButton") then
+        -- Apply modern button styling
+        element.Font = Enum.Font.GothamBold
+        element.BorderSizePixel = 0
+        
+        -- Add corner radius if not present
+        if not element:FindFirstChildOfClass("UICorner") then
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, UI_DESIGN.radius.md)
+            corner.Parent = element
+        end
+        
+        -- Apply color scheme
+        local style = BUTTON_STYLES[config.style or "primary"]
+        element.BackgroundColor3 = style.backgroundColor
+        element.TextColor3 = style.textColor
+        
+    elseif element:IsA("Frame") then
+        -- Apply modern frame styling
+        element.BorderSizePixel = 0
+        
+        -- Add corner radius if not present
+        if not element:FindFirstChildOfClass("UICorner") then
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, UI_DESIGN.radius.lg)
+            corner.Parent = element
+        end
+        
+    elseif element:IsA("TextLabel") then
+        -- Apply modern text styling
+        if element.Font == Enum.Font.Legacy or element.Font == Enum.Font.Arial then
+            element.Font = UI_DESIGN.fonts.body
+        end
+        
+        -- Improve text readability
+        if config.addStroke then
+            element.TextStrokeTransparency = 0.8
+            element.TextStrokeColor3 = Color3.new(0, 0, 0)
+        end
+    end
+    
+    -- Mark as processed
+    element:SetAttribute("ModernUI_Enhanced", true)
+    
+    return element
+end
+
+function ModernUISystem.createProductionReadyElement(elementType, config)
+    -- Create production-ready elements with no placeholder content
+    config = config or {}
+    
+    if elementType == "button" then
+        return ModernUISystem.createModernButton({
+            name = config.name or "ProductionButton",
+            text = config.text or "Action",
+            style = config.style or "primary",
+            size = config.size or UDim2.new(0, 200, 0, 50),
+            position = config.position or UDim2.new(0, 0, 0, 0)
+        })
+        
+    elseif elementType == "frame" then
+        return ModernUISystem.createModernFrame({
+            name = config.name or "ProductionFrame",
+            style = config.style or "default",
+            size = config.size or UDim2.new(0, 300, 0, 200),
+            position = config.position or UDim2.new(0, 0, 0, 0)
+        })
+        
+    elseif elementType == "icon" then
+        return ModernUISystem.createIconButton({
+            name = config.name or "ProductionIcon",
+            icon = config.icon or "star",
+            style = "minimal",
+            size = config.size or UDim2.new(0, 50, 0, 50),
+            position = config.position or UDim2.new(0, 0, 0, 0)
+        })
+        
+    else
+        warn("Unknown element type for production creation: " .. tostring(elementType))
+        return nil
+    end
 end
 
 return ModernUISystem

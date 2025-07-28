@@ -178,6 +178,59 @@ function ScreenEffectsController:ConnectToGameEvents()
                 self:TriggerScreenShake(intensity, duration)
             end)
         end
+        
+        -- NEW SCREEN EFFECT EVENTS
+        
+        -- Trigger Screen Shake (from CollisionController)
+        local triggerShakeEvent = gameEvents:WaitForChild("TriggerScreenShake", 5)
+        if triggerShakeEvent then
+            triggerShakeEvent.OnClientEvent:Connect(function(intensity, duration)
+                self:TriggerScreenShake(intensity, duration)
+            end)
+        end
+        
+        -- Trigger Flash Effect (from CollisionController)
+        local triggerFlashEvent = gameEvents:WaitForChild("TriggerFlashEffect", 5)
+        if triggerFlashEvent then
+            triggerFlashEvent.OnClientEvent:Connect(function(color, intensity, duration)
+                self:TriggerFlashEffect(color, intensity, duration)
+            end)
+        end
+        
+        -- Trigger FOV Zoom (from PlayerMovementController)
+        local triggerFOVZoomEvent = gameEvents:WaitForChild("TriggerFOVZoom", 5)
+        if triggerFOVZoomEvent then
+            triggerFOVZoomEvent.OnClientEvent:Connect(function(intensity, duration)
+                self:TriggerFOVZoom(intensity, duration)
+            end)
+        end
+        
+        -- Trigger Jump Effect (from PlayerMovementController)
+        local triggerJumpEvent = gameEvents:WaitForChild("TriggerJumpEffect", 5)
+        if triggerJumpEvent then
+            triggerJumpEvent.OnClientEvent:Connect(function(jumpType, jumpPower)
+                self:TriggerJumpEffect(jumpPower)
+                if jumpType == "air" then
+                    self:TriggerJumpAnticipation()
+                end
+            end)
+        end
+        
+        -- Trigger Speed Boost Effect (from PlayerMovementController)
+        local triggerSpeedBoostEvent = gameEvents:WaitForChild("TriggerSpeedBoostEffect", 5)
+        if triggerSpeedBoostEvent then
+            triggerSpeedBoostEvent.OnClientEvent:Connect(function(duration)
+                self:TriggerSpeedBoostEffect(duration)
+            end)
+        end
+        
+        -- Trigger Color Mismatch Effect (from CollisionController)
+        local triggerColorMismatchEvent = gameEvents:WaitForChild("TriggerColorMismatchEffect", 5)
+        if triggerColorMismatchEvent then
+            triggerColorMismatchEvent.OnClientEvent:Connect(function(effectData)
+                self:TriggerColorMismatchEffect(effectData)
+            end)
+        end
     end
     
     -- Listen for local player character events
@@ -774,6 +827,120 @@ function ScreenEffectsController:ResetDeathEffects()
     blurTween:Play()
     
     isDeathActive = false
+end
+
+-- NEW SCREEN EFFECT FUNCTIONS
+
+function ScreenEffectsController:TriggerFOVZoom(intensity, duration)
+    if not camera then return end
+    
+    local targetFOV = originalFOV * (1 + intensity) -- Zoom effect
+    duration = duration or 0.5
+    
+    print(string.format("🔍 FOV Zoom: %d → %d for %.1fs", originalFOV, targetFOV, duration))
+    
+    -- Zoom in
+    local zoomInTween = TweenService:Create(
+        camera,
+        TweenInfo.new(
+            duration * 0.3, -- Quick zoom in
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.Out
+        ),
+        {FieldOfView = targetFOV}
+    )
+    
+    -- Zoom back out
+    local zoomOutTween = TweenService:Create(
+        camera,
+        TweenInfo.new(
+            duration * 0.7, -- Slower zoom out
+            Enum.EasingStyle.Quart,
+            Enum.EasingDirection.InOut
+        ),
+        {FieldOfView = originalFOV}
+    )
+    
+    zoomInTween:Play()
+    zoomInTween.Completed:Connect(function()
+        zoomOutTween:Play()
+    end)
+end
+
+function ScreenEffectsController:TriggerColorMismatchEffect(effectData)
+    local playerColor = effectData.playerColor
+    local obstacleColor = effectData.obstacleColor
+    local intensity = effectData.intensity or 0.5
+    
+    print(string.format("⚠️ Color Mismatch: %s vs %s", playerColor, obstacleColor))
+    
+    -- Flash red for color mismatch
+    self:TriggerFlashEffect(Color3.fromRGB(255, 50, 50), intensity, 0.3)
+    
+    -- Screen shake for emphasis
+    self:TriggerScreenShake(intensity * 0.6, 0.4)
+    
+    -- Create color mismatch visual indicator
+    local indicator = Instance.new("Frame")
+    indicator.Name = "ColorMismatchIndicator"
+    indicator.Size = UDim2.new(0.4, 0, 0.1, 0)
+    indicator.Position = UDim2.new(0.3, 0, 0.1, 0)
+    indicator.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    indicator.BorderSizePixel = 0
+    indicator.Parent = effectsGui
+    
+    -- Add text
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = string.format("COLOR MISMATCH!\n%s ≠ %s", playerColor, obstacleColor)
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Parent = indicator
+    
+    -- Animate indicator
+    indicator.BackgroundTransparency = 1
+    textLabel.TextTransparency = 1
+    
+    local appearTween = TweenService:Create(
+        indicator,
+        TweenInfo.new(0.1, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        {BackgroundTransparency = 0.2}
+    )
+    
+    local textAppearTween = TweenService:Create(
+        textLabel,
+        TweenInfo.new(0.1, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        {TextTransparency = 0}
+    )
+    
+    appearTween:Play()
+    textAppearTween:Play()
+    
+    -- Remove after duration
+    spawn(function()
+        wait(1.5)
+        
+        local disappearTween = TweenService:Create(
+            indicator,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+            {BackgroundTransparency = 1}
+        )
+        
+        local textDisappearTween = TweenService:Create(
+            textLabel,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+            {TextTransparency = 1}
+        )
+        
+        disappearTween:Play()
+        textDisappearTween:Play()
+        
+        disappearTween.Completed:Connect(function()
+            indicator:Destroy()
+        end)
+    end)
 end
 
 -- PUBLIC API METHODS

@@ -261,6 +261,7 @@ function TrackGeneratorService:GenerateTrack(config)
     self:GenerateTrackBoundaries(track)
     self:GenerateObstacles(track)
     self:GenerateCollectibles(track)
+    self:GenerateMovingObstacles(track) -- NEW: Moving obstacles integration
     self:GenerateStartFinishLines(track)
     self:GenerateTrackEffects(track)
     
@@ -601,12 +602,12 @@ function TrackGeneratorService:CreateObstacle(templateName, options)
         obstacle.Color = options.color
     end
     
-    -- Add visual effects
+    -- Add visual effects with professional brightness
     if template.material == Enum.Material.Neon then
         local pointLight = Instance.new("PointLight")
-        pointLight.Brightness = 1
+        pointLight.Brightness = 0.6  -- Reduced for professional look
         pointLight.Color = obstacle.Color
-        pointLight.Range = 15
+        pointLight.Range = 12  -- Slightly reduced range
         pointLight.Parent = obstacle
     end
     
@@ -707,11 +708,11 @@ function TrackGeneratorService:CreateCollectible(templateName, options)
     collectible.Position = options.position
     collectible.Color = template.color
     
-    -- Add glowing effect
+    -- Add glowing effect with professional brightness
     local pointLight = Instance.new("PointLight")
-    pointLight.Brightness = 2
+    pointLight.Brightness = 0.8  -- Reduced for professional look
     pointLight.Color = template.color
-    pointLight.Range = 20
+    pointLight.Range = 15  -- Reduced range for better performance
     pointLight.Parent = collectible
     
     -- Add collection handling
@@ -779,11 +780,11 @@ function TrackGeneratorService:GenerateStartFinishLines(track)
     startLine.BrickColor = BrickColor.new("Bright green")
     startLine.Transparency = 0.3
     
-    -- Add start line effects
+    -- Add start line effects with professional brightness
     local startLight = Instance.new("PointLight")
-    startLight.Brightness = 3
-    startLight.Color = Color3.fromRGB(0, 255, 0)
-    startLight.Range = 30
+    startLight.Brightness = 1.2  -- Reduced for professional look
+    startLight.Color = Color3.fromRGB(80, 180, 80)  -- Muted green
+    startLight.Range = 20  -- Reduced range
     startLight.Parent = startLine
     
     startLine:SetAttribute("TrackId", track.id)
@@ -807,11 +808,11 @@ function TrackGeneratorService:GenerateStartFinishLines(track)
     finishLine.BrickColor = BrickColor.new("Bright red")
     finishLine.Transparency = 0.3
     
-    -- Add finish line effects
+    -- Add finish line effects with professional brightness
     local finishLight = Instance.new("PointLight")
-    finishLight.Brightness = 3
-    finishLight.Color = Color3.fromRGB(255, 0, 0)
-    finishLight.Range = 30
+    finishLight.Brightness = 1.2  -- Reduced for professional look
+    finishLight.Color = Color3.fromRGB(180, 60, 60)  -- Muted red
+    finishLight.Range = 20  -- Reduced range
     finishLight.Parent = finishLine
     
     -- Add finish line detection
@@ -853,11 +854,11 @@ function TrackGeneratorService:GenerateTrackEffects(track)
         checkpoint.BrickColor = BrickColor.new("Bright blue")
         checkpoint.Transparency = 0.7
         
-        -- Add checkpoint light
+        -- Add checkpoint light with professional brightness
         local checkpointLight = Instance.new("PointLight")
-        checkpointLight.Brightness = 1.5
-        checkpointLight.Color = Color3.fromRGB(0, 0, 255)
-        checkpointLight.Range = 25
+        checkpointLight.Brightness = 0.8  -- Reduced for professional look
+        checkpointLight.Color = Color3.fromRGB(60, 120, 200)  -- Muted blue
+        checkpointLight.Range = 18  -- Reduced range
         checkpointLight.Parent = checkpoint
         
         -- Add checkpoint detection
@@ -1108,6 +1109,120 @@ function TrackGeneratorService:GenerateMazeTrack(complexity)
     }
     
     return self:GenerateTrack(config)
+end
+
+function TrackGeneratorService:GenerateMovingObstacles(track)
+    if not track or not track.config then
+        warn("TrackGeneratorService:GenerateMovingObstacles - Invalid track provided")
+        return
+    end
+    
+    local config = track.config
+    local difficulty = config.difficulty or 1
+    
+    -- Calculate moving obstacle placement based on track segments
+    local segmentLength = 80 -- Place moving obstacles every 80 studs
+    local segmentCount = math.floor(config.length / segmentLength)
+    local maxObstacles = math.min(segmentCount, difficulty * 3) -- Max obstacles based on difficulty
+    
+    -- Get MovingObstacleService for obstacle generation
+    local MovingObstacleService = require(script.Parent.MovingObstacleService)
+    
+    print(string.format("🔄 Generating moving obstacles for track %s (difficulty: %d)", track.id, difficulty))
+    
+    -- Get preset configurations
+    local presets = MovingObstacleService:GetPresetConfigs()
+    if not presets then
+        warn("❌ No preset configurations available")
+        return
+    end
+    
+    -- Create obstacle configurations for track
+    local obstacleConfigs = {}
+    local obstacleTypes = {"horizontalSlider", "circularSpinner", "verticalPendulum"}
+    
+    -- Add more complex patterns for higher difficulty
+    if difficulty >= 2 then
+        table.insert(obstacleTypes, "figureEightWeaver")
+    end
+    if difficulty >= 3 then
+        table.insert(obstacleTypes, "randomRoamer")
+        table.insert(obstacleTypes, "waypointPatroller")
+    end
+    
+    for i = 1, maxObstacles do
+        -- Skip first and last segments to avoid spawn/finish areas
+        local segmentIndex = math.random(2, segmentCount - 1)
+        local segmentZ = config.position.Z + (segmentIndex * segmentLength) + math.random(-15, 15)
+        
+        -- Calculate position within track bounds
+        local trackHalfWidth = config.width / 2
+        local segmentX = config.position.X + math.random(-trackHalfWidth + 15, trackHalfWidth - 15)
+        local segmentY = config.position.Y + 8 + math.random(0, 5)
+        
+        -- Choose random obstacle type from available patterns
+        local obstacleType = obstacleTypes[math.random(1, #obstacleTypes)]
+        local presetConfig = presets[obstacleType]
+        
+        if presetConfig then
+            -- Customize the preset for this track segment
+            local customConfig = table.clone(presetConfig)
+            
+            -- Adjust movement bounds based on track width
+            local boundsScale = config.width / 60 -- Scale to track width
+            if customConfig.movementBounds then
+                customConfig.movementBounds.min = customConfig.movementBounds.min * boundsScale
+                customConfig.movementBounds.max = customConfig.movementBounds.max * boundsScale
+            end
+            
+            -- Increase speed with difficulty
+            if customConfig.speed then
+                customConfig.speed = customConfig.speed * (1 + difficulty * 0.3)
+            end
+            
+            -- Add position and metadata to config
+            table.insert(obstacleConfigs, {
+                position = Vector3.new(segmentX, segmentY, segmentZ),
+                config = customConfig,
+                trackId = track.id,
+                segmentIndex = segmentIndex
+            })
+            
+            print(string.format("📍 Planned moving obstacle %d: %s at segment %d", 
+                i, obstacleType, segmentIndex))
+        else
+            warn(string.format("❌ Preset config not found for obstacle type: %s", obstacleType))
+        end
+    end
+    
+    -- Create track obstacles using MovingObstacleService
+    local trackId = track.id .. "_moving"
+    local success, createdObstacles = pcall(function()
+        return MovingObstacleService:CreateTrackObstacles(trackId, obstacleConfigs)
+    end)
+    
+    if success and createdObstacles and #createdObstacles > 0 then
+        -- Start all obstacles after creation
+        MovingObstacleService:StartTrackObstacles(trackId)
+        
+        -- Store moving obstacle track ID for cleanup
+        track.movingObstacleTrack = trackId
+        
+        -- Tag all created obstacles for track association
+        for _, obstacle in ipairs(createdObstacles) do
+            if obstacle and obstacle.Parent then
+                obstacle:SetAttribute("TrackId", track.id)
+                obstacle:SetAttribute("GeneratedTrack", true)
+                obstacle:SetAttribute("MovingObstacle", true)
+            end
+        end
+        
+        print(string.format("✅ Successfully generated %d moving obstacles for track %s", 
+            #createdObstacles, track.id))
+    else
+        warn(string.format("❌ Failed to create moving obstacles for track %s: %s", 
+            track.id, tostring(createdObstacles)))
+    end
 end
 
 return TrackGeneratorService

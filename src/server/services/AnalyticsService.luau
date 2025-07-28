@@ -101,6 +101,11 @@ function AnalyticsService:LogEvent(player, eventType, eventData)
     end
 end
 
+-- Alias for compatibility with existing code
+function AnalyticsService:TrackEvent(player, eventType, eventData)
+    return self:LogEvent(player, eventType, eventData)
+end
+
 function AnalyticsService:GetPlayerSessionId(player)
     if playerAnalytics[player.UserId] then
         return playerAnalytics[player.UserId].sessionId
@@ -144,7 +149,12 @@ function AnalyticsService:OnPlayerJoined(player)
         runDifficulty = {}, -- Track perceived difficulty per run
         interactionCount = 0, -- Total UI interactions
         timeInMenus = 0, -- Time spent in shop/settings
-        purchaseAttempts = 0 -- Number of purchase attempts (successful or failed)
+        purchaseAttempts = 0, -- Number of purchase attempts (successful or failed)
+        -- New fields for enhanced position and run tracking
+        currentPosition = nil, -- Real-time position in current run
+        currentRunStartTime = nil, -- When current run started
+        currentRunStartPosition = 0, -- Starting position of current run
+        barriersInCurrentRun = 0 -- Barriers cleared in current run
     }
     
     -- Check gamepass ownership for monetization tracking
@@ -567,6 +577,9 @@ function AnalyticsService:TrackBarrierAttempt(player, barrierPosition, barrierCo
                 metrics.barrierFailsByType[key] = {total = 0, failures = 0}
             end
             metrics.barrierFailsByType[key].total = metrics.barrierFailsByType[key].total + 1
+            
+            -- Update current run barrier count for successful attempts
+            metrics.barriersInCurrentRun = (metrics.barriersInCurrentRun or 0) + 1
         end
     end
     
@@ -632,6 +645,103 @@ function AnalyticsService:TrackGamepassUsage(player, gamepassType, action)
 end
 
 -- Helper functions for tracking
+function AnalyticsService:TrackColorSwitchTiming(player, reactionTimeMs)
+    -- Track color switch reaction time for analytics
+    if not difficultyMetrics[player.UserId] then
+        difficultyMetrics[player.UserId] = {
+            barriersByPosition = {},
+            colorSwitchSpeed = {},
+            failurePatterns = {},
+            learningCurve = {},
+        }
+    end
+    
+    local playerMetrics = difficultyMetrics[player.UserId]
+    table.insert(playerMetrics.colorSwitchSpeed, reactionTimeMs)
+    
+    -- Keep only last 20 reaction times to prevent memory bloat
+    if #playerMetrics.colorSwitchSpeed > 20 then
+        table.remove(playerMetrics.colorSwitchSpeed, 1)
+    end
+    
+    -- Log analytics event for color switch
+    self:LogEvent(player, "COLOR_SWITCH", {
+        reactionTime = reactionTimeMs,
+        averageReaction = self:CalculateReactionTime(player),
+        switchCount = #playerMetrics.colorSwitchSpeed
+    })
+end
+
+function AnalyticsService:TrackRunStart(player, currentPosition)
+    -- Track when player starts a run and their starting position
+    local metrics = sessionMetrics[player.UserId]
+    if metrics then
+        metrics.firstRunStarted = true
+        metrics.currentRunStartTime = os.time()
+        metrics.currentRunStartPosition = currentPosition or 0
+    end
+    
+    self:LogEvent(player, EventTypes.RUN_START, {
+        startPosition = currentPosition or 0,
+        sessionTime = os.time() - (playerAnalytics[player.UserId] and playerAnalytics[player.UserId].sessionStart or os.time()),
+        runNumber = metrics and (metrics.runsCompleted + 1) or 1
+    })
+end
+
+function AnalyticsService:TrackRunProgress(player, currentPosition, barriersCleared)
+    -- Track ongoing run progress for position analytics
+    local metrics = sessionMetrics[player.UserId]
+    if metrics then
+        metrics.currentPosition = currentPosition
+        metrics.barriersInCurrentRun = barriersCleared or 0
+    end
+end
+
+function AnalyticsService:TrackRunEnd(player, finalPosition, coins, runTime)
+    -- Track when a run ends and reset tracking data
+    local metrics = sessionMetrics[player.UserId]
+    if metrics then
+        -- Record run completion
+        metrics.runsCompleted = metrics.runsCompleted + 1
+        
+        -- Add coins to totals and per-run tracking
+        metrics.totalCoinsEarned = metrics.totalCoinsEarned + (coins or 0)
+        table.insert(metrics.coinsPerRun, coins or 0)
+        
+        -- Track run length and time
+        local runLength = finalPosition or self:GetCurrentRunPosition(player)
+        metrics.totalRunTime = metrics.totalRunTime + (runTime or 0)
+        
+        if runLength > metrics.longestRun then
+            metrics.longestRun = runLength
+        end
+        if runLength < metrics.shortestRun then
+            metrics.shortestRun = runLength
+        end
+        
+        -- Check if it was a perfect run
+        if metrics.barriersInCurrentRun > 0 and metrics.totalBarriersFailed == 0 then
+            metrics.perfectRuns = metrics.perfectRuns + 1
+        end
+        
+        -- Reset current run tracking
+        metrics.currentPosition = nil
+        metrics.currentRunStartTime = nil
+        metrics.currentRunStartPosition = 0
+        metrics.barriersInCurrentRun = 0
+        
+        -- Log run end event
+        self:LogEvent(player, EventTypes.RUN_END, {
+            finalPosition = runLength,
+            coinsEarned = coins or 0,
+            runTime = runTime or 0,
+            barriersCleared = metrics.barriersInCurrentRun,
+            isPerfectRun = self:WasPerfectRun(player),
+            totalRuns = metrics.runsCompleted
+        })
+    end
+end
+
 function AnalyticsService:GetPlayerColor(player)
     -- Get current player color from PlayerService
     local PlayerService = nil
@@ -645,15 +755,82 @@ function AnalyticsService:GetPlayerColor(player)
 end
 
 function AnalyticsService:CalculateReactionTime(player)
-    -- Calculate reaction time for barrier changes
-    -- This would need integration with the game timing system
-    return math.random(200, 800) -- Placeholder for demo
+    -- Calculate reaction time for barrier changes based on player's color switch timing
+    local difficultyData = difficultyMetrics[player.UserId]
+    if not difficultyData or not difficultyData.colorSwitchSpeed or #difficultyData.colorSwitchSpeed == 0 then
+        -- If no timing data available, return default fast reaction time (300ms)
+        return 300
+    end
+    
+    -- Calculate average reaction time from recent color switches
+    local recentSwitches = {}
+    local maxSamples = 10 -- Use last 10 color switches for calculation
+    
+    for i = math.max(1, #difficultyData.colorSwitchSpeed - maxSamples + 1), #difficultyData.colorSwitchSpeed do
+        table.insert(recentSwitches, difficultyData.colorSwitchSpeed[i])
+    end
+    
+    if #recentSwitches == 0 then
+        return 350 -- Default reaction time
+    end
+    
+    -- Calculate weighted average (more recent switches have higher weight)
+    local totalWeight = 0
+    local weightedSum = 0
+    
+    for i, reactionTime in pairs(recentSwitches) do
+        local weight = i / #recentSwitches -- More recent = higher weight
+        weightedSum = weightedSum + (reactionTime * weight)
+        totalWeight = totalWeight + weight
+    end
+    
+    local averageReaction = math.floor(weightedSum / totalWeight)
+    
+    -- Clamp to realistic ranges (150ms to 1000ms)
+    return math.max(150, math.min(1000, averageReaction))
 end
 
 function AnalyticsService:GetCurrentRunPosition(player)
-    -- Get current position in the run
-    -- This would integrate with the GameService
-    return 0 -- Placeholder for demo
+    -- Get current position in the run based on detailed tracking data
+    local metrics = sessionMetrics[player.UserId]
+    if not metrics then
+        return 0 -- Player not in a tracked session
+    end
+    
+    -- If we have real-time position tracking from TrackRunProgress
+    if metrics.currentPosition then
+        return metrics.currentPosition
+    end
+    
+    -- If player is currently in a run, calculate position from barriers attempted
+    if metrics.totalBarriersAttempted > 0 and metrics.firstRunStarted then
+        -- Calculate current run barriers (total minus previous runs)
+        local barriersInCurrentRun = metrics.barriersInCurrentRun or 0
+        
+        -- Each barrier represents roughly 50 units of distance in the run
+        local basePosition = barriersInCurrentRun * 50
+        
+        -- Add starting position if available
+        local startPosition = metrics.currentRunStartPosition or 0
+        local currentPosition = startPosition + basePosition
+        
+        -- Add some variance based on success rate (better players go further faster)
+        local successRate = metrics.totalBarriersFailed > 0 and 
+            (1 - (metrics.totalBarriersFailed / metrics.totalBarriersAttempted)) or 1
+        
+        -- Bonus distance for high success rate players (up to 25 extra units)
+        local bonusDistance = math.floor(successRate * 25)
+        currentPosition = currentPosition + bonusDistance
+        
+        return math.max(0, currentPosition)
+    end
+    
+    -- If they've started a run but no barriers attempted yet
+    if metrics.firstRunStarted then
+        return metrics.currentRunStartPosition or 10 -- Just started position
+    end
+    
+    return 0 -- Not in a run or no tracking data
 end
 
 function AnalyticsService:WasPerfectRun(player)

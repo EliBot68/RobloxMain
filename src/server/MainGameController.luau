@@ -68,6 +68,16 @@ local gracePeriodActive = false
 local gameTimeRemaining = 0
 local timerUpdateConnection = nil
 
+-- Recording Session Management
+local activeRecordingSessions = {}
+local recordingConfig = {
+    autoRecordGames = true,
+    recordingDuration = 90, -- Record 90 seconds per game (30s before end)
+    enableHighlightRecording = true,
+    enablePlayerRecording = true,
+    replayDataStorage = true
+}
+
 -- Win/Loss tracking
 local gameResults = {
     winners = {},
@@ -519,15 +529,37 @@ function MainGameController:OnPlayerRemoving(player)
     if playerData then
         -- Analytics tracking
         if Services.AnalyticsService then
-            Services.AnalyticsService:TrackEvent(player, "player_left", {
+            local sessionDuration = tick() - (playerData.statistics.joinTime or tick())
+            local wasInActiveGame = currentGameState == GAME_STATES.RUNNING
+            
+            Services.AnalyticsService:TrackEvent(player, "player_disconnect", {
+                disconnectReason = "player_leaving", -- vs crash/timeout
                 gameState = currentGameState,
-                timeInGame = tick() - (playerData.spawnTime or tick()),
-                finalScore = playerData.score
+                sessionDuration = sessionDuration,
+                timeInCurrentGame = gameStartTime and (tick() - gameStartTime) or 0,
+                finalScore = playerData.score,
+                finalLives = playerData.lives,
+                finalHealth = playerData.health,
+                wasInActiveGame = wasInActiveGame,
+                gameProgress = wasInActiveGame and self:CalculatePlayerProgress(player) or 0,
+                totalDistance = playerData.statistics.totalDistance,
+                obstaclesHit = playerData.statistics.obstaclesHit,
+                collectiblesFound = playerData.statistics.collectiblesFound,
+                perfectColorMatches = playerData.statistics.perfectColorMatches or 0,
+                deaths = playerData.statistics.deaths,
+                respawns = playerData.statistics.respawns,
+                sessionId = gameSession and gameSession.id or "lobby_session",
+                playerCount = self:GetActivePlayerCount(),
+                ragequit = wasInActiveGame and playerData.lives > 0 and playerData.health > 0, -- Potential rage quit
+                completionEstimate = self:EstimateCompletionLikelihood(playerData)
             })
         end
         
         activePlayers[player.UserId] = nil
         Events.PlayerLeftGame:FireAllClients(player)
+        
+        -- 🎬 CLEANUP RECORDING SESSION
+        self:CleanupPlayerRecording(player)
         
         -- Check if game should end due to insufficient players
         self:CheckGameEndConditions()
@@ -835,13 +867,18 @@ function MainGameController:UpdatePlayerInGame(playerData, deltaTime)
     
     if progressScore > playerData.score then
         local scoreDifference = progressScore - playerData.score
+        local oldScore = playerData.score
         playerData.score = progressScore
         
         -- Apply combo multiplier
         if playerData.combo > 0 then
             local bonusScore = math.floor(scoreDifference * (playerData.combo * 0.1))
             playerData.score = playerData.score + bonusScore
+            scoreDifference = scoreDifference + bonusScore
         end
+        
+        -- Check for score milestones
+        self:CheckScoreMilestones(player, oldScore, playerData.score)
         
         Events.ScoreUpdated:FireClient(player, playerData.score, scoreDifference)
     end
@@ -1041,12 +1078,35 @@ function MainGameController:StartGame()
         end
     end
     
+    -- 🎬 START RECORDING SESSION
+    self:StartGameRecording()
+    
     -- Start analytics tracking
     if Services.AnalyticsService then
         Services.AnalyticsService:TrackEvent(nil, "game_started", {
             sessionId = gameSession.id,
-            playerCount = gameSession.playerCount
+            playerCount = gameSession.playerCount,
+            gameTime = GAME_CONFIG.gameTime,
+            trackLength = GAME_CONFIG.trackLength,
+            trackWidth = GAME_CONFIG.trackWidth,
+            difficulty = gameSession.track and gameSession.track.config.difficulty or 2,
+            serverUptime = tick() - gameStats.uptime,
+            totalGamesPlayed = gameStats.totalGamesPlayed,
+            playerIds = self:GetPlayerIds(),
+            startTime = gameStartTime
         })
+        
+        -- Track individual player game starts
+        for userId, playerData in pairs(activePlayers) do
+            Services.AnalyticsService:TrackEvent(playerData.player, "player_game_start", {
+                sessionId = gameSession.id,
+                playerScore = playerData.score,
+                playerLives = playerData.lives,
+                playerHealth = playerData.health,
+                isFirstGame = self:IsPlayerFirstGame(playerData.player),
+                playerLevel = self:GetPlayerLevel(playerData.player)
+            })
+        end
     end
     
     -- Notify clients
@@ -1083,13 +1143,67 @@ function MainGameController:EndGame(reason)
     
     -- Analytics tracking
     if Services.AnalyticsService then
+        -- Calculate detailed game statistics
+        local topScore = results[1] and results[1].score or 0
+        local averageScore = 0
+        local totalDistance = 0
+        local playersFinished = 0
+        local playersEliminated = 0
+        
+        for _, result in ipairs(results) do
+            averageScore = averageScore + result.score
+            if result.finishTime then
+                playersFinished = playersFinished + 1
+            end
+            if not result.isAlive then
+                playersEliminated = playersEliminated + 1
+            end
+        end
+        averageScore = #results > 0 and averageScore / #results or 0
+        
         Services.AnalyticsService:TrackEvent(nil, "game_ended", {
             sessionId = gameSession.id,
             reason = reason,
             duration = gameDuration,
             playerCount = #results,
-            winnerScore = results[1] and results[1].score or 0
+            topScore = topScore,
+            averageScore = averageScore,
+            playersFinished = playersFinished,
+            playersEliminated = playersEliminated,
+            completionRate = #results > 0 and (playersFinished / #results) * 100 or 0,
+            trackDifficulty = gameSession.track and gameSession.track.config.difficulty or 2,
+            movingObstaclesUsed = gameSession.movingObstacleTrack ~= nil,
+            gameTimeRemaining = gameTimeRemaining,
+            serverPerformance = {
+                frameRate = performanceMetrics.frameRate,
+                memoryUsage = performanceMetrics.memoryUsage,
+                playerUpdateTime = performanceMetrics.playerUpdateTime
+            }
         })
+        
+        -- Track individual player results
+        for _, result in ipairs(results) do
+            local playerData = activePlayers[result.player.UserId]
+            if playerData then
+                Services.AnalyticsService:TrackEvent(result.player, "player_game_end", {
+                    sessionId = gameSession.id,
+                    finalScore = result.score,
+                    finalPosition = self:GetPlayerPosition(result.player),
+                    isWinner = result == results[1],
+                    isFinisher = result.finishTime ~= nil,
+                    finishTime = result.finishTime,
+                    survivedToEnd = result.isAlive,
+                    totalDistance = playerData.statistics.totalDistance,
+                    obstaclesHit = playerData.statistics.obstaclesHit,
+                    collectiblesFound = playerData.statistics.collectiblesFound,
+                    deaths = playerData.statistics.deaths,
+                    respawns = playerData.statistics.respawns,
+                    perfectColorMatches = playerData.statistics.perfectColorMatches or 0,
+                    timePlayed = gameDuration,
+                    scoreImprovement = self:CalculateScoreImprovement(result.player, result.score)
+                })
+            end
+        end
     end
     
     -- Stop services
@@ -1098,6 +1212,9 @@ function MainGameController:EndGame(reason)
             Services.DifficultyService:StopGame(playerData.player)
         end
     end
+    
+    -- 🎬 STOP RECORDING SESSION
+    self:StopGameRecording(reason, results, gameDuration)
     
     -- Notify clients with results
     Events.GameEnded:FireAllClients(results, reason, gameDuration)
@@ -1131,6 +1248,9 @@ function MainGameController:ResetToLobby()
     gameTimeRemaining = 0
     warningTriggered = false
     gracePeriodActive = false
+    
+    -- 🎬 CLEANUP ALL RECORDING SESSIONS
+    self:CleanupAllRecordingSessions()
     
     -- Reset all player states
     for userId, playerData in pairs(activePlayers) do
@@ -1194,28 +1314,65 @@ function MainGameController:GenerateGameTrack()
 end
 
 function MainGameController:GenerateMovingObstacles()
-    local obstacleCount = math.floor(GAME_CONFIG.trackLength / 50) -- One obstacle every 50 studs
+    if not Services.MovingObstacleService then
+        warn("❌ MovingObstacleService not available")
+        return
+    end
     
-    for i = 1, obstacleCount do
-        local zPosition = (i * 50) + math.random(-10, 10)
-        local xPosition = math.random(-GAME_CONFIG.trackWidth/3, GAME_CONFIG.trackWidth/3)
+    local trackId = gameSession.id .. "_moving"
+    local obstacleConfigs = {}
+    
+    -- Get preset configurations
+    local presets = Services.MovingObstacleService:GetPresetConfigs()
+    
+    -- Generate obstacles based on track segments
+    local segmentCount = math.floor(GAME_CONFIG.trackLength / 100) -- One obstacle every 100 studs
+    local obstacleTypes = {"horizontalSlider", "circularSpinner", "verticalPendulum", "figureEightWeaver", "randomRoamer"}
+    
+    for i = 1, segmentCount do
+        local segmentZ = (i * 100) + math.random(-20, 20)
+        local segmentX = math.random(-GAME_CONFIG.trackWidth/3, GAME_CONFIG.trackWidth/3)
+        local segmentY = 15 + math.random(0, 10)
         
         -- Choose random obstacle type
-        local obstacleTypes = {"horizontalSlider", "circularSpinner", "verticalPendulum"}
         local obstacleType = obstacleTypes[math.random(1, #obstacleTypes)]
+        local presetConfig = presets[obstacleType]
         
-        local obstacleId = Services.MovingObstacleService:CreateObstacle(
-            obstacleType,
-            Vector3.new(xPosition, 15, zPosition),
-            Workspace
-        )
-        
-        if obstacleId then
-            Services.MovingObstacleService:StartObstacle(obstacleId)
+        if presetConfig then
+            -- Customize the preset for this track segment
+            local customConfig = table.clone(presetConfig)
+            
+            -- Adjust bounds based on track width
+            local boundsScale = GAME_CONFIG.trackWidth / 60 -- Scale to track width
+            if customConfig.movementBounds then
+                customConfig.movementBounds.min = customConfig.movementBounds.min * boundsScale
+                customConfig.movementBounds.max = customConfig.movementBounds.max * boundsScale
+            end
+            
+            -- Add position to config
+            table.insert(obstacleConfigs, {
+                position = Vector3.new(segmentX, segmentY, segmentZ),
+                config = customConfig
+            })
         end
     end
     
-    print("🔄 Generated " .. obstacleCount .. " moving obstacles")
+    -- Create track obstacles
+    local createdObstacles = Services.MovingObstacleService:CreateTrackObstacles(trackId, obstacleConfigs)
+    
+    if #createdObstacles > 0 then
+        -- Start all obstacles after creation
+        Services.MovingObstacleService:StartTrackObstacles(trackId)
+        
+        -- Store track ID for cleanup
+        if gameSession then
+            gameSession.movingObstacleTrack = trackId
+        end
+        
+        print("🔄 Generated " .. #createdObstacles .. " moving obstacles for track: " .. trackId)
+    else
+        warn("❌ No moving obstacles were created")
+    end
 end
 
 function MainGameController:ClearGameTrack()
@@ -1231,18 +1388,25 @@ function MainGameController:ClearGameTrack()
     
     -- Clear moving obstacles
     if Services.MovingObstacleService then
-        Services.MovingObstacleService:ClearAllObstacles()
+        if gameSession and gameSession.movingObstacleTrack then
+            -- Clear specific moving obstacle track
+            Services.MovingObstacleService:ClearTrackObstacles(gameSession.movingObstacleTrack)
+            gameSession.movingObstacleTrack = nil
+        else
+            -- Clear all moving obstacles as fallback
+            Services.MovingObstacleService:ClearTrackObstacles("fallback_cleanup")
+        end
     end
     
     -- Clear any remaining generated track elements
     local trackElements = Workspace:GetChildren()
     for _, element in pairs(trackElements) do
-        if element:GetAttribute("GeneratedTrack") then
+        if element:GetAttribute("GeneratedTrack") or element:GetAttribute("ServiceManaged") then
             element:Destroy()
         end
     end
     
-    print("🗑️ Game track cleared")
+    print("🗑️ Game track cleared (static + moving obstacles)")
 end
 
 function MainGameController:ResetAllPlayers()
@@ -1861,6 +2025,97 @@ function MainGameController:HandlePlayerMovement(player, movementData)
     end
 end
 
+-- Analytics Helper Functions
+
+function MainGameController:CheckScoreMilestones(player, oldScore, newScore)
+    local milestones = {100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000}
+    
+    for _, milestone in ipairs(milestones) do
+        if oldScore < milestone and newScore >= milestone then
+            -- Player reached a new milestone
+            if Services.AnalyticsService then
+                Services.AnalyticsService:TrackEvent(player, "score_milestone_reached", {
+                    milestone = milestone,
+                    sessionId = gameSession and gameSession.id or "no_session",
+                    gameTime = gameStartTime and (tick() - gameStartTime) or 0,
+                    position = player.Character and player.Character.HumanoidRootPart.Position or Vector3.new(0,0,0),
+                    playerData = {
+                        lives = activePlayers[player.UserId] and activePlayers[player.UserId].lives or 0,
+                        health = activePlayers[player.UserId] and activePlayers[player.UserId].health or 0,
+                        perfectMatches = activePlayers[player.UserId] and activePlayers[player.UserId].statistics.perfectColorMatches or 0
+                    }
+                })
+            end
+            
+            print(string.format("🎯 %s reached score milestone: %d", player.Name, milestone))
+            break -- Only trigger first milestone reached
+        end
+    end
+end
+
+function MainGameController:GetPlayerIds()
+    local playerIds = {}
+    for userId, playerData in pairs(activePlayers) do
+        table.insert(playerIds, userId)
+    end
+    return playerIds
+end
+
+function MainGameController:IsPlayerFirstGame(player)
+    -- Check if this is player's first game (implement with DataStore if needed)
+    local playerData = activePlayers[player.UserId]
+    if playerData and playerData.statistics then
+        return playerData.statistics.joinTime and (tick() - playerData.statistics.joinTime) < 60
+    end
+    return true -- Assume first game if no data
+end
+
+function MainGameController:GetPlayerLevel(player)
+    -- Calculate player level based on total score (implement proper leveling system if needed)
+    local playerData = activePlayers[player.UserId]
+    if playerData then
+        return math.floor(playerData.score / 1000) + 1
+    end
+    return 1
+end
+
+function MainGameController:CalculateScoreImprovement(player, currentScore)
+    -- Calculate improvement from previous games (implement with DataStore if needed)
+    local playerData = activePlayers[player.UserId]
+    if playerData and playerData.statistics.previousBestScore then
+        local improvement = currentScore - playerData.statistics.previousBestScore
+        return {
+            improvement = improvement,
+            improvementPercent = playerData.statistics.previousBestScore > 0 and (improvement / playerData.statistics.previousBestScore) * 100 or 0,
+            isNewRecord = improvement > 0
+        }
+    end
+    return {improvement = 0, improvementPercent = 0, isNewRecord = true}
+end
+
+function MainGameController:CalculatePlayerProgress(player)
+    -- Calculate how far through the track the player progressed (0-100%)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return 0
+    end
+    
+    local position = player.Character.HumanoidRootPart.Position
+    local progress = math.max(0, (position.Z + 100) / GAME_CONFIG.trackLength) * 100
+    return math.min(100, progress)
+end
+
+function MainGameController:EstimateCompletionLikelihood(playerData)
+    -- Simple completion likelihood based on current performance
+    if not playerData then return 0 end
+    
+    local healthFactor = playerData.health / 100
+    local livesFactor = playerData.lives / GAME_CONFIG.maxLives
+    local scoreFactor = math.min(1, playerData.score / 1000) -- Normalize to reasonable score
+    local matchAccuracy = playerData.statistics.perfectColorMatches / math.max(1, playerData.statistics.obstaclesHit)
+    
+    return (healthFactor + livesFactor + scoreFactor + matchAccuracy) / 4 * 100
+end
+
 function MainGameController:IsAdmin(player)
     -- Basic admin check (expand with proper admin system)
     local adminIds = {
@@ -1875,6 +2130,392 @@ function MainGameController:IsAdmin(player)
     
     return player.Name == "Roblox" or game:GetService("GroupService"):GetGroupInfoAsync(1):GetRoleInGroup(player.UserId) >= 100
 end
+
+-- ============================
+-- RECORDING SESSION MANAGEMENT
+-- ============================
+
+function MainGameController:StartGameRecording()
+    if not Services.RecordingSessionManager or not recordingConfig.autoRecordGames then
+        return
+    end
+    
+    print("🎬 Starting game recording session...")
+    
+    -- Start recording for all active players
+    for userId, playerData in pairs(activePlayers) do
+        local player = playerData.player
+        if player and player.Character then
+            self:StartPlayerRecording(player)
+        end
+    end
+    
+    -- Track recording session in game session
+    gameSession.recordingStarted = true
+    gameSession.recordingStartTime = tick()
+    
+    -- Log recording start to analytics
+    if Services.AnalyticsService then
+        Services.AnalyticsService:TrackEvent(nil, "recording_session_started", {
+            sessionId = gameSession.id,
+            playerCount = self:GetActivePlayerCount(),
+            recordingDuration = recordingConfig.recordingDuration,
+            gameStartTime = gameStartTime
+        })
+    end
+    
+    print("✅ Game recording session started for " .. self:GetActivePlayerCount() .. " players")
+end
+
+function MainGameController:StartPlayerRecording(player)
+    if not Services.RecordingSessionManager then
+        return
+    end
+    
+    local sessionType = "GameSession"
+    local duration = recordingConfig.recordingDuration
+    
+    -- Start recording session for the player
+    Services.RecordingSessionManager:StartRecordingSession(player, sessionType, duration)
+    
+    -- Store session info
+    activeRecordingSessions[player.UserId] = {
+        player = player,
+        sessionType = sessionType,
+        startTime = tick(),
+        duration = duration,
+        gameSessionId = gameSession.id,
+        isActive = true
+    }
+    
+    print("🎬 Started recording for player: " .. player.Name)
+end
+
+function MainGameController:StopGameRecording(endReason, gameResults, gameDuration)
+    if not Services.RecordingSessionManager or not gameSession.recordingStarted then
+        return
+    end
+    
+    print("🎬 Stopping game recording session...")
+    
+    local recordingEndTime = tick()
+    local totalRecordingTime = recordingEndTime - (gameSession.recordingStartTime or gameStartTime)
+    
+    -- Stop recording for all players
+    for userId, sessionData in pairs(activeRecordingSessions) do
+        if sessionData.isActive then
+            self:StopPlayerRecording(sessionData.player, endReason, gameResults, gameDuration)
+        end
+    end
+    
+    -- Store replay data if enabled
+    if recordingConfig.replayDataStorage then
+        self:SaveGameReplayData(endReason, gameResults, gameDuration, totalRecordingTime)
+    end
+    
+    -- Log recording completion to analytics
+    if Services.AnalyticsService then
+        Services.AnalyticsService:TrackEvent(nil, "recording_session_completed", {
+            sessionId = gameSession.id,
+            endReason = endReason,
+            totalRecordingTime = totalRecordingTime,
+            playersRecorded = self:GetActiveRecordingCount(),
+            gameQuality = self:CalculateGameQuality(gameResults),
+            replayDataSaved = recordingConfig.replayDataStorage
+        })
+    end
+    
+    print("✅ Game recording session completed")
+end
+
+function MainGameController:StopPlayerRecording(player, endReason, gameResults, gameDuration)
+    if not Services.RecordingSessionManager then
+        return
+    end
+    
+    -- Stop the recording session
+    Services.RecordingSessionManager:StopRecordingSession(player)
+    
+    -- Update session data
+    local sessionData = activeRecordingSessions[player.UserId]
+    if sessionData then
+        sessionData.isActive = false
+        sessionData.endTime = tick()
+        sessionData.endReason = endReason
+        sessionData.totalDuration = sessionData.endTime - sessionData.startTime
+        
+        -- Get player's final results
+        local playerResult = nil
+        if gameResults then
+            for _, result in ipairs(gameResults) do
+                if result.player == player then
+                    playerResult = result
+                    break
+                end
+            end
+        end
+        
+        sessionData.playerResult = playerResult
+        
+        print("📹 Stopped recording for player: " .. player.Name .. " (Duration: " .. 
+              string.format("%.1f", sessionData.totalDuration) .. "s)")
+    end
+end
+
+function MainGameController:SaveGameReplayData(endReason, gameResults, gameDuration, recordingTime)
+    if not recordingConfig.replayDataStorage then
+        return
+    end
+    
+    print("💾 Saving game replay data...")
+    
+    local replayData = {
+        gameSessionId = gameSession.id,
+        startTime = gameStartTime,
+        endTime = tick(),
+        gameDuration = gameDuration,
+        recordingDuration = recordingTime,
+        endReason = endReason,
+        playerCount = self:GetActivePlayerCount(),
+        trackConfig = gameSession.track and gameSession.track.config or nil,
+        gameResults = gameResults,
+        recordingSessions = {},
+        gameQuality = self:CalculateGameQuality(gameResults),
+        notableEvents = self:GetNotableGameEvents()
+    }
+    
+    -- Add individual recording session data
+    for userId, sessionData in pairs(activeRecordingSessions) do
+        table.insert(replayData.recordingSessions, {
+            playerId = userId,
+            playerName = sessionData.player.Name,
+            sessionType = sessionData.sessionType,
+            recordingDuration = sessionData.totalDuration or 0,
+            playerResult = sessionData.playerResult,
+            highlights = self:GetPlayerHighlights(sessionData.player)
+        })
+    end
+    
+    -- Store replay data (you can save to DataStore or send to external service)
+    if Services.AnalyticsService then
+        Services.AnalyticsService:TrackEvent(nil, "replay_data_saved", replayData)
+    end
+    
+    -- Optional: Save to DataStore for later retrieval
+    self:SaveToReplayDataStore(replayData)
+    
+    print("✅ Game replay data saved successfully")
+end
+
+function MainGameController:SaveToReplayDataStore(replayData)
+    local success, error = pcall(function()
+        local DataStoreService = game:GetService("DataStoreService")
+        local replayStore = DataStoreService:GetDataStore("GameReplays")
+        
+        local replayKey = "replay_" .. replayData.gameSessionId
+        replayStore:SetAsync(replayKey, replayData)
+        
+        print("💾 Replay data saved to DataStore with key: " .. replayKey)
+    end)
+    
+    if not success then
+        warn("❌ Failed to save replay data to DataStore: " .. tostring(error))
+    end
+end
+
+function MainGameController:CalculateGameQuality(gameResults)
+    if not gameResults or #gameResults == 0 then
+        return 0
+    end
+    
+    local qualityScore = 0
+    local factors = {
+        playerFinishRate = 0,
+        scoreVariety = 0,
+        gameLength = 0,
+        competitiveness = 0
+    }
+    
+    -- Calculate finish rate
+    local finishedPlayers = 0
+    local totalScore = 0
+    local scores = {}
+    
+    for _, result in ipairs(gameResults) do
+        if result.finishTime then
+            finishedPlayers = finishedPlayers + 1
+        end
+        totalScore = totalScore + result.score
+        table.insert(scores, result.score)
+    end
+    
+    factors.playerFinishRate = finishedPlayers / #gameResults
+    
+    -- Calculate score variety (standard deviation)
+    if #scores > 1 then
+        local avgScore = totalScore / #scores
+        local variance = 0
+        for _, score in ipairs(scores) do
+            variance = variance + math.pow(score - avgScore, 2)
+        end
+        factors.scoreVariety = math.sqrt(variance / #scores) / avgScore
+    end
+    
+    -- Game length factor (prefer games that last reasonable time)
+    local idealLength = GAME_CONFIG.gameTime * 0.8 -- 80% of max time is ideal
+    local lengthRatio = math.min(gameDuration or 0, idealLength) / idealLength
+    factors.gameLength = lengthRatio
+    
+    -- Competitiveness (close scores indicate good competition)
+    if #scores > 1 then
+        table.sort(scores, function(a, b) return a > b end)
+        local topScoreDiff = scores[1] - scores[2]
+        factors.competitiveness = 1 - math.min(1, topScoreDiff / scores[1])
+    end
+    
+    -- Weighted quality score
+    qualityScore = factors.playerFinishRate * 0.3 +
+                   factors.scoreVariety * 0.2 +
+                   factors.gameLength * 0.3 +
+                   factors.competitiveness * 0.2
+    
+    return math.floor(qualityScore * 100) -- Return as percentage
+end
+
+function MainGameController:GetNotableGameEvents()
+    -- Return notable events that occurred during the game
+    local events = {}
+    
+    -- Add comeback victories, perfect runs, close finishes, etc.
+    for userId, playerData in pairs(activePlayers) do
+        if playerData.statistics then
+            if playerData.statistics.perfectColorMatches and playerData.statistics.perfectColorMatches >= 10 then
+                table.insert(events, {
+                    type = "PerfectRun",
+                    player = playerData.player.Name,
+                    details = "Achieved " .. playerData.statistics.perfectColorMatches .. " perfect matches"
+                })
+            end
+            
+            if playerData.statistics.deaths and playerData.statistics.deaths == 0 and playerData.finishTime then
+                table.insert(events, {
+                    type = "FlawlessVictory",
+                    player = playerData.player.Name,
+                    details = "Completed without taking damage"
+                })
+            end
+        end
+    end
+    
+    return events
+end
+
+function MainGameController:GetPlayerHighlights(player)
+    local playerData = activePlayers[player.UserId]
+    if not playerData then
+        return {}
+    end
+    
+    local highlights = {}
+    
+    -- Performance highlights
+    if playerData.score >= 1000 then
+        table.insert(highlights, "High Score: " .. playerData.score)
+    end
+    
+    if playerData.finishTime and playerData.finishTime <= GAME_CONFIG.gameTime * 0.5 then
+        table.insert(highlights, "Fast Finish: " .. string.format("%.1f", playerData.finishTime) .. "s")
+    end
+    
+    if playerData.statistics and playerData.statistics.perfectColorMatches and playerData.statistics.perfectColorMatches >= 5 then
+        table.insert(highlights, "Perfect Matches: " .. playerData.statistics.perfectColorMatches)
+    end
+    
+    return highlights
+end
+
+function MainGameController:GetActiveRecordingCount()
+    local count = 0
+    for _, sessionData in pairs(activeRecordingSessions) do
+        if sessionData.isActive then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function MainGameController:CleanupRecordingSessions()
+    -- Clean up old recording sessions
+    for userId, sessionData in pairs(activeRecordingSessions) do
+        if not sessionData.isActive then
+            activeRecordingSessions[userId] = nil
+        end
+    end
+end
+
+function MainGameController:CleanupPlayerRecording(player)
+    if not Services.RecordingSessionManager then
+        return
+    end
+    
+    print("🧹 Cleaning up recording for player: " .. player.Name)
+    
+    -- Stop any active recording for this player
+    local sessionData = activeRecordingSessions[player.UserId]
+    if sessionData and sessionData.isActive then
+        Services.RecordingSessionManager:StopRecordingSession(player)
+        sessionData.isActive = false
+        sessionData.endTime = tick()
+        sessionData.endReason = "PlayerLeft"
+    end
+    
+    -- Remove from active sessions
+    activeRecordingSessions[player.UserId] = nil
+    
+    -- Notify RecordingSessionManager to cleanup its data
+    if Services.RecordingSessionManager.CleanupPlayerRecording then
+        Services.RecordingSessionManager:CleanupPlayerRecording(player)
+    end
+end
+
+function MainGameController:CleanupAllRecordingSessions()
+    if not Services.RecordingSessionManager then
+        return
+    end
+    
+    print("🧹 Cleaning up all recording sessions...")
+    
+    -- Stop all active recordings
+    for userId, sessionData in pairs(activeRecordingSessions) do
+        if sessionData.isActive and sessionData.player then
+            Services.RecordingSessionManager:StopRecordingSession(sessionData.player)
+        end
+    end
+    
+    -- Clear all sessions
+    activeRecordingSessions = {}
+    
+    print("✅ All recording sessions cleaned up")
+end
+
+-- Recording configuration functions
+function MainGameController:SetRecordingConfig(config)
+    for key, value in pairs(config) do
+        if recordingConfig[key] ~= nil then
+            recordingConfig[key] = value
+        end
+    end
+    
+    print("🎬 Recording configuration updated:", recordingConfig)
+end
+
+function MainGameController:GetRecordingConfig()
+    return recordingConfig
+end
+
+-- ============================
+-- END RECORDING MANAGEMENT
+-- ============================
 
 -- Initialize the controller when the script loads
 spawn(function()

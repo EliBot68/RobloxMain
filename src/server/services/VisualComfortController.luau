@@ -1,72 +1,31 @@
 -- VisualComfortController.luau
--- Reduces overly bright lighting and effects for better visibility
+-- Uses centralized professional lighting for consistent visual quality
 -- Place this in ServerScriptService to automatically improve game visuals
 
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+-- Import centralized professional lighting module
+local ProfessionalLighting = require(script.Parent.Parent.shared.modules.ProfessionalLighting)
+
 local VisualComfortController = {}
 
--- Lighting Configuration for Better Visibility
-local COMFORT_LIGHTING = {
-    -- Reduced brightness settings
-    brightness = 1.5,     -- Reduced from default 2
-    ambient = Color3.fromRGB(80, 80, 100),  -- Softer ambient light
-    outdoorAmbient = Color3.fromRGB(100, 110, 120), -- Softer outdoor ambient
-    
-    -- Atmosphere settings
-    atmosphereDensity = 0.3,
-    atmosphereOffset = 0.25,
-    atmosphereColor = Color3.fromRGB(199, 199, 199),
-    atmosphereDecay = Color3.fromRGB(92, 60, 13),
-    atmosphereGlare = 0.2,  -- Reduced glare
-    atmosphereHaze = 1.8,
-    
-    -- Fog for distance comfort
-    fogColor = Color3.fromRGB(192, 192, 196),
-    fogStart = 500,
-    fogEnd = 2000
-}
-
 function VisualComfortController:Initialize()
-    print("👁️ Initializing Visual Comfort Controller...")
+    print("👁️ Initializing Visual Comfort Controller with Professional Lighting...")
     
-    -- Apply comfortable lighting settings
-    self:SetupComfortableLighting()
+    -- Initialize professional lighting system
+    ProfessionalLighting:Initialize()
     
-    -- Monitor and fix overly bright objects
+    -- Start additional brightness monitoring for legacy objects
     self:StartBrightnessMonitoring()
     
-    print("✅ Visual comfort settings applied!")
+    print("✅ Visual comfort settings with professional lighting applied!")
 end
 
 function VisualComfortController:SetupComfortableLighting()
-    -- Set comfortable lighting values
-    Lighting.Brightness = COMFORT_LIGHTING.brightness
-    Lighting.Ambient = COMFORT_LIGHTING.ambient
-    Lighting.OutdoorAmbient = COMFORT_LIGHTING.outdoorAmbient
-    
-    -- Create or update atmosphere
-    local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
-    if not atmosphere then
-        atmosphere = Instance.new("Atmosphere")
-        atmosphere.Parent = Lighting
-    end
-    
-    atmosphere.Density = COMFORT_LIGHTING.atmosphereDensity
-    atmosphere.Offset = COMFORT_LIGHTING.atmosphereOffset
-    atmosphere.Color = COMFORT_LIGHTING.atmosphereColor
-    atmosphere.Decay = COMFORT_LIGHTING.atmosphereDecay
-    atmosphere.Glare = COMFORT_LIGHTING.atmosphereGlare
-    atmosphere.Haze = COMFORT_LIGHTING.atmosphereHaze
-    
-    -- Set comfortable fog
-    Lighting.FogColor = COMFORT_LIGHTING.fogColor
-    Lighting.FogStart = COMFORT_LIGHTING.fogStart
-    Lighting.FogEnd = COMFORT_LIGHTING.fogEnd
-    
-    print("🌅 Comfortable lighting settings applied")
+    -- Delegate to professional lighting module
+    ProfessionalLighting:ApplyToLighting()
 end
 
 function VisualComfortController:StartBrightnessMonitoring()
@@ -80,32 +39,16 @@ function VisualComfortController:StartBrightnessMonitoring()
 end
 
 function VisualComfortController:ReduceExcessiveBrightness()
-    -- Find and reduce brightness of overly bright PointLights
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("PointLight") then
-            if obj.Brightness > 2 then
-                obj.Brightness = math.min(obj.Brightness, 1.5) -- Cap brightness
-                print("🔅 Reduced brightness of PointLight in " .. (obj.Parent and obj.Parent.Name or "unknown"))
-            end
-            
-            if obj.Range > 30 then
-                obj.Range = math.min(obj.Range, 20) -- Cap range
-            end
-        elseif obj:IsA("SurfaceLight") then
-            if obj.Brightness > 2 then
-                obj.Brightness = math.min(obj.Brightness, 1.5)
-            end
-        elseif obj:IsA("SpotLight") then
-            if obj.Brightness > 2 then
-                obj.Brightness = math.min(obj.Brightness, 1.5)
-            end
-        end
-        
+    -- Use professional lighting module for light adjustment
+    ProfessionalLighting:MonitorAndAdjustLights()
+    
+    -- Additional legacy brightness reduction for parts
+    for _, obj in pairs(Workspace:GetDescendants()) do        
         -- Reduce overly saturated neon materials
         if obj:IsA("BasePart") and obj.Material == Enum.Material.Neon then
             if obj.Color.R > 0.9 and obj.Color.G > 0.9 and obj.Color.B > 0.9 then
-                -- Make pure white neon less bright
-                obj.Color = Color3.fromRGB(200, 200, 200)
+                -- Make pure white neon less bright using professional colors
+                obj.Color = ProfessionalLighting:GetProfessionalColor(obj.Color)
             end
         end
     end
@@ -149,14 +92,11 @@ end
 
 -- Time of day adjustment for comfort
 function VisualComfortController:SetComfortableTimeOfDay()
-    -- Set a comfortable time that's not too bright or too dark
-    Lighting.TimeOfDay = "14:00:00" -- 2 PM - good balance
-    Lighting.GeographicLatitude = 0 -- Neutral lighting angle
+    -- Delegate to professional lighting module
+    ProfessionalLighting:ApplyToLighting()
 end
 
--- Initialize automatically
+-- Initialize automatically with professional lighting
 VisualComfortController:Initialize()
-VisualComfortController:SetComfortableTimeOfDay()
-VisualComfortController:ApplyComfortableColors()
 
 return VisualComfortController

@@ -647,8 +647,8 @@ function PlayerMovementController:UpdateCharacterAppearance()
             end
             
             pointLight.Color = colorData.color
-            pointLight.Brightness = 0.5
-            pointLight.Range = 5
+            pointLight.Brightness = 0.3  -- Reduced for professional look
+            pointLight.Range = 4  -- Slightly reduced range
         end
     end
 end
@@ -918,22 +918,62 @@ end
 -- Effects and Feedback
 
 function PlayerMovementController:PlayJumpEffects(jumpType)
-    -- Visual effects for jumping
+    -- Trigger ScreenEffectsController for jump effects
+    local intensity = 0.3
+    local duration = 0.4
+    
     if jumpType == "air" then
         print("🌟 Air jump effects")
+        intensity = 0.4 -- More intense for air jumps
+        
+        -- Trigger jump effect via Events
+        if Events.TriggerJumpEffect then
+            Events.TriggerJumpEffect:FireServer("air", MOVEMENT_CONFIG.jumpPower)
+        end
+        
     elseif jumpType == "wall" then
         print("🧱 Wall jump effects")
+        intensity = 0.5 -- Most intense for wall jumps
+        
+        if Events.TriggerJumpEffect then
+            Events.TriggerJumpEffect:FireServer("wall", MOVEMENT_CONFIG.wallJumpForce)
+        end
+        
     else
         print("⬆️ Ground jump effects")
+        intensity = 0.2 -- Light shake for ground jumps
+        
+        if Events.TriggerJumpEffect then
+            Events.TriggerJumpEffect:FireServer("ground", MOVEMENT_CONFIG.jumpPower)
+        end
     end
     
-    -- Screen shake
-    self:ScreenShake(0.2, 5)
+    -- Local screen shake as immediate feedback
+    self:ScreenShake(intensity, duration)
+    
+    -- Get ScreenEffectsController if available
+    local screenEffects = game.Players.LocalPlayer.PlayerGui:FindFirstChild("ScreenEffects")
+    if screenEffects then
+        -- Direct call to screen effects for immediate response
+        game.ReplicatedStorage.Events.TriggerScreenShake:FireServer(intensity, 0.5)
+    end
 end
 
 function PlayerMovementController:PlayDashEffects()
     print("💨 Dash effects")
+    
+    -- Trigger speed boost screen effects
+    if Events.TriggerSpeedBoostEffect then
+        Events.TriggerSpeedBoostEffect:FireServer(0.5) -- 0.5 second speed boost effect
+    end
+    
+    -- Local immediate feedback
     self:ScreenShake(0.1, 10)
+    
+    -- Fire FOV zoom effect for speed feeling
+    if game.ReplicatedStorage.Events:FindFirstChild("TriggerFOVZoom") then
+        game.ReplicatedStorage.Events.TriggerFOVZoom:FireServer(0.3, 0.5) -- Slight zoom for 0.5 seconds
+    end
 end
 
 function PlayerMovementController:PlayColorSwitchEffects(colorName)

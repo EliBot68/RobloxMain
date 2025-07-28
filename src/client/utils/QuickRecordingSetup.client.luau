@@ -87,11 +87,23 @@ function QuickRecordingSetup:OptimizeGraphics(config)
     -- Enable/disable shadows
     Lighting.GlobalShadows = config.globalShadows
     
-    -- Optimize lighting properties
+    -- Apply professional lighting properties
     Lighting.Brightness = 1
-    Lighting.Ambient = Color3.fromRGB(70, 70, 70)
+    Lighting.ExposureCompensation = -0.5
+    Lighting.Ambient = Color3.fromRGB(80, 80, 80)
+    Lighting.OutdoorAmbient = Color3.fromRGB(100, 100, 100)
     Lighting.ColorShift_Bottom = Color3.fromRGB(0, 0, 0)
     Lighting.ColorShift_Top = Color3.fromRGB(0, 0, 0)
+    
+    -- Add professional color correction if not exists
+    local colorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+    if not colorCorrection then
+        colorCorrection = Instance.new("ColorCorrectionEffect")
+        colorCorrection.Parent = Lighting
+    end
+    colorCorrection.Brightness = -0.1
+    colorCorrection.Contrast = 0.05
+    colorCorrection.Saturation = 0.9
     
     print("✅ Graphics optimized for " .. config.name)
 end
@@ -150,12 +162,25 @@ function QuickRecordingSetup:CleanEnvironment()
 end
 
 function QuickRecordingSetup:OptimizeLighting(config)
-    print("💡 Optimizing lighting for recording...")
+    print("💡 Applying professional lighting for recording...")
     
-    -- Set optimal lighting for recording
+    -- Set professional lighting settings for recording
     Lighting.ClockTime = 14 -- Good lighting time
     Lighting.GeographicLatitude = 0
-    Lighting.ExposureCompensation = 0.2
+    Lighting.Brightness = 1
+    Lighting.ExposureCompensation = -0.5
+    Lighting.Ambient = Color3.fromRGB(80, 80, 80)
+    Lighting.OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+    
+    -- Add professional color correction
+    local colorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+    if not colorCorrection then
+        colorCorrection = Instance.new("ColorCorrectionEffect")
+        colorCorrection.Parent = Lighting
+    end
+    colorCorrection.Brightness = -0.1
+    colorCorrection.Contrast = 0.05
+    colorCorrection.Saturation = 0.9
     
     -- Add atmospheric effects if high quality
     if config.name == "High Quality Recording" then

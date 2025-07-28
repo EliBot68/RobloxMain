@@ -1,0 +1,955 @@
+-- MainGameService.luau
+-- Central orchestration service that integrates all core systems
+-- Manages initialization, lifecycle, and coordination of all game services
+-- This is the master service that ties everything together
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local DataStoreService = game:GetService("DataStoreService")
+local MessagingService = game:GetService("MessagingService")
+local TweenService = game:GetService("TweenService")
+
+local MainGameService = {}
+
+-- Service Dependencies and References
+local Services = {}
+local Controllers = {}
+local Modules = {}
+local RemoteEvents = {}
+
+-- System State
+local isInitialized = false
+local initializationStartTime = nil
+local initializationPhase = "Starting"
+local activeServices = {}
+local serviceHealth = {}
+local systemMetrics = {}
+
+-- Configuration
+local MAINGAME_CONFIG = {
+    -- Initialization settings
+    maxInitTime = 30, -- Maximum time allowed for full initialization
+    retryAttempts = 3,
+    healthCheckInterval = 30, -- Seconds between health checks
+    
+    -- Service priorities (lower number = higher priority)
+    servicePriorities = {
+        -- Critical Core Services (Priority 1)
+        RemoteEventsSetup = 1,
+        AnalyticsService = 1,
+        ProfessionalLighting = 1,
+        
+        -- Core Game Services (Priority 2)
+        GameService = 2,
+        TrackGeneratorService = 2,
+        MainGameController = 2,
+        CollisionController = 2,
+        DifficultyService = 2,
+        
+        -- Extended Services (Priority 3)
+        PlayerService = 3,
+        ScoreService = 3,
+        LevelingService = 3,
+        MonetizationService = 3,
+        QuestService = 3,
+        
+        -- Optional Services (Priority 4)
+        RecordingSessionManager = 4,
+        TournamentService = 4,
+        PartyService = 4,
+        SpectatorService = 4,
+        WorldEventService = 4,
+        
+        -- Enhancement Services (Priority 5)
+        PetService = 5,
+        ShopService = 5,
+        TrophyService = 5,
+        RebirthService = 5,
+        UpgradeService = 5
+    },
+    
+    -- Feature toggles
+    features = {
+        analytics = true,
+        multiplayer = true,
+        recording = true,
+        tournaments = true,
+        monetization = true,
+        worldEvents = true,
+        accessibility = true,
+        professionalLighting = true
+    },
+    
+    -- Performance settings
+    performance = {
+        enableOptimizations = true,
+        maxConcurrentGames = 50,
+        memoryCleanupInterval = 300,
+        gcCollectInterval = 60
+    }
+}
+
+-- Initialization sequence
+function MainGameService:Initialize()
+    if isInitialized then
+        warn("⚠️ MainGameService already initialized!")
+        return true
+    end
+    
+    initializationStartTime = tick()
+    initializationPhase = "Starting"
+    
+    print("🚀 MainGameService: Starting comprehensive initialization...")
+    print("⚡ Color Rush - Master Service Orchestration")
+    print("=" .. string.rep("=", 50))
+    
+    -- Phase 1: Setup RemoteEvents and Core Infrastructure
+    local success = self:InitializePhase1()
+    if not success then
+        self:HandleInitializationFailure("Phase 1 - Core Infrastructure")
+        return false
+    end
+    
+    -- Phase 2: Load Core Services and Controllers
+    success = self:InitializePhase2()
+    if not success then
+        self:HandleInitializationFailure("Phase 2 - Core Services")
+        return false
+    end
+    
+    -- Phase 3: Initialize Extended Services
+    success = self:InitializePhase3()
+    if not success then
+        self:HandleInitializationFailure("Phase 3 - Extended Services")
+        return false
+    end
+    
+    -- Phase 4: Setup Lifecycle Management
+    success = self:InitializePhase4()
+    if not success then
+        self:HandleInitializationFailure("Phase 4 - Lifecycle Management")
+        return false
+    end
+    
+    -- Mark as initialized
+    isInitialized = true
+    local initTime = tick() - initializationStartTime
+    
+    print("=" .. string.rep("=", 50))
+    print("✅ MainGameService: Full initialization complete!")
+    print("⏱️ Total initialization time: " .. string.format("%.2f", initTime) .. " seconds")
+    print("🎮 Color Rush ready for players!")
+    print("=" .. string.rep("=", 50))
+    
+    -- Final validation
+    self:ValidateSystemHealth()
+    self:StartPeriodicHealthChecks()
+    
+    return true
+end
+
+-- Phase 1: Core Infrastructure Setup
+function MainGameService:InitializePhase1()
+    initializationPhase = "Phase 1 - Core Infrastructure"
+    print("\n🔧 Phase 1: Initializing Core Infrastructure...")
+    
+    -- 1. Initialize RemoteEvents System
+    local success = self:InitializeRemoteEvents()
+    if not success then
+        return false
+    end
+    
+    -- 2. Initialize Professional Lighting
+    success = self:InitializeProfessionalLighting()
+    if not success then
+        warn("⚠️ Professional Lighting failed to initialize")
+    end
+    
+    -- 3. Initialize Analytics Service
+    success = self:InitializeAnalyticsService()
+    if not success then
+        warn("⚠️ Analytics Service failed to initialize")
+    end
+    
+    print("✅ Phase 1 Complete: Core Infrastructure Ready")
+    return true
+end
+
+-- Phase 2: Core Game Services
+function MainGameService:InitializePhase2()
+    initializationPhase = "Phase 2 - Core Game Services"
+    print("\n🎮 Phase 2: Initializing Core Game Services...")
+    
+    -- 1. Initialize GameService (Core game mechanics)
+    local success = self:InitializeGameService()
+    if not success then
+        return false
+    end
+    
+    -- 2. Initialize TrackGeneratorService
+    success = self:InitializeTrackGeneratorService()
+    if not success then
+        return false
+    end
+    
+    -- 3. Initialize MainGameController
+    success = self:InitializeMainGameController()
+    if not success then
+        return false
+    end
+    
+    -- 4. Initialize CollisionController
+    success = self:InitializeCollisionController()
+    if not success then
+        return false
+    end
+    
+    -- 5. Initialize DifficultyService
+    success = self:InitializeDifficultyService()
+    if not success then
+        warn("⚠️ DifficultyService failed to initialize")
+    end
+    
+    print("✅ Phase 2 Complete: Core Game Services Ready")
+    return true
+end
+
+-- Phase 3: Extended Services
+function MainGameService:InitializePhase3()
+    initializationPhase = "Phase 3 - Extended Services"
+    print("\n🌟 Phase 3: Initializing Extended Services...")
+    
+    -- Load all extended services with error handling
+    local extendedServices = {
+        "PlayerService",
+        "ScoreService", 
+        "LevelingService",
+        "MonetizationService",
+        "QuestService",
+        "RecordingSessionManager",
+        "TournamentService",
+        "PartyService",
+        "SpectatorService",
+        "WorldEventService",
+        "PetService",
+        "ShopService",
+        "TrophyService",
+        "RebirthService",
+        "UpgradeService",
+        "MiniGameService",
+        "WeeklyLeaderboardService",
+        "VisualPolishService",
+        "TutorialService"
+    }
+    
+    local successCount = 0
+    local totalServices = #extendedServices
+    
+    for _, serviceName in ipairs(extendedServices) do
+        local success = self:LoadService(serviceName)
+        if success then
+            successCount = successCount + 1
+        end
+    end
+    
+    print("📊 Extended Services: " .. successCount .. "/" .. totalServices .. " loaded successfully")
+    
+    if successCount < totalServices * 0.7 then -- Require at least 70% success
+        warn("❌ Too many extended services failed to load")
+        return false
+    end
+    
+    print("✅ Phase 3 Complete: Extended Services Ready")
+    return true
+end
+
+-- Phase 4: Lifecycle Management
+function MainGameService:InitializePhase4()
+    initializationPhase = "Phase 4 - Lifecycle Management"
+    print("\n🔄 Phase 4: Setting up Lifecycle Management...")
+    
+    -- 1. Setup player management
+    self:SetupPlayerManagement()
+    
+    -- 2. Setup game state coordination
+    self:SetupGameStateCoordination()
+    
+    -- 3. Setup cross-service communication
+    self:SetupCrossServiceCommunication()
+    
+    -- 4. Setup performance monitoring
+    self:SetupPerformanceMonitoring()
+    
+    -- 5. Setup error handling and recovery
+    self:SetupErrorHandling()
+    
+    print("✅ Phase 4 Complete: Lifecycle Management Active")
+    return true
+end
+
+-- RemoteEvents Initialization
+function MainGameService:InitializeRemoteEvents()
+    print("🔗 Initializing RemoteEvents System...")
+    
+    local success, result = pcall(function()
+        local SharedModules = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules")
+        local RemoteEventsSetup = require(SharedModules:WaitForChild("RemoteEventsSetup"))
+        
+        -- Initialize the system
+        RemoteEvents = RemoteEventsSetup:Init()
+        
+        -- Create global access functions
+        _G.RemoteEvents = RemoteEvents
+        _G.GetRemoteEvent = function(eventName)
+            return RemoteEventsSetup:GetEvent(eventName)
+        end
+        _G.GetRemoteFunction = function(functionName)
+            return RemoteEventsSetup:GetFunction(functionName)
+        end
+        
+        Services.RemoteEventsSetup = RemoteEventsSetup
+        return true
+    end)
+    
+    if success then
+        print("✅ RemoteEvents System initialized")
+        serviceHealth.RemoteEventsSetup = "Healthy"
+        return true
+    else
+        warn("❌ RemoteEvents initialization failed: " .. tostring(result))
+        serviceHealth.RemoteEventsSetup = "Failed"
+        return false
+    end
+end
+
+-- Professional Lighting Initialization
+function MainGameService:InitializeProfessionalLighting()
+    print("💡 Initializing Professional Lighting...")
+    
+    local success, result = pcall(function()
+        local SharedModules = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules")
+        local ProfessionalLighting = require(SharedModules:WaitForChild("ProfessionalLighting"))
+        
+        ProfessionalLighting:ApplyProfessionalLighting()
+        Services.ProfessionalLighting = ProfessionalLighting
+        return true
+    end)
+    
+    if success then
+        print("✅ Professional Lighting applied")
+        serviceHealth.ProfessionalLighting = "Healthy"
+        return true
+    else
+        warn("❌ Professional Lighting failed: " .. tostring(result))
+        serviceHealth.ProfessionalLighting = "Failed"
+        return false
+    end
+end
+
+-- Analytics Service Initialization
+function MainGameService:InitializeAnalyticsService()
+    print("📊 Initializing Analytics Service...")
+    
+    local success, result = pcall(function()
+        local analyticsPath = script.Parent:FindFirstChild("AnalyticsService")
+        if analyticsPath then
+            Services.AnalyticsService = require(analyticsPath)
+            if Services.AnalyticsService.Initialize then
+                Services.AnalyticsService:Initialize()
+            end
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Analytics Service initialized")
+        serviceHealth.AnalyticsService = "Healthy"
+        return true
+    else
+        warn("❌ Analytics Service failed: " .. tostring(result))
+        serviceHealth.AnalyticsService = "Failed"
+        return false
+    end
+end
+
+-- GameService Initialization
+function MainGameService:InitializeGameService()
+    print("🎯 Initializing Core GameService...")
+    
+    local success, result = pcall(function()
+        local coreServicesPath = script.Parent:FindFirstChild("core")
+        if coreServicesPath and coreServicesPath:FindFirstChild("GameService") then
+            Services.GameService = require(coreServicesPath.GameService)
+            if Services.GameService.Initialize then
+                Services.GameService:Initialize()
+            end
+            return true
+        else
+            warn("❌ GameService not found in core services")
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Core GameService initialized")
+        serviceHealth.GameService = "Healthy"
+        return true
+    else
+        warn("❌ GameService initialization failed: " .. tostring(result))
+        serviceHealth.GameService = "Critical"
+        return false
+    end
+end
+
+-- TrackGeneratorService Initialization
+function MainGameService:InitializeTrackGeneratorService()
+    print("🛤️ Initializing Track Generator Service...")
+    
+    local success, result = pcall(function()
+        local trackGenPath = script.Parent:FindFirstChild("TrackGeneratorService")
+        if trackGenPath then
+            Services.TrackGeneratorService = require(trackGenPath)
+            if Services.TrackGeneratorService.Initialize then
+                Services.TrackGeneratorService:Initialize()
+            end
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Track Generator Service initialized")
+        serviceHealth.TrackGeneratorService = "Healthy"
+        return true
+    else
+        warn("❌ TrackGeneratorService failed: " .. tostring(result))
+        serviceHealth.TrackGeneratorService = "Critical"
+        return false
+    end
+end
+
+-- MainGameController Initialization
+function MainGameService:InitializeMainGameController()
+    print("🎮 Initializing Main Game Controller...")
+    
+    local success, result = pcall(function()
+        local controllerPath = script.Parent.Parent:FindFirstChild("MainGameController")
+        if controllerPath then
+            Controllers.MainGameController = require(controllerPath)
+            if Controllers.MainGameController.Initialize then
+                Controllers.MainGameController:Initialize()
+            end
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Main Game Controller initialized")
+        serviceHealth.MainGameController = "Healthy"
+        return true
+    else
+        warn("❌ MainGameController failed: " .. tostring(result))
+        serviceHealth.MainGameController = "Critical"
+        return false
+    end
+end
+
+-- CollisionController Initialization  
+function MainGameService:InitializeCollisionController()
+    print("💥 Initializing Collision Controller...")
+    
+    local success, result = pcall(function()
+        local controllersPath = script.Parent.Parent:FindFirstChild("controllers")
+        if controllersPath and controllersPath:FindFirstChild("CollisionController") then
+            Controllers.CollisionController = require(controllersPath.CollisionController)
+            if Controllers.CollisionController.Initialize then
+                Controllers.CollisionController:Initialize()
+            end
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Collision Controller initialized")
+        serviceHealth.CollisionController = "Healthy"
+        return true
+    else
+        warn("❌ CollisionController failed: " .. tostring(result))
+        serviceHealth.CollisionController = "Critical"
+        return false
+    end
+end
+
+-- DifficultyService Initialization
+function MainGameService:InitializeDifficultyService()
+    print("⚖️ Initializing Difficulty Service...")
+    
+    local success, result = pcall(function()
+        local difficultyPath = script.Parent:FindFirstChild("DifficultyService")
+        if difficultyPath then
+            Services.DifficultyService = require(difficultyPath)
+            if Services.DifficultyService.KnitStart then
+                Services.DifficultyService:KnitStart()
+            elseif Services.DifficultyService.Initialize then
+                Services.DifficultyService:Initialize()
+            end
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ Difficulty Service initialized")
+        serviceHealth.DifficultyService = "Healthy"
+        return true
+    else
+        warn("❌ DifficultyService failed: " .. tostring(result))
+        serviceHealth.DifficultyService = "Warning"
+        return false
+    end
+end
+
+-- Generic Service Loader
+function MainGameService:LoadService(serviceName)
+    local success, result = pcall(function()
+        local servicePath = script.Parent:FindFirstChild(serviceName)
+        if servicePath then
+            local service = require(servicePath)
+            Services[serviceName] = service
+            
+            -- Try different initialization methods
+            if service.KnitStart then
+                service:KnitStart()
+            elseif service.Initialize then
+                service:Initialize()
+            elseif service.Init then
+                service:Init()
+            elseif service.Start then
+                service:Start()
+            end
+            
+            serviceHealth[serviceName] = "Healthy"
+            return true
+        else
+            serviceHealth[serviceName] = "NotFound"
+            return false
+        end
+    end)
+    
+    if success then
+        print("✅ " .. serviceName .. " loaded")
+        return true
+    else
+        print("⚠️ " .. serviceName .. " failed to load: " .. tostring(result))
+        serviceHealth[serviceName] = "Failed"
+        return false
+    end
+end
+
+-- Player Management Setup
+function MainGameService:SetupPlayerManagement()
+    print("👥 Setting up Player Management...")
+    
+    Players.PlayerAdded:Connect(function(player)
+        self:HandlePlayerJoined(player)
+    end)
+    
+    Players.PlayerRemoving:Connect(function(player)
+        self:HandlePlayerLeaving(player)
+    end)
+    
+    -- Handle existing players
+    for _, player in pairs(Players:GetPlayers()) do
+        self:HandlePlayerJoined(player)
+    end
+    
+    print("✅ Player Management active")
+end
+
+-- Game State Coordination Setup
+function MainGameService:SetupGameStateCoordination()
+    print("🎛️ Setting up Game State Coordination...")
+    
+    -- Connect to game state changes
+    if _G.GetRemoteEvent then
+        local gameStateEvent = _G.GetRemoteEvent("GameStateChange")
+        if gameStateEvent then
+            gameStateEvent.OnServerEvent:Connect(function(player, newState, gameData)
+                self:HandleGameStateChange(player, newState, gameData)
+            end)
+        end
+    end
+    
+    print("✅ Game State Coordination active")
+end
+
+-- Cross-Service Communication Setup
+function MainGameService:SetupCrossServiceCommunication()
+    print("📡 Setting up Cross-Service Communication...")
+    
+    -- Create service communication hub
+    _G.ServiceCommunication = {
+        BroadcastToServices = function(message, data)
+            self:BroadcastToServices(message, data)
+        end,
+        GetService = function(serviceName)
+            return Services[serviceName]
+        end,
+        GetController = function(controllerName)
+            return Controllers[controllerName]
+        end,
+        GetServiceHealth = function(serviceName)
+            return serviceHealth[serviceName] or "Unknown"
+        end
+    }
+    
+    print("✅ Cross-Service Communication established")
+end
+
+-- Performance Monitoring Setup
+function MainGameService:SetupPerformanceMonitoring()
+    print("📈 Setting up Performance Monitoring...")
+    
+    -- Start system metrics collection
+    spawn(function()
+        while true do
+            self:CollectSystemMetrics()
+            wait(MAINGAME_CONFIG.performance.gcCollectInterval)
+        end
+    end)
+    
+    -- Memory cleanup routine
+    spawn(function()
+        while true do
+            wait(MAINGAME_CONFIG.performance.memoryCleanupInterval)
+            self:PerformMemoryCleanup()
+        end
+    end)
+    
+    print("✅ Performance Monitoring active")
+end
+
+-- Error Handling Setup
+function MainGameService:SetupErrorHandling()
+    print("🛡️ Setting up Error Handling...")
+    
+    -- Global error handler
+    local function handleError(message, trace)
+        warn("🚨 System Error: " .. tostring(message))
+        if Services.AnalyticsService then
+            Services.AnalyticsService:LogEvent("SystemError", {
+                message = tostring(message),
+                trace = tostring(trace),
+                timestamp = tick()
+            })
+        end
+    end
+    
+    -- Service health monitoring
+    spawn(function()
+        while true do
+            wait(MAINGAME_CONFIG.healthCheckInterval)
+            self:PerformHealthCheck()
+        end
+    end)
+    
+    print("✅ Error Handling established")
+end
+
+-- Player Event Handlers
+function MainGameService:HandlePlayerJoined(player)
+    print("👋 Player joined: " .. player.Name)
+    
+    -- Notify all services
+    self:BroadcastToServices("PlayerJoined", {player = player})
+    
+    -- Track analytics
+    if Services.AnalyticsService then
+        Services.AnalyticsService:LogEvent("PlayerJoin", {
+            player = player.Name,
+            userId = player.UserId,
+            timestamp = tick()
+        })
+    end
+    
+    -- Initialize player in core services
+    if Services.GameService and Services.GameService.SetupPlayer then
+        Services.GameService:SetupPlayer(player)
+    end
+    
+    if Controllers.MainGameController and Controllers.MainGameController.SetupPlayer then
+        Controllers.MainGameController:SetupPlayer(player)
+    end
+end
+
+function MainGameService:HandlePlayerLeaving(player)
+    print("👋 Player leaving: " .. player.Name)
+    
+    -- Notify all services
+    self:BroadcastToServices("PlayerLeaving", {player = player})
+    
+    -- Track analytics
+    if Services.AnalyticsService then
+        Services.AnalyticsService:LogEvent("PlayerLeave", {
+            player = player.Name,
+            userId = player.UserId,
+            timestamp = tick()
+        })
+    end
+    
+    -- Cleanup player data in services
+    if Services.GameService and Services.GameService.CleanupPlayer then
+        Services.GameService:CleanupPlayer(player)
+    end
+end
+
+-- Game State Management
+function MainGameService:HandleGameStateChange(player, newState, gameData)
+    print("🎮 Game state changed for " .. player.Name .. ": " .. tostring(newState))
+    
+    -- Broadcast to all services
+    self:BroadcastToServices("GameStateChanged", {
+        player = player,
+        newState = newState,
+        gameData = gameData
+    })
+    
+    -- Track analytics
+    if Services.AnalyticsService then
+        Services.AnalyticsService:LogEvent("GameStateChanged", {
+            player = player.Name,
+            state = newState,
+            data = gameData,
+            timestamp = tick()
+        })
+    end
+end
+
+-- Service Communication
+function MainGameService:BroadcastToServices(message, data)
+    for serviceName, service in pairs(Services) do
+        if service and service.HandleServiceMessage then
+            pcall(function()
+                service:HandleServiceMessage(message, data)
+            end)
+        end
+    end
+    
+    for controllerName, controller in pairs(Controllers) do
+        if controller and controller.HandleServiceMessage then
+            pcall(function()
+                controller:HandleServiceMessage(message, data)
+            end)
+        end
+    end
+end
+
+-- System Health Management
+function MainGameService:PerformHealthCheck()
+    local unhealthyServices = {}
+    
+    for serviceName, health in pairs(serviceHealth) do
+        if health == "Failed" or health == "Critical" then
+            table.insert(unhealthyServices, serviceName)
+        end
+    end
+    
+    if #unhealthyServices > 0 then
+        warn("⚠️ Unhealthy services detected: " .. table.concat(unhealthyServices, ", "))
+        self:AttemptServiceRecovery(unhealthyServices)
+    end
+end
+
+function MainGameService:AttemptServiceRecovery(unhealthyServices)
+    print("🔧 Attempting service recovery...")
+    
+    for _, serviceName in ipairs(unhealthyServices) do
+        local success = self:RestartService(serviceName)
+        if success then
+            print("✅ " .. serviceName .. " recovered")
+            serviceHealth[serviceName] = "Healthy"
+        else
+            warn("❌ " .. serviceName .. " recovery failed")
+        end
+    end
+end
+
+function MainGameService:RestartService(serviceName)
+    local success, result = pcall(function()
+        if Services[serviceName] then
+            -- Try to stop the service
+            if Services[serviceName].Stop then
+                Services[serviceName]:Stop()
+            end
+        end
+        
+        -- Attempt to reload
+        return self:LoadService(serviceName)
+    end)
+    
+    return success
+end
+
+-- Performance Management
+function MainGameService:CollectSystemMetrics()
+    systemMetrics = {
+        playerCount = #Players:GetPlayers(),
+        activeServices = 0,
+        healthyServices = 0,
+        timestamp = tick()
+    }
+    
+    for _, health in pairs(serviceHealth) do
+        systemMetrics.activeServices = systemMetrics.activeServices + 1
+        if health == "Healthy" then
+            systemMetrics.healthyServices = systemMetrics.healthyServices + 1
+        end
+    end
+    
+    -- Log to analytics if available
+    if Services.AnalyticsService then
+        Services.AnalyticsService:LogEvent("SystemMetrics", systemMetrics)
+    end
+end
+
+function MainGameService:PerformMemoryCleanup()
+    print("🧹 Performing memory cleanup...")
+    
+    -- Run garbage collection
+    collectgarbage("collect")
+    
+    -- Notify services to cleanup
+    self:BroadcastToServices("MemoryCleanup", {})
+    
+    print("✅ Memory cleanup complete")
+end
+
+-- Health Check Functionality
+function MainGameService:StartPeriodicHealthChecks()
+    spawn(function()
+        while isInitialized do
+            wait(MAINGAME_CONFIG.healthCheckInterval)
+            self:PerformHealthCheck()
+        end
+    end)
+end
+
+function MainGameService:ValidateSystemHealth()
+    print("\n🏥 Validating System Health...")
+    
+    local totalServices = 0
+    local healthyServices = 0
+    local criticalServices = 0
+    
+    for serviceName, health in pairs(serviceHealth) do
+        totalServices = totalServices + 1
+        if health == "Healthy" then
+            healthyServices = healthyServices + 1
+        elseif health == "Critical" or health == "Failed" then
+            criticalServices = criticalServices + 1
+        end
+    end
+    
+    local healthPercentage = (healthyServices / totalServices) * 100
+    
+    print("📊 System Health Report:")
+    print("  Total Services: " .. totalServices)
+    print("  Healthy: " .. healthyServices .. " (" .. string.format("%.1f", healthPercentage) .. "%)")
+    print("  Critical/Failed: " .. criticalServices)
+    
+    if healthPercentage >= 90 then
+        print("✅ System health: EXCELLENT")
+    elseif healthPercentage >= 75 then
+        print("⚠️ System health: GOOD")
+    elseif healthPercentage >= 60 then
+        print("⚠️ System health: FAIR")
+    else
+        print("❌ System health: POOR")
+    end
+end
+
+-- Initialization failure handling
+function MainGameService:HandleInitializationFailure(phase)
+    warn("❌ MainGameService initialization failed at: " .. phase)
+    
+    if Services.AnalyticsService then
+        Services.AnalyticsService:LogEvent("InitializationFailure", {
+            phase = phase,
+            timestamp = tick()
+        })
+    end
+    
+    -- Attempt recovery for critical services
+    if phase:find("Core") then
+        warn("🚨 Critical initialization failure - system may be unstable")
+    end
+end
+
+-- Public API
+function MainGameService:GetService(serviceName)
+    return Services[serviceName]
+end
+
+function MainGameService:GetController(controllerName)
+    return Controllers[controllerName]
+end
+
+function MainGameService:GetSystemHealth()
+    return serviceHealth
+end
+
+function MainGameService:GetSystemMetrics()
+    return systemMetrics
+end
+
+function MainGameService:IsInitialized()
+    return isInitialized
+end
+
+function MainGameService:GetInitializationPhase()
+    return initializationPhase
+end
+
+-- Shutdown functionality
+function MainGameService:Shutdown()
+    print("🛑 MainGameService: Beginning shutdown sequence...")
+    
+    isInitialized = false
+    
+    -- Notify all services
+    self:BroadcastToServices("SystemShutdown", {})
+    
+    -- Stop all services
+    for serviceName, service in pairs(Services) do
+        if service and service.Stop then
+            pcall(function()
+                service:Stop()
+            end)
+        end
+    end
+    
+    print("✅ MainGameService: Shutdown complete")
+end
+
+-- Auto-initialize when required
+if RunService:IsServer() then
+    spawn(function()
+        wait(1) -- Brief delay to ensure other scripts are loaded
+        MainGameService:Initialize()
+    end)
+end
+
+return MainGameService
