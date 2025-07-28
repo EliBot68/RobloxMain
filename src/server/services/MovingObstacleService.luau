@@ -1,22 +1,23 @@
 -- MovingObstacleService.luau
--- Server-side service for managing moving obstacles in Color Rush
+-- Server-side service for managing moving obstacles in Color Rush (Standardized Enhanced Service)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
 
--- Safe require for MovingObstacle module
-local MovingObstacle = SafeRequire.requireWithRetry(
-    ReplicatedStorage.Shared.modules.MovingObstacle,
-    3
-)
+local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
 
-local MovingObstacleService = Knit.CreateService {
-    Name = "MovingObstacleService",
-    Client = {}
+-- Define dependencies
+MovingObstacleService.Dependencies = {
+    { path = ReplicatedStorage.Shared.modules.MovingObstacle, name = "MovingObstacle", optional = false },
 }
 
 -- Active obstacles tracking
@@ -26,22 +27,23 @@ local obstacleCounter = 0
 -- Track configuration
 local trackObstacles = {}
 
-function MovingObstacleService:KnitStart()
-    print("🚧 MovingObstacleService starting...")
-    
-    if not MovingObstacle then
+-- Service-specific initialization
+function MovingObstacleService:OnInit()
+    if not self.MovingObstacle then
         warn("❌ Failed to load MovingObstacle module - service disabled")
-        return
+        return false
     end
     
+    return true
+end
+
+-- Service-specific start logic
+function MovingObstacleService:OnStart()
     -- Setup obstacle management
     self:SetupObstacleCleanup()
     
     print("✅ MovingObstacleService started!")
-end
-
-function MovingObstacleService:KnitInit()
-    -- Initialize service
+    return true
 end
 
 function MovingObstacleService:SetupObstacleCleanup()
@@ -69,7 +71,7 @@ function MovingObstacleService:CreateObstacle(config, position, parent)
     local obstacleId = "obstacle_" .. obstacleCounter
     
     -- Create obstacle instance
-    local obstacle = MovingObstacle.new(config)
+    local obstacle = self.MovingObstacle.new(config)
     local obstaclePart = obstacle:Create(position, parent)
     
     if not obstaclePart then

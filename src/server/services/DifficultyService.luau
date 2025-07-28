@@ -1,26 +1,23 @@
 -- DifficultyService.luau
--- Server-side service for managing game difficulty progression
+-- Server-side service for managing game difficulty progression (Standardized Enhanced Service)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
 
--- Safe require for DifficultyManager
-local DifficultyManager = SafeRequire.requireWithRetry(
-    ReplicatedStorage.Shared.modules.DifficultyManager,
-    3
-)
+local DifficultyService = ServiceBase.new("DifficultyService", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
 
-local DifficultyService = Knit.CreateService {
-    Name = "DifficultyService",
-    Client = {
-        DifficultyChanged = Knit.CreateSignal(),
-        LevelUp = Knit.CreateSignal(),
-        SpikeActivated = Knit.CreateSignal()
-    }
+-- Define dependencies
+DifficultyService.Dependencies = {
+    { path = ReplicatedStorage.Shared.modules.DifficultyManager, name = "DifficultyManager", optional = false },
 }
 
 -- Player difficulty managers
@@ -30,25 +27,49 @@ local activeGames = {}
 -- Global difficulty settings
 local globalDifficultyConfig = nil
 
-function DifficultyService:KnitStart()
-    print("🎚️ DifficultyService starting...")
-    
-    if not DifficultyManager then
+-- Client communication events (replacing Knit signals)
+DifficultyService.RemoteEvents = {
+    DifficultyChanged = nil,
+    LevelUp = nil,
+    SpikeActivated = nil
+}
+
+-- Service-specific initialization
+function DifficultyService:OnInit()
+    if not self.DifficultyManager then
         warn("❌ Failed to load DifficultyManager module - service disabled")
-        return
+        return false
     end
-    
-    -- Setup player management
-    self:SetupPlayerManagement()
     
     -- Load default configuration
     self:LoadGlobalConfiguration()
     
-    print("✅ DifficultyService started!")
+    return true
 end
 
-function DifficultyService:KnitInit()
-    -- Initialize service
+-- Service-specific start logic
+function DifficultyService:OnStart()
+    -- Setup player management
+    self:SetupPlayerManagement()
+    
+    print("✅ DifficultyService started!")
+    return true
+end
+
+-- Setup remote events
+function DifficultyService:SetupRemoteEvents()
+    local RemoteEvents = self:SafeRequire(ReplicatedStorage.Shared.modules.RemoteEvents, "RemoteEvents", true)
+    
+    if RemoteEvents then
+        self.RemoteEvents.DifficultyChanged = RemoteEvents:GetRemoteEvent("DifficultyChanged")
+        self.RemoteEvents.LevelUp = RemoteEvents:GetRemoteEvent("LevelUp")
+        self.RemoteEvents.SpikeActivated = RemoteEvents:GetRemoteEvent("SpikeActivated")
+    end
+end
+
+-- Setup connections
+function DifficultyService:SetupConnections()
+    -- Setup any additional connections here
 end
 
 function DifficultyService:SetupPlayerManagement()
@@ -70,7 +91,7 @@ end
 
 function DifficultyService:LoadGlobalConfiguration()
     -- Load default difficulty configuration
-    globalDifficultyConfig = DifficultyManager.GetPresetConfigs().normal
+    globalDifficultyConfig = self.DifficultyManager.GetPresetConfigs().normal
     
     print("🎚️ Loaded global difficulty configuration")
 end
@@ -80,7 +101,7 @@ function DifficultyService:InitializePlayerDifficulty(player)
         return -- Already initialized
     end
     
-    local difficultyManager = DifficultyManager.new(globalDifficultyConfig)
+    local difficultyManager = self.DifficultyManager.new(globalDifficultyConfig)
     
     -- Setup event handlers
     difficultyManager:OnEvent("onLevelUp", function(data)
@@ -218,16 +239,20 @@ end
 function DifficultyService:HandleLevelUp(player, data)
     print("🎚️ " .. player.Name .. " leveled up: " .. data.oldLevel .. " → " .. data.newLevel .. " (" .. data.levelName .. ")")
     
-    -- Fire client signal
-    self.Client.LevelUp:Fire(player, data)
+    -- Fire client event
+    if self.RemoteEvents.LevelUp then
+        self.RemoteEvents.LevelUp:FireClient(player, data)
+    end
     
     -- Trigger other systems that might need to know about level changes
     -- (e.g., obstacle spawning, visual effects, achievements)
 end
 
 function DifficultyService:HandleDifficultyChange(player, data)
-    -- Fire client signal for UI updates
-    self.Client.DifficultyChanged:Fire(player, data)
+    -- Fire client event for UI updates
+    if self.RemoteEvents.DifficultyChanged then
+        self.RemoteEvents.DifficultyChanged:FireClient(player, data)
+    end
     
     -- Update other systems based on difficulty changes
     self:UpdateSystemsForDifficulty(player, data)
@@ -236,33 +261,44 @@ end
 function DifficultyService:HandleSpike(player, data)
     print("⚡ Difficulty spike activated for " .. player.Name .. " - Duration: " .. data.duration .. "s")
     
-    -- Fire client signal
-    self.Client.SpikeActivated:Fire(player, data)
+    -- Fire client event
+    if self.RemoteEvents.SpikeActivated then
+        self.RemoteEvents.SpikeActivated:FireClient(player, data)
+    end
 end
 
 function DifficultyService:UpdateSystemsForDifficulty(player, difficulty)
     -- Integration point for other game systems
     -- This is where the difficulty system plugs into the main game loop
     
-    -- Update obstacle spawning (if ObstacleSpawnerService exists)
-    if Knit.Services.ObstacleSpawnerService then
-        Knit.Services.ObstacleSpawnerService:UpdateSpawnRate(player, difficulty.spawnRate)
-        Knit.Services.ObstacleSpawnerService:UpdateComplexity(player, difficulty.complexity)
-    end
-    
-    -- Update moving obstacles (if MovingObstacleService exists)
-    if Knit.Services.MovingObstacleService then
-        Knit.Services.MovingObstacleService:UpdateDifficulty(player, difficulty)
-    end
-    
-    -- Update player speed (if PlayerMovementService exists)
-    if Knit.Services.PlayerMovementService then
-        Knit.Services.PlayerMovementService:UpdateSpeed(player, difficulty.speed)
-    end
-    
-    -- Update game environment (if EnvironmentService exists)
-    if Knit.Services.EnvironmentService then
-        Knit.Services.EnvironmentService:UpdateDifficulty(player, difficulty)
+    -- Update obstacle spawning (if available through ServiceRegistry)
+    local ServiceRegistry = self:SafeRequire(ReplicatedStorage.Shared.utils.ServiceRegistry, "ServiceRegistry", true)
+    if ServiceRegistry then
+        local ObstacleSpawnerService = ServiceRegistry:GetService("ObstacleSpawnerService")
+        if ObstacleSpawnerService and ObstacleSpawnerService.UpdateSpawnRate then
+            ObstacleSpawnerService:UpdateSpawnRate(player, difficulty.spawnRate)
+        end
+        if ObstacleSpawnerService and ObstacleSpawnerService.UpdateComplexity then
+            ObstacleSpawnerService:UpdateComplexity(player, difficulty.complexity)
+        end
+        
+        -- Update moving obstacles
+        local MovingObstacleService = ServiceRegistry:GetService("MovingObstacleService")
+        if MovingObstacleService and MovingObstacleService.UpdateDifficulty then
+            MovingObstacleService:UpdateDifficulty(player, difficulty)
+        end
+        
+        -- Update player speed
+        local PlayerMovementService = ServiceRegistry:GetService("PlayerMovementService")
+        if PlayerMovementService and PlayerMovementService.UpdateSpeed then
+            PlayerMovementService:UpdateSpeed(player, difficulty.speed)
+        end
+        
+        -- Update game environment
+        local EnvironmentService = ServiceRegistry:GetService("EnvironmentService")
+        if EnvironmentService and EnvironmentService.UpdateDifficulty then
+            EnvironmentService:UpdateDifficulty(player, difficulty)
+        end
     end
     
     -- Update UI elements (through client signals)

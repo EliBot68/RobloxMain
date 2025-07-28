@@ -1,6 +1,6 @@
 --[[
 	HubManagerService
-	Manages the game hub layout, building placement, and area definitions
+	Manages the game hub layout, building placement, and area definitions (Standardized Enhanced Service)
 	Provides utilities for creating and managing hub elements
 --]]
 
@@ -10,12 +10,15 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
+local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
 
-local HubManagerService = Knit.CreateService {
-	Name = "HubManagerService",
-	Client = {},
-}
+local HubManagerService = ServiceBase.new("HubManagerService", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
 
 -- Hub zone definitions
 local HUB_ZONES = {
@@ -618,7 +621,13 @@ function HubManagerService.Client:GetAllZones(player)
 	return {success = true, zones = zones}
 end
 
-function HubManagerService:KnitStart()
+-- Service-specific initialization
+function HubManagerService:OnInit()
+	return true
+end
+
+-- Service-specific start logic
+function HubManagerService:OnStart()
 	print("🏙️ HubManagerService starting...")
 	
 	-- Wait for workspace to be ready
@@ -628,6 +637,7 @@ function HubManagerService:KnitStart()
 	self:SetupCompleteHub()
 	
 	print("✅ HubManagerService ready - Game hub is live!")
+	return true
 end
 
 return HubManagerService

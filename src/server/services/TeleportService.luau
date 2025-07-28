@@ -1,5 +1,5 @@
 -- TeleportService.luau
--- Handles return rings and teleportation back to market plaza
+-- Handles return rings and teleportation back to market plaza (Standardized Enhanced Service)
 -- Enhanced with developer teleportation tools
 
 local Players = game:GetService("Players")
@@ -9,22 +9,29 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
-local DeveloperConfig = require(ReplicatedStorage.Shared.modules.DeveloperConfig)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PlayerService = require(script.Parent.PlayerService)
+local ServiceBase = require(ReplicatedStorage.Shared.utils.ServiceBase)
 
-local TeleportService = Knit.CreateService {
-    Name = "TeleportService",
-    Client = {},
+local TeleportService = ServiceBase.new("TeleportService", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
+
+-- Define dependencies
+TeleportService.Dependencies = {
+    { path = ReplicatedStorage.Shared.modules.DeveloperConfig, name = "DeveloperConfig", optional = false },
+    { path = ReplicatedStorage.Shared.modules.RemoteEvents, name = "RemoteEvents", optional = false },
+    { path = script.Parent.PlayerService, name = "PlayerService", optional = false },
 }
 
 -- Track active teleportations to prevent spam
 local activeTeleports = {}
 
 -- Get developer track positions from config
-local function getDeveloperTracks()
-	return DeveloperConfig.TRACK_POSITIONS
+local function getDeveloperTracks(self)
+	return self.DeveloperConfig.TRACK_POSITIONS
 end
 
 -- Return ring configurations
@@ -207,11 +214,15 @@ function TeleportService:TeleportPlayerToMarket(player, character)
 end
 
 function TeleportService:CreateFadeEffect(player)
-    RemoteEvents.TeleportFadeOut:FireClient(player)
+    if self.RemoteEvents then
+        self.RemoteEvents.TeleportFadeOut:FireClient(player)
+    end
 end
 
 function TeleportService:CreateFadeInEffect(player)
-    RemoteEvents.TeleportFadeIn:FireClient(player)
+    if self.RemoteEvents then
+        self.RemoteEvents.TeleportFadeIn:FireClient(player)
+    end
 end
 
 function TeleportService:CreateTeleportEffect(position)
@@ -280,12 +291,26 @@ function TeleportService:PlayTeleportSound(humanoidRootPart)
     end)
 end
 
--- Developer teleportation function
-function TeleportService.Client:TeleportToTrack(player, trackName)
+-- Setup remote events
+function TeleportService:SetupRemoteEvents()
+    if self.RemoteEvents then
+        -- Setup client communication for teleportation
+        local teleportToTrackEvent = self.RemoteEvents:GetRemoteFunction("TeleportToTrack")
+        if teleportToTrackEvent then
+            teleportToTrackEvent.OnServerInvoke = function(player, trackName)
+                return self:TeleportToTrack(player, trackName)
+            end
+        end
+    end
+end
+
+-- Developer teleportation function  
+function TeleportService:TeleportToTrack(player, trackName)
 	-- Check if this is a developer request
-	local DeveloperService = Knit.GetService("DeveloperService")
+	local ServiceRegistry = self:SafeRequire(ReplicatedStorage.Shared.utils.ServiceRegistry, "ServiceRegistry", true)
+	local DeveloperService = ServiceRegistry and ServiceRegistry:GetService("DeveloperService")
 	
-	local developerTracks = getDeveloperTracks()
+	local developerTracks = getDeveloperTracks(self)
 	local config = developerTracks[trackName]
 	if not config then
 		return {success = false, message = "Unknown track: " .. trackName}
@@ -372,11 +397,15 @@ function TeleportService:Initialize()
     print("✅ TeleportService initialized successfully!")
 end
 
-function TeleportService:KnitStart()
-    self:Initialize()
+-- Service-specific initialization
+function TeleportService:OnInit()
+    return true
 end
 
--- Auto-initialize when required
--- TeleportService:Initialize() -- Commented out since Knit will handle initialization
+-- Service-specific start logic
+function TeleportService:OnStart()
+    self:Initialize()
+    return true
+end
 
 return TeleportService
