@@ -10,8 +10,8 @@ local Workspace = game:GetService("Workspace")
 
 -- Import utilities
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
-local DeveloperConfig = require(ReplicatedStorage.Shared.modules.DeveloperConfig)
+local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local DeveloperConfig = SafeRequire.require(ReplicatedStorage.Shared.modules.DeveloperConfig)
 
 local MainGameService = {}
 

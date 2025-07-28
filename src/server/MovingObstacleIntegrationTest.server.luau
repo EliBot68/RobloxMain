@@ -4,8 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local Knit = SafeRequire.require(ReplicatedStorage.Packages.Knit)
 
 -- Test configuration
 local TEST_CONFIG = {

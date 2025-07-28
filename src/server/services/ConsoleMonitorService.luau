@@ -10,8 +10,9 @@ local RunService = game:GetService("RunService")
 local ContentProvider = game:GetService("ContentProvider")
 local ScriptContext = game:GetService("ScriptContext")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
-local DeveloperConfig = require(ReplicatedStorage.Shared.modules.DeveloperConfig)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local Knit = SafeRequire.require(ReplicatedStorage.Packages.Knit)
+local DeveloperConfig = SafeRequire.require(ReplicatedStorage.Shared.modules.DeveloperConfig)
 
 local ConsoleMonitorService = Knit.CreateService {
 	Name = "ConsoleMonitorService",

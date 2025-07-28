@@ -6,8 +6,9 @@ local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
 
-local UIPlaceholderMigration = require(ReplicatedStorage.Shared.modules.UIPlaceholderMigration)
-local ModernUISystem = require(ReplicatedStorage.Shared.modules.ModernUISystem)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local UIPlaceholderMigration = SafeRequire.require(ReplicatedStorage.Shared.modules.UIPlaceholderMigration)
+local ModernUISystem = SafeRequire.require(ReplicatedStorage.Shared.modules.ModernUISystem)
 
 local UIPlaceholderMigrationRunner = {}
 

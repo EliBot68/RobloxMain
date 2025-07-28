@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Knit = require(ReplicatedStorage.Packages.Knit)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local Knit = SafeRequire.require(ReplicatedStorage.Packages.Knit)
 
 -- Wait for services to load
 local function waitForServices()
