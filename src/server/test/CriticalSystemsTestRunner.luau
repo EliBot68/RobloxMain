@@ -30,6 +30,11 @@ local testSuites = {
         name = "UpgradeService",
         path = "src.server.test.UpgradeServiceTest",
         priority = 2
+    },
+    {
+        name = "PerformanceMonitoringService",
+        path = "src.server.test.PerformanceMonitoringServiceTest",
+        priority = 3
     }
 }
 
@@ -187,7 +192,7 @@ function CriticalSystemsTestRunner.runAllTests()
     local overallStartTime = tick()
     
     printHeader("CRITICAL SYSTEMS UNIT TEST SUITE")
-    print("Testing: TutorialService, MainGameService, AnalyticsService, UpgradeService")
+    print("Testing: TutorialService, MainGameService, AnalyticsService, UpgradeService, PerformanceMonitoringService")
     print("")
     
     -- Initialize counters

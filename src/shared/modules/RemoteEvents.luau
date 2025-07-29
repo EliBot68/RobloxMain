@@ -469,4 +469,21 @@ RemoteEvents.ChallengeCompleted = RemoteEvents:GetRemoteEvent("ChallengeComplete
 RemoteEvents.ShareAchievement = RemoteEvents:GetRemoteEvent("ShareAchievement")
 RemoteEvents.AchievementShared = RemoteEvents:GetRemoteEvent("AchievementShared")
 
+-- Performance Monitoring Events
+RemoteEvents.RequestPerformanceReport = RemoteEvents:GetRemoteEvent("RequestPerformanceReport")
+RemoteEvents.PerformanceReportUpdated = RemoteEvents:GetRemoteEvent("PerformanceReportUpdated")
+RemoteEvents.PerformanceAlert = RemoteEvents:GetRemoteEvent("PerformanceAlert")
+RemoteEvents.FPSWarning = RemoteEvents:GetRemoteEvent("FPSWarning")
+RemoteEvents.MemoryWarning = RemoteEvents:GetRemoteEvent("MemoryWarning")
+RemoteEvents.PingWarning = RemoteEvents:GetRemoteEvent("PingWarning")
+RemoteEvents.ServiceHealthUpdate = RemoteEvents:GetRemoteEvent("ServiceHealthUpdate")
+RemoteEvents.PerformanceConfigUpdate = RemoteEvents:GetRemoteEvent("PerformanceConfigUpdate")
+RemoteEvents.RequestHealthCheck = RemoteEvents:GetRemoteEvent("RequestHealthCheck")
+RemoteEvents.HealthCheckResult = RemoteEvents:GetRemoteEvent("HealthCheckResult")
+RemoteEvents.RemoteLogEvent = RemoteEvents:GetRemoteEvent("RemoteLogEvent")
+RemoteEvents.PerformanceMetricsReset = RemoteEvents:GetRemoteEvent("PerformanceMetricsReset")
+RemoteEvents.ShowPerformanceUI = RemoteEvents:GetRemoteEvent("ShowPerformanceUI")
+RemoteEvents.HidePerformanceUI = RemoteEvents:GetRemoteEvent("HidePerformanceUI")
+RemoteEvents.PerformanceThresholdExceeded = RemoteEvents:GetRemoteEvent("PerformanceThresholdExceeded")
+
 return RemoteEvents
