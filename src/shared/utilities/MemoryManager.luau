@@ -1,6 +1,10 @@
 -- MemoryManager.luau
 -- Centralized memory management and cleanup utility for all game systems
 -- Handles connections, tweens, tasks, and prevents memory leaks
+-- Now uses ConfigurationManager for all settings
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
 
 local MemoryManager = {}
 
@@ -11,15 +15,8 @@ local activeTasks = {}
 local activeGameObjects = {}
 local playerCleanupCallbacks = {}
 
--- Configuration
-local MEMORY_CONFIG = {
-    enableDetailedLogging = true,
-    enablePerformanceMonitoring = true,
-    autoCleanupInterval = 60, -- seconds
-    maxConnectionsPerPlayer = 100,
-    maxTweensPerPlayer = 50,
-    maxTasksPerPlayer = 20
-}
+-- Get configuration instance
+local config = ConfigurationManager.getInstance()
 
 -- ========================================
 -- CONNECTION MANAGEMENT
@@ -34,8 +31,9 @@ function MemoryManager:RegisterConnection(playerId, connectionName, connection)
     end
     
     -- Check connection limit per player to prevent memory issues
-    if #activeConnections[playerId] >= MEMORY_CONFIG.maxConnectionsPerPlayer then
-        warn("⚠️ Player " .. playerId .. " has reached max connections limit")
+    local maxConnections = config:Get("memory.LIMITS.MAX_CONNECTIONS_PER_PLAYER")
+    if #activeConnections[playerId] >= maxConnections then
+        warn("⚠️ Player " .. playerId .. " has reached max connections limit (" .. maxConnections .. ")")
         return false
     end
     
@@ -45,7 +43,7 @@ function MemoryManager:RegisterConnection(playerId, connectionName, connection)
         type = "RBXScriptConnection"
     }
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🔗 Registered connection: " .. connectionName .. " for player " .. playerId)
     end
     
@@ -65,7 +63,7 @@ function MemoryManager:DisconnectConnection(playerId, connectionName)
         
         activeConnections[playerId][connectionName] = nil
         
-        if MEMORY_CONFIG.enableDetailedLogging then
+        if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
             print("🔌 Disconnected connection: " .. connectionName .. " for player " .. playerId)
         end
         
@@ -94,7 +92,7 @@ function MemoryManager:DisconnectAllPlayerConnections(playerId)
     
     activeConnections[playerId] = nil
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🧹 Disconnected " .. disconnectedCount .. " connections for player " .. playerId)
     end
     
@@ -114,8 +112,9 @@ function MemoryManager:RegisterTween(playerId, tweenName, tween)
     end
     
     -- Check tween limit per player
-    if #activeTweens[playerId] >= MEMORY_CONFIG.maxTweensPerPlayer then
-        warn("⚠️ Player " .. playerId .. " has reached max tweens limit")
+    local maxTweens = config:Get("memory.LIMITS.MAX_TWEENS_PER_PLAYER")
+    if #activeTweens[playerId] >= maxTweens then
+        warn("⚠️ Player " .. playerId .. " has reached max tweens limit (" .. maxTweens .. ")")
         return false
     end
     
@@ -130,7 +129,7 @@ function MemoryManager:RegisterTween(playerId, tweenName, tween)
         self:CleanupTween(playerId, tweenName)
     end)
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("✨ Registered tween: " .. tweenName .. " for player " .. playerId)
     end
     
@@ -150,7 +149,7 @@ function MemoryManager:CleanupTween(playerId, tweenName)
         
         activeTweens[playerId][tweenName] = nil
         
-        if MEMORY_CONFIG.enableDetailedLogging then
+        if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
             print("🎬 Cleaned up tween: " .. tweenName .. " for player " .. playerId)
         end
         
@@ -179,7 +178,7 @@ function MemoryManager:CleanupAllPlayerTweens(playerId)
     
     activeTweens[playerId] = nil
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🧹 Cleaned up " .. cleanedCount .. " tweens for player " .. playerId)
     end
     
@@ -199,8 +198,9 @@ function MemoryManager:RegisterTask(playerId, taskName, taskThread)
     end
     
     -- Check task limit per player
-    if #activeTasks[playerId] >= MEMORY_CONFIG.maxTasksPerPlayer then
-        warn("⚠️ Player " .. playerId .. " has reached max tasks limit")
+    local maxTasks = config:Get("memory.LIMITS.MAX_TASKS_PER_PLAYER")
+    if #activeTasks[playerId] >= maxTasks then
+        warn("⚠️ Player " .. playerId .. " has reached max tasks limit (" .. maxTasks .. ")")
         return false
     end
     
@@ -210,7 +210,7 @@ function MemoryManager:RegisterTask(playerId, taskName, taskThread)
         type = "Task"
     }
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("⚙️ Registered task: " .. taskName .. " for player " .. playerId)
     end
     
@@ -230,7 +230,7 @@ function MemoryManager:CancelTask(playerId, taskName)
         
         activeTasks[playerId][taskName] = nil
         
-        if MEMORY_CONFIG.enableDetailedLogging then
+        if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
             print("⚙️ Cancelled task: " .. taskName .. " for player " .. playerId)
         end
         
@@ -259,7 +259,7 @@ function MemoryManager:CancelAllPlayerTasks(playerId)
     
     activeTasks[playerId] = nil
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🧹 Cancelled " .. cancelledCount .. " tasks for player " .. playerId)
     end
     
@@ -284,7 +284,7 @@ function MemoryManager:RegisterGameObject(playerId, objectName, gameObject)
         type = typeof(gameObject)
     }
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🎮 Registered game object: " .. objectName .. " (" .. typeof(gameObject) .. ") for player " .. playerId)
     end
     
@@ -304,7 +304,7 @@ function MemoryManager:DestroyGameObject(playerId, objectName)
         
         activeGameObjects[playerId][objectName] = nil
         
-        if MEMORY_CONFIG.enableDetailedLogging then
+        if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
             print("🗑️ Destroyed game object: " .. objectName .. " for player " .. playerId)
         end
         
