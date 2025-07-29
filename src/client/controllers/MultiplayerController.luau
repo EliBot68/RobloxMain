@@ -1,5 +1,6 @@
 -- MultiplayerController.luau
--- Client-side controller for multiplayer queue system and game mode selection
+-- Enhanced client-side controller with comprehensive memory management
+-- Handles multiplayer queue system and game mode selection
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -11,6 +12,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 
 local MultiplayerController = {}
 
@@ -20,18 +22,42 @@ local queueGui = nil
 local multiplayerLeaderboardGui = nil
 local currentQueueData = {}
 
+-- Memory management tracking
+local controllerConnections = {}
+local controllerTweens = {}
+local guiElements = {}
+
 -- Queue state
 local isInQueue = false
 local queuePosition = 0
 local totalInQueue = 0
 
+-- Helper function to register GUI elements for cleanup
+local function registerGuiElement(name, element)
+    guiElements[name] = element
+    MemoryManager:RegisterGameObject(tostring(player.UserId), name, element)
+end
+
+-- Helper function to register connections for cleanup
+local function registerConnection(name, connection)
+    controllerConnections[name] = connection
+    MemoryManager:RegisterConnection(tostring(player.UserId), name, connection)
+end
+
+-- Helper function to register tweens for cleanup
+local function registerTween(name, tween)
+    controllerTweens[name] = tween
+    MemoryManager:RegisterTween(tostring(player.UserId), name, tween)
+end
+
 function MultiplayerController:CreateGameSelectionUI()
-    -- Create main selection GUI
+    -- Create main selection GUI with memory management
     gameSelectionGui = Instance.new("ScreenGui")
     gameSelectionGui.Name = "GameModeSelection"
     gameSelectionGui.ResetOnSpawn = false
     gameSelectionGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gameSelectionGui.Parent = playerGui
+    registerGuiElement("gameSelectionGui", gameSelectionGui)
     
     -- Main frame
     local mainFrame = Instance.new("Frame")
@@ -776,7 +802,7 @@ function MultiplayerController:SetupRemoteEvents()
 end
 
 function MultiplayerController:Initialize()
-    print("👥 MultiplayerController initializing...")
+    print("👥 MultiplayerController initializing with memory management...")
     
     -- Create UI elements
     self:CreateGameSelectionUI()
@@ -788,13 +814,69 @@ function MultiplayerController:Initialize()
     
     -- Handle player leaving to clean up UI
     game:BindToClose(function()
-        if isInQueue then
-            RemoteEvents.LeaveMultiplayerQueue:FireServer()
-        end
+        self:Cleanup()
     end)
     
-    print("✅ MultiplayerController initialized!")
+    -- Register cleanup callback with MemoryManager
+    MemoryManager:RegisterCleanupCallback(tostring(player.UserId), "multiplayer_controller_cleanup", function()
+        self:Cleanup()
+    end)
+    
+    print("✅ MultiplayerController initialized with enhanced memory management!")
 end
+
+-- Comprehensive cleanup function
+function MultiplayerController:Cleanup()
+    print("🧹 MultiplayerController cleanup starting...")
+    
+    -- Leave queue if currently in one
+    if isInQueue then
+        RemoteEvents.LeaveMultiplayerQueue:FireServer()
+        isInQueue = false
+    end
+    
+    -- Cleanup all active tweens
+    for tweenName, tween in pairs(controllerTweens) do
+        if tween then
+            tween:Cancel()
+        end
+    end
+    controllerTweens = {}
+    
+    -- Cleanup all active connections
+    for connectionName, connection in pairs(controllerConnections) do
+        if connection and typeof(connection) == "RBXScriptConnection" then
+            connection:Disconnect()
+        end
+    end
+    controllerConnections = {}
+    
+    -- Destroy all GUI elements
+    for elementName, element in pairs(guiElements) do
+        if element and element.Parent then
+            element:Destroy()
+        end
+    end
+    guiElements = {}
+    
+    -- Clear references
+    gameSelectionGui = nil
+    queueGui = nil
+    multiplayerLeaderboardGui = nil
+    currentQueueData = {}
+    
+    -- Use MemoryManager for thorough cleanup
+    MemoryManager:CleanupPlayer(tostring(player.UserId))
+    
+    print("✅ MultiplayerController cleanup complete")
+end
+
+-- Cleanup on player leaving
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        MultiplayerController:Cleanup()
+    end
+end)
 
 -- Auto-initialize
 MultiplayerController:Initialize()

@@ -1,5 +1,5 @@
 -- GameService.luau
--- Core game mechanics and session management for Color Rush
+-- Enhanced core game mechanics with comprehensive memory management
 -- Handles barrier spawning, collision detection, score tracking, and multiplayer coordination
 
 local Players = game:GetService("Players")
@@ -14,6 +14,7 @@ local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local GameConstants = SafeRequire.require(ReplicatedStorage.Shared.constants.GameConstants)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 
 local GameService = {}
 
@@ -21,6 +22,11 @@ local GameService = {}
 local activeGames = {} -- [player.UserId] = gameSession
 local multiplayerSessions = {} -- [sessionId] = multiplayerSession
 local barrierInstances = {} -- [player.UserId] = {barriers}
+
+-- Memory management tracking
+local gameConnections = {} -- Track game-related connections
+local gameTweens = {} -- Track game-related tweens
+local gameUpdateTasks = {} -- Track game update tasks
 
 -- Game Configuration
 local GAME_CONFIG = {
@@ -972,34 +978,82 @@ end
 
 function GameService:CleanupPlayerData(player)
     local userId = player.UserId
+    local playerId = tostring(userId)
     
-    -- Cleanup barriers
+    print("🧹 Comprehensive cleanup for player: " .. player.Name)
+    
+    -- Cleanup barriers with enhanced memory management
     if barrierInstances[userId] then
         for _, barrierData in pairs(barrierInstances[userId]) do
             if barrierData.barrier and barrierData.barrier.Parent then
                 barrierData.barrier:Destroy()
             end
+            -- Cleanup barrier-related connections and tweens
+            if barrierData.connection then
+                barrierData.connection:Disconnect()
+            end
+            if barrierData.tween then
+                barrierData.tween:Cancel()
+            end
         end
-        barrierInstances[userId] = {}
+        barrierInstances[userId] = nil
     end
     
-    -- Cleanup game session
+    -- Cleanup game session with comprehensive resource management
     if activeGames[userId] then
         local gameSession = activeGames[userId]
+        
+        -- Disconnect update connection
         if gameSession.updateConnection then
             gameSession.updateConnection:Disconnect()
         end
+        
+        -- Cancel any active game update tasks
+        if gameUpdateTasks[playerId] then
+            for taskName, taskThread in pairs(gameUpdateTasks[playerId]) do
+                task.cancel(taskThread) -- UPDATED for modern API
+            end
+            gameUpdateTasks[playerId] = nil
+        end
+        
+        -- Clear session data
         activeGames[userId] = nil
         
         -- Update performance metrics
         performanceMetrics.activeGameSessions = math.max(0, performanceMetrics.activeGameSessions - 1)
     end
+    
+    -- Use MemoryManager for comprehensive cleanup
+    MemoryManager:CleanupPlayer(playerId)
+    
+    print("✅ Player cleanup complete for " .. player.Name)
 end
 
 function GameService:CleanupGameSession(player, gameSession)
-    -- Disconnect update connection
+    local playerId = tostring(player.UserId)
+    
+    -- Disconnect update connection with memory management
     if gameSession.updateConnection then
         gameSession.updateConnection:Disconnect()
+        gameSession.updateConnection = nil
+    end
+    
+    -- Cancel any associated tweens
+    if gameTweens[playerId] then
+        for tweenName, tween in pairs(gameTweens[playerId]) do
+            if tween then
+                tween:Cancel()
+            end
+        end
+        gameTweens[playerId] = nil
+    end
+    
+    -- Cancel any active tasks
+    if gameUpdateTasks[playerId] then
+        for taskName, taskThread in pairs(gameUpdateTasks[playerId]) do
+            task.cancel(taskThread) -- UPDATED for modern API
+        end
+        gameUpdateTasks[playerId] = nil
     end
     
     -- Update performance metrics
@@ -1007,8 +1061,86 @@ function GameService:CleanupGameSession(player, gameSession)
     performanceMetrics.activeGameSessions = math.max(0, performanceMetrics.activeGameSessions - 1)
     
     -- Calculate average game duration
-    local gameDuration = tick() - gameSession.startTime
-    performanceMetrics.averageGameDuration = (performanceMetrics.averageGameDuration + gameDuration) / 2
+    if gameSession.startTime then
+        local gameDuration = tick() - gameSession.startTime
+        performanceMetrics.averageGameDuration = (performanceMetrics.averageGameDuration + gameDuration) / 2
+    end
+    
+    print("🧹 Game session cleanup complete for " .. player.Name)
+end
+
+-- Clean up inactive sessions (called by CleanupService)
+function GameService:CleanupInactiveSessions()
+    local cleaned = 0
+    local currentTime = tick()
+    local sessionTimeout = 900 -- 15 minutes
+    
+    print("🧹 Checking for inactive game sessions...")
+    
+    -- Cleanup inactive single-player sessions
+    local inactiveSessions = {}
+    for userId, gameSession in pairs(activeGames) do
+        if gameSession.startTime and (currentTime - gameSession.startTime) > sessionTimeout then
+            table.insert(inactiveSessions, {userId = userId, session = gameSession})
+        end
+    end
+    
+    for _, sessionData in pairs(inactiveSessions) do
+        local player = Players:GetPlayerByUserId(sessionData.userId)
+        if player then
+            print("⏰ Cleaning up inactive session for " .. player.Name)
+            self:CleanupGameSession(player, sessionData.session)
+        end
+        activeGames[sessionData.userId] = nil
+        cleaned = cleaned + 1
+    end
+    
+    -- Cleanup inactive multiplayer sessions
+    local inactiveMultiplayerSessions = {}
+    for sessionId, multiplayerSession in pairs(multiplayerSessions) do
+        if multiplayerSession.startTime and (currentTime - multiplayerSession.startTime) > sessionTimeout then
+            table.insert(inactiveMultiplayerSessions, sessionId)
+        end
+    end
+    
+    for _, sessionId in pairs(inactiveMultiplayerSessions) do
+        print("⏰ Cleaning up inactive multiplayer session: " .. sessionId)
+        self:CleanupMultiplayerSession(sessionId)
+        cleaned = cleaned + 1
+    end
+    
+    -- Cleanup barriers for disconnected players
+    local disconnectedPlayers = {}
+    for userId, _ in pairs(barrierInstances) do
+        local player = Players:GetPlayerByUserId(userId)
+        if not player then
+            table.insert(disconnectedPlayers, userId)
+        end
+    end
+    
+    for _, userId in pairs(disconnectedPlayers) do
+        if barrierInstances[userId] then
+            for _, barrierData in pairs(barrierInstances[userId]) do
+                if barrierData.barrier and barrierData.barrier.Parent then
+                    barrierData.barrier:Destroy()
+                end
+                if barrierData.connection then
+                    barrierData.connection:Disconnect()
+                end
+                if barrierData.tween then
+                    barrierData.tween:Cancel()
+                end
+            end
+            barrierInstances[userId] = nil
+            cleaned = cleaned + 1
+        end
+    end
+    
+    if cleaned > 0 then
+        print("✅ Cleaned up " .. cleaned .. " inactive sessions and resources")
+    end
+    
+    return cleaned
 end
 
 function GameService:CleanupOldBarriers(player, currentPosition)
@@ -1188,11 +1320,21 @@ function GameService:OnPlayerReady(player)
     self:SendGameDataToPlayer(player)
 end
 
+function GameService:OnPlayerRemoving(player)
+    print("👋 GameService: Player removing - " .. player.Name)
+    self:CleanupPlayerData(player)
+end
+
 function GameService:CreatePlayerSession(player)
     print("📋 GameService: Creating session for - " .. player.Name)
     -- Session is created when game starts, this is just a placeholder
     return true
 end
+
+-- Connect to player events for automatic cleanup
+Players.PlayerRemoving:Connect(function(player)
+    GameService:OnPlayerRemoving(player)
+end)
 
 -- Auto-initialize when required
 GameService:Initialize()

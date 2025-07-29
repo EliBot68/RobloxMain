@@ -1,4 +1,5 @@
 -- ArchwayService.luau
+-- Enhanced archway service with comprehensive memory management
 -- Handles the game entrance archway and game start sequence
 
 local Players = game:GetService("Players")
@@ -11,6 +12,7 @@ local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local GameService = SafeRequire.require(script.Parent.GameService)
+local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 
 local ArchwayService = {}
 
@@ -22,6 +24,11 @@ local multiplayerQueue = {}
 local currentMultiplayerSession = nil
 local MAX_QUEUE_SIZE = 6 -- Up to 6 players can play together
 local QUEUE_TIMEOUT = 30 -- Auto-start after 30 seconds if queue isn't full
+
+-- Memory management tracking
+local activeTweens = {} -- Track all active tweens for cleanup
+local activeConnections = {} -- Track all active connections for cleanup
+local playerQueueData = {} -- Track player-specific queue data
 
 -- Available game start positions (corresponding to tracks)
 local GAME_START_POSITIONS = {
@@ -61,7 +68,7 @@ function ArchwayService:SetupArchwayDisplay()
         playLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
         playLabel.Parent = billboardGui
         
-        -- Pulsing animation
+        -- Pulsing animation with memory management
         local pulseTween = TweenService:Create(
             playLabel,
             TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -72,13 +79,21 @@ function ArchwayService:SetupArchwayDisplay()
         )
         pulseTween:Play()
         
-        -- Floating animation
+        -- Register tween for cleanup - ASSUMPTION: Using "system" as playerId for global tweens
+        MemoryManager:RegisterTween("system", "archway_pulse_" .. tick(), pulseTween)
+        table.insert(activeTweens, pulseTween)
+        
+        -- Floating animation with memory management
         local floatTween = TweenService:Create(
             billboardGui,
             TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
             {StudsOffset = Vector3.new(0, 4, 0)}
         )
         floatTween:Play()
+        
+        -- Register tween for cleanup
+        MemoryManager:RegisterTween("system", "archway_float_" .. tick(), floatTween)
+        table.insert(activeTweens, floatTween)
     end
     
     -- Add subtitle text
@@ -400,15 +415,87 @@ function ArchwayService:GetSessionPlayerNames(players)
 end
 
 function ArchwayService:ScheduleSessionCleanup()
-    -- Clean up session after 5 minutes
-    spawn(function()
-        wait(300) -- 5 minutes
+    -- Clean up session after 5 minutes with modern API
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(300) -- UPDATED for modern API - 5 minutes
         
         if currentMultiplayerSession then
             print("🧹 Cleaning up multiplayer session: " .. currentMultiplayerSession.sessionId)
-            currentMultiplayerSession = nil
+            self:CleanupMultiplayerSession(currentMultiplayerSession.sessionId)
         end
     end)
+end
+
+-- Enhanced multiplayer session cleanup
+function ArchwayService:CleanupMultiplayerSession(sessionId)
+    if not currentMultiplayerSession or currentMultiplayerSession.sessionId ~= sessionId then
+        return false
+    end
+    
+    print("🧹 Comprehensive multiplayer session cleanup: " .. sessionId)
+    
+    -- Clean up all players in the session
+    for _, player in pairs(currentMultiplayerSession.players or {}) do
+        if player and player.Parent then
+            self:CleanupPlayerFromMultiplayer(player)
+        end
+    end
+    
+    -- Clear session data
+    currentMultiplayerSession = nil
+    
+    print("✅ Multiplayer session cleanup complete")
+    return true
+end
+
+-- Clean up inactive multiplayer sessions
+function ArchwayService:CleanupInactiveMultiplayerSessions()
+    local cleaned = 0
+    local currentTime = tick()
+    
+    -- Clean up current session if it's been inactive too long (15 minutes)
+    if currentMultiplayerSession and 
+       (currentTime - currentMultiplayerSession.startTime) > 900 then
+        print("🧹 Cleaning up inactive multiplayer session")
+        self:CleanupMultiplayerSession(currentMultiplayerSession.sessionId)
+        cleaned = 1
+    end
+    
+    -- Clean up queue data for disconnected players
+    local disconnectedPlayers = {}
+    for _, player in pairs(multiplayerQueue) do
+        if not player or not player.Parent then
+            table.insert(disconnectedPlayers, player)
+        end
+    end
+    
+    for _, player in pairs(disconnectedPlayers) do
+        self:RemovePlayerFromQueue(player)
+        cleaned = cleaned + 1
+    end
+    
+    return cleaned
+end
+
+-- Clean up player from multiplayer systems
+function ArchwayService:CleanupPlayerFromMultiplayer(player)
+    if not player then return false end
+    
+    local playerId = tostring(player.UserId)
+    print("🧹 Cleaning up multiplayer data for player: " .. player.Name)
+    
+    -- Remove from queue if present
+    self:RemovePlayerFromQueue(player)
+    
+    -- Clean up player-specific queue data
+    if playerQueueData[playerId] then
+        playerQueueData[playerId] = nil
+    end
+    
+    -- Use MemoryManager to clean up player resources
+    MemoryManager:CleanupPlayer(playerId)
+    
+    return true
 end
 
 function ArchwayService:ShowQueueInterface(player)
@@ -555,28 +642,72 @@ function ArchwayService:Initialize()
     -- Setup trigger detection
     self:SetupTriggerDetection()
     
-    -- Setup remote event handlers for queue system
-    RemoteEvents.JoinSoloGame.OnServerEvent:Connect(function(player)
+    -- Setup remote event handlers for queue system with memory management
+    local soloGameConnection = RemoteEvents.JoinSoloGame.OnServerEvent:Connect(function(player)
         -- Start solo game immediately
         if player.Character then
             self:StartGameSequence(player, player.Character)
         end
     end)
+    MemoryManager:RegisterConnection("system", "solo_game_connection", soloGameConnection)
+    table.insert(activeConnections, soloGameConnection)
     
-    RemoteEvents.JoinMultiplayerQueue.OnServerEvent:Connect(function(player)
+    local joinQueueConnection = RemoteEvents.JoinMultiplayerQueue.OnServerEvent:Connect(function(player)
         self:AddPlayerToQueue(player)
     end)
+    MemoryManager:RegisterConnection("system", "join_queue_connection", joinQueueConnection)
+    table.insert(activeConnections, joinQueueConnection)
     
-    RemoteEvents.LeaveMultiplayerQueue.OnServerEvent:Connect(function(player)
+    local leaveQueueConnection = RemoteEvents.LeaveMultiplayerQueue.OnServerEvent:Connect(function(player)
         self:RemovePlayerFromQueue(player)
     end)
+    MemoryManager:RegisterConnection("system", "leave_queue_connection", leaveQueueConnection)
+    table.insert(activeConnections, leaveQueueConnection)
     
-    -- Handle player leaving to clean up queue
-    Players.PlayerRemoving:Connect(function(player)
-        self:RemovePlayerFromQueue(player)
+    -- Handle player leaving to clean up queue and player data
+    local playerRemovingConnection = Players.PlayerRemoving:Connect(function(player)
+        self:CleanupPlayerFromMultiplayer(player)
     end)
+    MemoryManager:RegisterConnection("system", "player_removing_connection", playerRemovingConnection)
+    table.insert(activeConnections, playerRemovingConnection)
     
-    print("✅ ArchwayService initialized successfully!")
+    print("✅ ArchwayService initialized successfully with memory management!")
+end
+
+-- Comprehensive service cleanup
+function ArchwayService:Cleanup()
+    print("🧹 ArchwayService comprehensive cleanup starting...")
+    
+    -- Cleanup all active tweens
+    for _, tween in pairs(activeTweens) do
+        if tween then
+            tween:Cancel()
+        end
+    end
+    activeTweens = {}
+    
+    -- Cleanup all active connections
+    for _, connection in pairs(activeConnections) do
+        if connection and typeof(connection) == "RBXScriptConnection" then
+            connection:Disconnect()
+        end
+    end
+    activeConnections = {}
+    
+    -- Cleanup multiplayer sessions
+    if currentMultiplayerSession then
+        self:CleanupMultiplayerSession(currentMultiplayerSession.sessionId)
+    end
+    
+    -- Clear queue
+    multiplayerQueue = {}
+    playerQueueData = {}
+    activeGameStarts = {}
+    
+    -- Use MemoryManager for system cleanup
+    MemoryManager:CleanupPlayer("system")
+    
+    print("✅ ArchwayService cleanup complete")
 end
 
 -- Auto-initialize when required

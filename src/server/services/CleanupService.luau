@@ -1,11 +1,25 @@
 -- CleanupService.luau
--- Handles cleanup of old spawn points, buildings, and performance optimization
+-- Enhanced cleanup service with comprehensive memory management
+-- Handles cleanup of old spawn points, buildings, performance optimization, and memory leaks
 
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Import memory manager
+local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 
 local CleanupService = {}
+
+-- Memory cleanup tracking
+local lastFullCleanup = 0
+local cleanupStats = {
+    totalCleanupsPerformed = 0,
+    lastCleanupTime = 0,
+    playersCleanedUp = 0,
+    sessionsCleanedUp = 0
+}
 
 -- Items to remove for performance optimization
 local ITEMS_TO_REMOVE = {
@@ -192,15 +206,38 @@ function CleanupService:OptimizeWorkspacePerformance()
 end
 
 function CleanupService:CleanupMemoryLeaks()
-    print("🧠 Cleaning up potential memory leaks...")
+    print("🧠 Advanced memory leak cleanup using MemoryManager...")
     
-    -- Clean up disconnected connections
+    local memoryStats = MemoryManager:GetMemoryStats()
+    print("📊 Current memory usage:")
+    print("   Active players: " .. memoryStats.totalPlayers)
+    print("   Total connections: " .. memoryStats.totalConnections)
+    print("   Total tweens: " .. memoryStats.totalTweens)
+    print("   Total tasks: " .. memoryStats.totalTasks)
+    print("   Total game objects: " .. memoryStats.totalGameObjects)
+    
     local cleaned = 0
     
-    -- Force garbage collection
-    for i = 1, 3 do
+    -- Clean up disconnected player data using MemoryManager
+    local currentPlayerIds = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        currentPlayerIds[tostring(player.UserId)] = true
+    end
+    
+    -- Find and cleanup data for players who have left
+    for playerId, _ in pairs(memoryStats.playerDetails) do
+        if not currentPlayerIds[playerId] then
+            print("🧹 Cleaning up data for disconnected player: " .. playerId)
+            local stats = MemoryManager:CleanupPlayer(playerId)
+            cleaned = cleaned + stats.connections + stats.tweens + stats.tasks + stats.gameObjects
+            cleanupStats.playersCleanedUp = cleanupStats.playersCleanedUp + 1
+        end
+    end
+    
+    -- Force garbage collection multiple times for thorough cleanup
+    for i = 1, 5 do
         collectgarbage("collect")
-        wait(0.1)
+        task.wait(0.1) -- UPDATED for modern API
     end
     
     -- Clean up any orphaned GUI elements
@@ -215,7 +252,18 @@ function CleanupService:CleanupMemoryLeaks()
         end
     end
     
-    print("✅ Cleaned " .. cleaned .. " potential memory leaks")
+    -- Clean up workspace debris
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:GetAttribute("TempObject") or obj.Name:match("TempEffect") then
+            obj:Destroy()
+            cleaned = cleaned + 1
+        end
+    end
+    
+    cleanupStats.totalCleanupsPerformed = cleanupStats.totalCleanupsPerformed + 1
+    cleanupStats.lastCleanupTime = tick()
+    
+    print("✅ Advanced memory cleanup complete - cleaned " .. cleaned .. " items")
 end
 
 function CleanupService:PerformFullCleanup()
@@ -258,25 +306,107 @@ function CleanupService:PerformFullCleanup()
 end
 
 function CleanupService:StartPeriodicCleanup()
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while true do
-            wait(OPTIMIZATION_CONFIG.cleanupInterval)
+            task.wait(OPTIMIZATION_CONFIG.cleanupInterval) -- UPDATED for modern API
+            
+            -- Perform regular cleanup
             self:CleanupMemoryLeaks()
+            
+            -- Perform full cleanup every 10 cycles (50 minutes by default)
+            if tick() - lastFullCleanup > (OPTIMIZATION_CONFIG.cleanupInterval * 10) then
+                self:PerformFullCleanup()
+                lastFullCleanup = tick()
+            end
         end
     end)
     
-    print("⏰ Periodic cleanup started (every " .. OPTIMIZATION_CONFIG.cleanupInterval .. " seconds)")
+    print("⏰ Enhanced periodic cleanup started (every " .. OPTIMIZATION_CONFIG.cleanupInterval .. " seconds)")
+end
+
+-- New function to clean up active game sessions
+function CleanupService:CleanupGameSessions()
+    print("🎮 Cleaning up inactive game sessions...")
+    
+    local cleaned = 0
+    local currentTime = tick()
+    
+    -- ASSUMPTION: Access to global game services for session cleanup
+    if _G.GetGameService then
+        local gameService = _G.GetGameService()
+        if gameService and gameService.CleanupInactiveSessions then
+            cleaned = gameService:CleanupInactiveSessions()
+        end
+    end
+    
+    -- Clean up multiplayer sessions
+    if _G.GetArchwayService then
+        local archwayService = _G.GetArchwayService()
+        if archwayService and archwayService.CleanupInactiveMultiplayerSessions then
+            local multiplayerCleaned = archwayService:CleanupInactiveMultiplayerSessions()
+            cleaned = cleaned + multiplayerCleaned
+        end
+    end
+    
+    cleanupStats.sessionsCleanedUp = cleanupStats.sessionsCleanedUp + cleaned
+    print("✅ Cleaned up " .. cleaned .. " inactive game sessions")
+    
+    return cleaned
+end
+
+-- New function to clean up player-specific data
+function CleanupService:CleanupPlayerData(player)
+    if not player then return false end
+    
+    local playerId = tostring(player.UserId)
+    print("🧹 Comprehensive cleanup for player: " .. player.Name)
+    
+    -- Use MemoryManager for thorough cleanup
+    local stats = MemoryManager:CleanupPlayer(playerId)
+    
+    -- Clean up player-specific workspace objects
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:GetAttribute("PlayerId") == playerId or 
+           obj.Name:match(player.Name) then
+            obj:Destroy()
+        end
+    end
+    
+    print("✅ Player cleanup complete for " .. player.Name .. " - freed " .. 
+          (stats.connections + stats.tweens + stats.tasks + stats.gameObjects) .. " resources")
+    
+    return true
+end
+
+-- Get cleanup statistics
+function CleanupService:GetCleanupStats()
+    local stats = cleanupStats
+    stats.memoryManagerStats = MemoryManager:GetMemoryStats()
+    stats.timeSinceLastCleanup = tick() - cleanupStats.lastCleanupTime
+    return stats
 end
 
 function CleanupService:Init()
-    print("🧹 CleanupService initialized")
+    print("🧹 Enhanced CleanupService with MemoryManager initialized")
     
-    -- Perform initial cleanup
-    wait(5) -- Wait for other services to load
-    self:PerformFullCleanup()
+    -- Initialize MemoryManager
+    MemoryManager:Init()
     
-    -- Start periodic maintenance
+    -- Start enhanced periodic cleanup
     self:StartPeriodicCleanup()
+    
+    -- Register player cleanup on leave
+    Players.PlayerRemoving:Connect(function(player)
+        self:CleanupPlayerData(player)
+    end)
+    
+    -- Initial cleanup on service start
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(5) -- Give other services time to initialize
+        self:PerformFullCleanup()
+    end)
+    
+    return true
 end
 
 return CleanupService

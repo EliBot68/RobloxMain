@@ -85,6 +85,17 @@ end
 
 print("\n🔧 Loading Core Services...")
 
+-- 0. MemoryManager (Memory management utility) - Load First
+print("0/8 Loading MemoryManager...")
+local MemoryManager = SafeRequire(
+    ReplicatedStorage.Shared.utilities.MemoryManager,
+    "MemoryManager"
+)
+if MemoryManager then
+    MemoryManager:Init()
+    print("✅ MemoryManager initialized for system-wide memory management")
+end
+
 -- 1. GameService (Core game mechanics)
 print("1/8 Loading GameService...")
 CoreServices.GameService = SafeRequire(
