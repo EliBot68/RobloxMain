@@ -157,18 +157,52 @@ function JumpService:ValidatePlayerJump(player)
         reason = "Already jumping"
     end
     
-    -- Anti-cheat: Check for suspicious jump frequency
+    -- Enhanced anti-cheat: Check for suspicious jump frequency and patterns
     if JUMP_SETTINGS.antiCheatEnabled then
-        if timeSinceLastJump < 0.1 then -- Too frequent
+        -- Check for rapid jumping (spam protection)
+        if timeSinceLastJump < 0.1 then
             jumpState.suspiciousJumps = jumpState.suspiciousJumps + 1
-            if jumpState.suspiciousJumps > 5 then
+            if jumpState.suspiciousJumps > 3 then
                 isValid = false
-                reason = "Suspicious jump pattern detected"
-                print("⚠️ Suspicious jumping detected from " .. player.Name)
+                reason = "Rapid jump spam detected"
+                
+                -- Report to main anti-cheat system
+                local AntiCheatService = self:GetService("AntiCheatService")
+                if AntiCheatService then
+                    AntiCheatService:FlagViolation(player, "jump_hack", {
+                        jumpFrequency = timeSinceLastJump,
+                        suspiciousCount = jumpState.suspiciousJumps,
+                        severity = "medium"
+                    })
+                end
             end
         else
-            -- Reset suspicious counter if normal jumping
-            jumpState.suspiciousJumps = 0
+            -- Gradually reduce suspicious counter for normal behavior
+            jumpState.suspiciousJumps = math.max(0, jumpState.suspiciousJumps - 0.5)
+        end
+        
+        -- Check for impossible jump timing patterns
+        if jumpState.jumpCount > 5 then
+            local avgJumpInterval = (currentTime - jumpState.firstJumpTime) / jumpState.jumpCount
+            if avgJumpInterval < 0.2 then -- Consistently too fast
+                isValid = false
+                reason = "Impossible jump timing pattern"
+                
+                -- Report to anti-cheat
+                local AntiCheatService = self:GetService("AntiCheatService")
+                if AntiCheatService then
+                    AntiCheatService:FlagViolation(player, "jump_hack", {
+                        averageInterval = avgJumpInterval,
+                        jumpCount = jumpState.jumpCount,
+                        severity = "high"
+                    })
+                end
+            end
+        end
+        
+        -- Track first jump time for pattern analysis
+        if jumpState.jumpCount == 0 then
+            jumpState.firstJumpTime = currentTime
         end
     end
     

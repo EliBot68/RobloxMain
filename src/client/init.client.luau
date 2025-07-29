@@ -68,6 +68,7 @@ local SaveFeedbackController = SafeRequire.require(script.controllers.SaveFeedba
 local MonetizationShopController = SafeRequire.require(script.controllers.MonetizationShopController)
 local VIPStatusController = SafeRequire.require(script.controllers.VIPStatusController)
 local MonetizationTestController = SafeRequire.require(script.controllers.MonetizationTestController)
+local AntiCheatClient = SafeRequire.require(script.AntiCheatClient)
 
 -- Initialize controllers
 GuiController:Init()
@@ -115,6 +116,12 @@ MiniGameController:Init()
 BuffController:Init()
 SpectatorController:Init()
 TournamentController:Init()
+
+-- Initialize Anti-Cheat Client
+if AntiCheatClient then
+    AntiCheatClient:Init()
+    print("🛡️ Anti-cheat client initialized")
+end
 
 -- FountainController, QuestController, TutorialController, TeleportController, and ArchwayController initialize themselves automatically
 

@@ -132,6 +132,7 @@ local infrastructureServices = {
     WorldBuilderService = script.services.WorldBuilderService,
     VisualPolishService = script.services.VisualPolishService,
     EnhancedGameTrackService = script.services.EnhancedGameTrackService,
+    AntiCheatService = script.services.AntiCheatService,
 }
 
 -- Main Game Controller (Core Gameplay Management)

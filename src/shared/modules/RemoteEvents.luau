@@ -522,4 +522,14 @@ RemoteEvents.ShowMobileNotification = RemoteEvents:GetRemoteEvent("ShowMobileNot
 RemoteEvents.MobileUIError = RemoteEvents:GetRemoteEvent("MobileUIError")
 RemoteEvents.MobileUISuccess = RemoteEvents:GetRemoteEvent("MobileUISuccess")
 
+-- Anti-Cheat Events
+RemoteEvents.ReportSuspiciousActivity = RemoteEvents:GetRemoteEvent("ReportSuspiciousActivity")
+RemoteEvents.ShowAntiCheatWarning = RemoteEvents:GetRemoteEvent("ShowAntiCheatWarning")
+RemoteEvents.AntiCheatKick = RemoteEvents:GetRemoteEvent("AntiCheatKick")
+RemoteEvents.AntiCheatViolation = RemoteEvents:GetRemoteEvent("AntiCheatViolation")
+RemoteEvents.HeartbeatCheck = RemoteEvents:GetRemoteEvent("HeartbeatCheck")
+RemoteEvents.RequestDataValidation = RemoteEvents:GetRemoteEvent("RequestDataValidation")
+RemoteEvents.AdminViolationReset = RemoteEvents:GetRemoteEvent("AdminViolationReset")
+RemoteEvents.AdminWhitelistPlayer = RemoteEvents:GetRemoteEvent("AdminWhitelistPlayer")
+
 return RemoteEvents
