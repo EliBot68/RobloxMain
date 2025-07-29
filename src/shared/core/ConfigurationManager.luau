@@ -596,21 +596,75 @@ end
 
 function ConfigurationManager:_loadDebugConfig()
     local baseConfig = {
-        -- Logging Levels
+        -- Logging Levels and Configuration
         LOGGING = {
             LEVEL = {
                 development = "DEBUG",
-                staging = "INFO",
+                staging = "INFO", 
                 production = "WARN"
             },
             ENABLE_CONSOLE_OUTPUT = {
                 development = true,
                 staging = true,
                 production = false
+            },
+            ENABLE_MEMORY_LOGGING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_EXTERNAL_LOGGING = {
+                development = false,
+                staging = true,
+                production = true
+            },
+            MAX_LOG_ENTRIES = {
+                development = 10000,
+                staging = 5000,
+                production = 1000
+            },
+            LOG_ROTATION_SIZE = 1000000, -- 1MB
+            PERFORMANCE_LOG_INTERVAL = {
+                development = 1.0,
+                staging = 5.0,
+                production = 30.0
             }
         },
         
-        -- Debug Features
+        -- Error Handling Configuration
+        ERROR_HANDLING = {
+            ENABLE_ERROR_BOUNDARIES = true,
+            ENABLE_AUTOMATIC_RECOVERY = {
+                development = true,
+                staging = true,
+                production = true
+            },
+            ERROR_RETRY_ATTEMPTS = {
+                development = 5,
+                staging = 3,
+                production = 2
+            },
+            ERROR_RETRY_DELAY = {
+                development = 1.0,
+                staging = 2.0,
+                production = 5.0
+            },
+            ENABLE_ERROR_REPORTING = {
+                development = false,
+                staging = true,
+                production = true
+            },
+            ERROR_TRACKING_ENDPOINT = "",
+            CRITICAL_ERROR_THRESHOLD = 10,
+            ERROR_RATE_LIMIT = 100, -- errors per minute
+            ENABLE_STACK_TRACES = {
+                development = true,
+                staging = true,
+                production = false
+            }
+        },
+        
+        -- Debug Features and Tools
         FEATURES = {
             SHOW_FPS_COUNTER = {
                 development = true,
@@ -626,11 +680,164 @@ function ConfigurationManager:_loadDebugConfig()
                 development = true,
                 staging = true,
                 production = false
+            },
+            ENABLE_MEMORY_DEBUGGING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_PERFORMANCE_MONITORING = {
+                development = true,
+                staging = true,
+                production = false
+            },
+            ENABLE_NETWORK_DEBUGGING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_FUNCTION_TRACING = {
+                development = false, -- Can be expensive
+                staging = false,
+                production = false
+            }
+        },
+        
+        -- Developer Tools Configuration
+        DEVELOPER_TOOLS = {
+            AUTO_START_DASHBOARD = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_CONSOLE_HOTKEY = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_TEST_RUNNER = {
+                development = true,
+                staging = true,
+                production = false
+            },
+            PERFORMANCE_MONITOR_INTERVAL = {
+                development = 5.0,
+                staging = 30.0,
+                production = 300.0
+            },
+            ENABLE_CODE_ANALYSIS = {
+                development = true,
+                staging = false,
+                production = false
+            }
+        },
+        
+        -- Debugging Modes
+        ENABLED_MODES = {
+            development = {"performance", "memory", "errors", "events"},
+            staging = {"performance", "errors"},
+            production = {"errors"}
+        },
+        
+        -- Performance Profiling
+        PROFILING = {
+            ENABLE_AUTOMATIC_PROFILING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            PROFILE_SAMPLE_RATE = {
+                development = 1.0, -- 100% sampling
+                staging = 0.1,     -- 10% sampling
+                production = 0.01  -- 1% sampling
+            },
+            MAX_PROFILE_SESSIONS = {
+                development = 100,
+                staging = 50,
+                production = 10
+            },
+            PROFILE_CLEANUP_INTERVAL = 600.0, -- 10 minutes
+            ENABLE_MEMORY_PROFILING = {
+                development = true,
+                staging = false,
+                production = false
+            }
+        },
+        
+        -- Debug Output Filtering
+        OUTPUT_FILTERS = {
+            SUPPRESS_WARNINGS = {
+                development = false,
+                staging = false,
+                production = true
+            },
+            SUPPRESS_INFO = {
+                development = false,
+                staging = false,
+                production = true
+            },
+            ENABLE_VERBOSE_ERRORS = {
+                development = true,
+                staging = true,
+                production = false
+            },
+            FILTER_SPAM_ERRORS = {
+                development = false,
+                staging = true,
+                production = true
+            }
+        },
+        
+        -- Testing Configuration
+        TESTING = {
+            ENABLE_UNIT_TESTS = {
+                development = true,
+                staging = true,
+                production = false
+            },
+            ENABLE_INTEGRATION_TESTS = {
+                development = true,
+                staging = true,
+                production = false
+            },
+            TEST_TIMEOUT = {
+                development = 30.0,
+                staging = 10.0,
+                production = 5.0
+            },
+            ENABLE_PERFORMANCE_TESTS = {
+                development = true,
+                staging = false,
+                production = false
+            }
+        },
+        
+        -- System Inspection
+        INSPECTION = {
+            ENABLE_SERVICE_MONITORING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            ENABLE_OBJECT_COUNTING = {
+                development = true,
+                staging = false,
+                production = false
+            },
+            INSPECTION_INTERVAL = {
+                development = 10.0,
+                staging = 60.0,
+                production = 300.0
+            },
+            ENABLE_NETWORK_INSPECTION = {
+                development = true,
+                staging = false,
+                production = false
             }
         }
     }
     
-    self:RegisterConfiguration("debug", baseConfig)
+    self:RegisterConfiguration("debugging", baseConfig)
 end
 
 -- ========================================
