@@ -486,4 +486,40 @@ RemoteEvents.ShowPerformanceUI = RemoteEvents:GetRemoteEvent("ShowPerformanceUI"
 RemoteEvents.HidePerformanceUI = RemoteEvents:GetRemoteEvent("HidePerformanceUI")
 RemoteEvents.PerformanceThresholdExceeded = RemoteEvents:GetRemoteEvent("PerformanceThresholdExceeded")
 
+-- Mobile Optimization Events
+RemoteEvents.MobileDeviceDetected = RemoteEvents:GetRemoteEvent("MobileDeviceDetected")
+RemoteEvents.MobileUIScaleUpdate = RemoteEvents:GetRemoteEvent("MobileUIScaleUpdate")
+RemoteEvents.MobileTouchCalibration = RemoteEvents:GetRemoteEvent("MobileTouchCalibration")
+RemoteEvents.MobileSafeAreaUpdate = RemoteEvents:GetRemoteEvent("MobileSafeAreaUpdate")
+RemoteEvents.MobileOrientationChange = RemoteEvents:GetRemoteEvent("MobileOrientationChange")
+RemoteEvents.MobilePerformanceMode = RemoteEvents:GetRemoteEvent("MobilePerformanceMode")
+
+-- Mobile Game Controls
+RemoteEvents.PlayerJumped = RemoteEvents:GetRemoteEvent("PlayerJumped")
+RemoteEvents.ChangeColor = RemoteEvents:GetRemoteEvent("ChangeColor")
+RemoteEvents.ReturnToHub = RemoteEvents:GetRemoteEvent("ReturnToHub")
+
+-- Mobile Settings Events
+RemoteEvents.UpdatePlayerSettings = RemoteEvents:GetRemoteEvent("UpdatePlayerSettings")
+RemoteEvents.PlayerSettingsLoaded = RemoteEvents:GetRemoteEvent("PlayerSettingsLoaded")
+RemoteEvents.ResetPlayerData = RemoteEvents:GetRemoteEvent("ResetPlayerData")
+
+-- Mobile Shop Events
+RemoteEvents.MobileShopItemPurchase = RemoteEvents:GetRemoteEvent("MobileShopItemPurchase")
+RemoteEvents.MobileShopCategoryChange = RemoteEvents:GetRemoteEvent("MobileShopCategoryChange")
+RemoteEvents.RequestShopData = RemoteEvents:GetRemoteEvent("RequestShopData")
+RemoteEvents.ShopDataResponse = RemoteEvents:GetRemoteEvent("ShopDataResponse")
+
+-- Mobile Leaderboard Events
+RemoteEvents.RequestLeaderboard = RemoteEvents:GetRemoteEvent("RequestLeaderboard")
+RemoteEvents.LeaderboardDataUpdated = RemoteEvents:GetRemoteEvent("LeaderboardDataUpdated")
+RemoteEvents.PlayerStatsUpdated = RemoteEvents:GetRemoteEvent("PlayerStatsUpdated")
+RemoteEvents.AchievementUnlocked = RemoteEvents:GetRemoteEvent("AchievementUnlocked")
+RemoteEvents.AchievementProgress = RemoteEvents:GetRemoteEvent("AchievementProgress")
+
+-- Mobile UI Notifications
+RemoteEvents.ShowMobileNotification = RemoteEvents:GetRemoteEvent("ShowMobileNotification")
+RemoteEvents.MobileUIError = RemoteEvents:GetRemoteEvent("MobileUIError")
+RemoteEvents.MobileUISuccess = RemoteEvents:GetRemoteEvent("MobileUISuccess")
+
 return RemoteEvents
