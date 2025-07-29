@@ -271,7 +271,80 @@ function ConfigurationManager:_loadPerformanceConfig()
             GARBAGE_COLLECTION_INTERVAL = 30.0,
             MAX_CACHED_OBJECTS = 100,
             TEXTURE_MEMORY_LIMIT = 512, -- MB
-            AUTO_CLEANUP_THRESHOLD = 0.8 -- 80% memory usage
+            AUTO_CLEANUP_THRESHOLD = 0.8, -- 80% memory usage
+            
+            -- Object Pool Settings
+            OBJECT_POOLS = {
+                DEFAULT_INITIAL_SIZE = 10,
+                MAX_POOL_SIZE = 100,
+                TRIM_THRESHOLD = 0.7, -- Trim when 70% full
+                TRIM_RATIO = 0.5 -- Remove 50% when trimming
+            },
+            
+            -- Resource Limits
+            LIMITS = {
+                MAX_CONNECTIONS_PER_PLAYER = 50,
+                MAX_TWEENS_PER_PLAYER = 25,
+                MAX_TASKS_PER_PLAYER = 20,
+                MAX_GAME_OBJECTS_PER_PLAYER = 100
+            },
+            
+            -- Memory Pressure Monitoring
+            MONITORING = {
+                PRESSURE_CHECK_INTERVAL = 5.0, -- Check every 5 seconds
+                DEFAULT_EVENT_INTERVAL = 1.0, -- Event-driven monitoring interval
+                ENABLE_ADAPTIVE_CLEANUP = true
+            },
+            
+            -- Memory Pressure Thresholds (in KB)
+            PRESSURE_THRESHOLDS = {
+                LOW_MEMORY_KB = 50 * 1024, -- 50 MB
+                MEDIUM_MEMORY_KB = 100 * 1024, -- 100 MB
+                HIGH_MEMORY_KB = 200 * 1024, -- 200 MB
+                CRITICAL_MEMORY_KB = 400 * 1024, -- 400 MB
+                HIGH_GROWTH_RATE_KB_PER_SEC = 1024 -- 1 MB/sec growth rate threshold
+            },
+            
+            -- Cleanup Thresholds (in seconds)
+            CLEANUP_THRESHOLDS = {
+                LIGHT_CONNECTION_AGE_SECONDS = 300, -- 5 minutes
+                LIGHT_TWEEN_AGE_SECONDS = 120, -- 2 minutes
+                LIGHT_TASK_AGE_SECONDS = 180, -- 3 minutes
+                
+                MODERATE_CONNECTION_AGE_SECONDS = 180, -- 3 minutes
+                MODERATE_TWEEN_AGE_SECONDS = 60, -- 1 minute
+                MODERATE_TASK_AGE_SECONDS = 90, -- 1.5 minutes
+                
+                AGGRESSIVE_CONNECTION_AGE_SECONDS = 60, -- 1 minute
+                AGGRESSIVE_TWEEN_AGE_SECONDS = 30, -- 30 seconds
+                AGGRESSIVE_TASK_AGE_SECONDS = 45 -- 45 seconds
+            },
+            
+            -- Batch Processing
+            BATCH_PROCESSING = {
+                DEFAULT_BATCH_SIZE = 10,
+                MAX_BATCH_SIZE = 50,
+                BATCH_TIMEOUT = 1.0 -- Process batch after 1 second
+            },
+            
+            -- Tracking and Logging
+            TRACKING = {
+                ENABLE_DETAILED_LOGGING = {
+                    development = true,
+                    staging = true,
+                    production = false
+                },
+                ENABLE_PERFORMANCE_MONITORING = {
+                    development = true,
+                    staging = true,
+                    production = true
+                },
+                AUTO_CLEANUP_INTERVAL = {
+                    development = 60.0, -- 1 minute
+                    staging = 300.0, -- 5 minutes
+                    production = 600.0 -- 10 minutes
+                }
+            }
         },
         
         -- Network Optimization
