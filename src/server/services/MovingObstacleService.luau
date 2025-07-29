@@ -1,13 +1,26 @@
 -- MovingObstacleService.luau
--- Server-side service for managing moving obstacles in Color Rush (Standardized Enhanced Service)
+-- Server-side service for managing moving obstacles in Color Rush (Enterprise Configuration-Driven Service)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
+-- Import configuration system
+local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+
+local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
+    enableDetailedLogging = true,
+    retryFailedRequires = true,
+    maxRetryAttempts = 3,
+    validateOnStart = true,
+    autoStart = false
+})
+
+-- Get configuration instance
+local config = ConfigurationManager.getInstance()
 
 local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
     enableDetailedLogging = true,
@@ -94,7 +107,8 @@ function MovingObstacleService:SetupObstacleCleanup()
     -- Periodic cleanup of orphaned obstacles
     task.spawn(function() -- UPDATED for modern API
         while true do
-            task.wait(30) -- UPDATED for modern API - Clean up every 30 seconds
+            local cleanupInterval = config:Get("performance.MEMORY.GARBAGE_COLLECTION_INTERVAL")
+            task.wait(cleanupInterval) -- Configuration-driven cleanup interval
             self:CleanupOrphanedObstacles()
         end
     end)
@@ -306,71 +320,76 @@ function MovingObstacleService:CleanupOrphanedObstacles()
     end
 end
 
--- Preset obstacle configurations for easy use
+-- Preset obstacle configurations for easy use (now configuration-driven)
 function MovingObstacleService:GetPresetConfigs()
+    local obstacleColors = config:Get("assets.OBSTACLES.COLORS")
+    local obstacleSizes = config:Get("assets.OBSTACLES.SIZES")
+    local obstacleSpeeds = config:Get("assets.OBSTACLES.SPEEDS")
+    local movementBounds = config:Get("assets.OBSTACLES.MOVEMENT_BOUNDS")
+    
     return {
         horizontalSlider = {
             movementType = "Linear",
-            speed = 8,
+            speed = obstacleSpeeds.FAST,
             direction = Vector3.new(1, 0, 0),
             movementBounds = {
-                min = Vector3.new(-15, 0, 0),
-                max = Vector3.new(15, 0, 0)
+                min = Vector3.new(-movementBounds.MEDIUM_RANGE, 0, 0),
+                max = Vector3.new(movementBounds.MEDIUM_RANGE, 0, 0)
             },
-            obstacleSize = Vector3.new(2, 8, 2),
-            obstacleColor = Color3.fromRGB(255, 100, 100),
+            obstacleSize = obstacleSizes.WALL,
+            obstacleColor = obstacleColors.HORIZONTAL_SLIDER,
             trailEnabled = true,
             reverseOnBounds = true
         },
         
         verticalPendulum = {
             movementType = "Pendulum",
-            speed = 3,
+            speed = obstacleSpeeds.SLOW,
             movementBounds = {
-                min = Vector3.new(-10, -10, 0),
-                max = Vector3.new(10, 0, 0)
+                min = Vector3.new(-movementBounds.SMALL_RANGE, -movementBounds.SMALL_RANGE, 0),
+                max = Vector3.new(movementBounds.SMALL_RANGE, 0, 0)
             },
-            obstacleSize = Vector3.new(8, 2, 2),
-            obstacleColor = Color3.fromRGB(255, 200, 100),
+            obstacleSize = obstacleSizes.PLATFORM,
+            obstacleColor = obstacleColors.VERTICAL_PENDULUM,
             trailEnabled = true,
             rotationEnabled = true
         },
         
         circularSpinner = {
             movementType = "Circular",
-            speed = 4,
+            speed = obstacleSpeeds.MEDIUM,
             movementBounds = {
-                min = Vector3.new(-12, 0, -12),
-                max = Vector3.new(12, 0, 12)
+                min = Vector3.new(-movementBounds.SMALL_RANGE - 2, 0, -movementBounds.SMALL_RANGE - 2),
+                max = Vector3.new(movementBounds.SMALL_RANGE + 2, 0, movementBounds.SMALL_RANGE + 2)
             },
-            obstacleSize = Vector3.new(3, 6, 3),
-            obstacleColor = Color3.fromRGB(100, 255, 100),
+            obstacleSize = obstacleSizes.SPINNER,
+            obstacleColor = obstacleColors.CIRCULAR_SPINNER,
             trailEnabled = true,
             pulseEffect = true
         },
         
         figureEightWeaver = {
             movementType = "FigureEight",
-            speed = 5,
+            speed = obstacleSpeeds.MEDIUM + 1, -- Slightly faster than medium
             movementBounds = {
-                min = Vector3.new(-8, 0, -8),
-                max = Vector3.new(8, 0, 8)
+                min = Vector3.new(-movementBounds.SMALL_RANGE + 2, 0, -movementBounds.SMALL_RANGE + 2),
+                max = Vector3.new(movementBounds.SMALL_RANGE - 2, 0, movementBounds.SMALL_RANGE - 2)
             },
-            obstacleSize = Vector3.new(4, 4, 4),
-            obstacleColor = Color3.fromRGB(200, 100, 255),
+            obstacleSize = obstacleSizes.MEDIUM,
+            obstacleColor = obstacleColors.ZIGZAG_MOVER,
             trailEnabled = true,
             rotationEnabled = true
         },
         
         randomRoamer = {
             movementType = "Random",
-            speed = 6,
+            speed = obstacleSpeeds.FAST - 2, -- Slightly slower than fast
             movementBounds = {
-                min = Vector3.new(-20, 0, -10),
-                max = Vector3.new(20, 0, 10)
+                min = Vector3.new(-movementBounds.LARGE_RANGE, 0, -movementBounds.SMALL_RANGE),
+                max = Vector3.new(movementBounds.LARGE_RANGE, 0, movementBounds.SMALL_RANGE)
             },
-            obstacleSize = Vector3.new(3, 5, 3),
-            obstacleColor = Color3.fromRGB(255, 150, 200),
+            obstacleSize = obstacleSizes.SPINNER,
+            obstacleColor = obstacleColors.RANDOM_TELEPORTER,
             trailEnabled = true,
             pulseEffect = true
         }

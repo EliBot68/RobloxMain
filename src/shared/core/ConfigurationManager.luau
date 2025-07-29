@@ -440,6 +440,41 @@ function ConfigurationManager:_loadAssetsConfig()
             PRIMARY = Enum.Font.GothamBold,
             SECONDARY = Enum.Font.Gotham,
             MONOSPACE = Enum.Font.Code
+        },
+        
+        -- Obstacle Configuration
+        OBSTACLES = {
+            COLORS = {
+                HORIZONTAL_SLIDER = Color3.fromRGB(255, 100, 100),
+                VERTICAL_PENDULUM = Color3.fromRGB(255, 200, 100),
+                CIRCULAR_SPINNER = Color3.fromRGB(100, 255, 100),
+                ZIGZAG_MOVER = Color3.fromRGB(200, 100, 255),
+                RANDOM_TELEPORTER = Color3.fromRGB(255, 150, 200)
+            },
+            SIZES = {
+                SMALL = Vector3.new(2, 2, 2),
+                MEDIUM = Vector3.new(4, 4, 4),
+                LARGE = Vector3.new(6, 6, 6),
+                WALL = Vector3.new(2, 8, 2),
+                PLATFORM = Vector3.new(8, 2, 2),
+                SPINNER = Vector3.new(3, 6, 3)
+            },
+            SPEEDS = {
+                SLOW = 2,
+                MEDIUM = 4,
+                FAST = 8,
+                VERY_FAST = 12
+            },
+            MOVEMENT_BOUNDS = {
+                SMALL_RANGE = 10,
+                MEDIUM_RANGE = 15,
+                LARGE_RANGE = 20
+            },
+            CLEANUP_INTERVAL = {
+                development = 20.0,
+                staging = 30.0,
+                production = 60.0
+            }
         }
     }
     

@@ -11,8 +11,35 @@ local RunService = game:GetService("RunService")
 local ServiceContainer = require(ReplicatedStorage.Shared.core.ServiceContainer)
 local ServiceInterface = require(ReplicatedStorage.Shared.core.ServiceInterface)
 local BaseService = require(ReplicatedStorage.Shared.core.BaseService)
+local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
+local ConfigurationValidators = require(ReplicatedStorage.Shared.core.ConfigurationValidators)
 
-print("🚀 Initializing Enterprise Service Container...")
+print("🚀 Initializing Enterprise Service Container with Configuration Management...")
+
+-- ========================================
+-- CONFIGURATION SYSTEM SETUP
+-- ========================================
+
+-- Initialize configuration system first (before any services)
+print("🔧 Initializing Configuration System...")
+local configManager = ConfigurationManager.getInstance()
+
+-- Register all configuration validators
+ConfigurationValidators.registerAllValidators(configManager)
+
+-- Validate all configurations
+local isValid = configManager:_validateAllConfigurations()
+if not isValid then
+    local errors = configManager:GetValidationErrors()
+    warn("🚨 Configuration validation failed:")
+    for _, error in ipairs(errors) do
+        warn("  ❌ " .. error.path .. ": " .. error.error)
+    end
+    error("Configuration validation failed - cannot start services")
+end
+
+print("✅ Configuration system initialized and validated")
+print("📊 Environment: " .. configManager:GetEnvironment())
 
 -- ========================================
 -- SERVICE CONTAINER SETUP
@@ -21,6 +48,9 @@ print("🚀 Initializing Enterprise Service Container...")
 local container = ServiceContainer.new("CoreGameContainer")
 local loadedCount = 0
 local totalServices = 11
+
+-- Register ConfigurationManager as a singleton first
+container:RegisterSingleton("ConfigurationManager", configManager)
 
 -- ========================================
 -- SERVICE REGISTRATION FUNCTIONS
@@ -83,7 +113,7 @@ end
 
 print("\n🔧 Registering Core Services...")
 
--- First, register MemoryManager as a singleton (no dependencies)
+-- First, register MemoryManager as a singleton (now uses ConfigurationManager)
 print("0/11 Registering MemoryManager...")
 local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 MemoryManager:Init()
@@ -94,7 +124,7 @@ print("1/11 Registering GameService...")
 RegisterService(
     "GameService",
     script.Parent.services.core.GameService,
-    {"MemoryManager"},
+    {"MemoryManager", "ConfigurationManager"},
     ServiceInterface.IGameService
 )
 
@@ -103,7 +133,7 @@ print("2/11 Registering AnalyticsService...")
 RegisterService(
     "AnalyticsService", 
     script.Parent.services.AnalyticsService,
-    {"MemoryManager"},
+    {"MemoryManager", "ConfigurationManager"},
     ServiceInterface.IAnalyticsService
 )
 
@@ -112,7 +142,7 @@ print("3/11 Registering TrackGeneratorService...")
 RegisterService(
     "TrackGeneratorService",
     script.Parent.services.TrackGeneratorService,
-    {"MemoryManager", "AnalyticsService"},
+    {"MemoryManager", "AnalyticsService", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -121,7 +151,7 @@ print("4/11 Registering DifficultyService...")
 RegisterService(
     "DifficultyService",
     script.Parent.services.DifficultyService,
-    {"MemoryManager", "AnalyticsService"},
+    {"MemoryManager", "AnalyticsService", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -136,7 +166,7 @@ print("5/11 Registering MainGameController...")
 RegisterService(
     "MainGameController",
     script.Parent.MainGameController,
-    {"GameService", "AnalyticsService", "TrackGeneratorService", "DifficultyService", "MemoryManager"},
+    {"GameService", "AnalyticsService", "TrackGeneratorService", "DifficultyService", "MemoryManager", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -145,7 +175,7 @@ print("6/11 Registering CollisionController...")
 RegisterService(
     "CollisionController",
     script.Parent.controllers.CollisionController,
-    {"MainGameController", "MemoryManager"},
+    {"MainGameController", "MemoryManager", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -163,7 +193,7 @@ if recordingPath then
     RegisterService(
         "RecordingSessionManager",
         recordingPath,
-        {"MemoryManager", "AnalyticsService"},
+        {"MemoryManager", "AnalyticsService", "ConfigurationManager"},
         ServiceInterface.IService
     )
 else
@@ -176,7 +206,7 @@ print("8/11 Registering MovingObstacleService...")
 RegisterService(
     "MovingObstacleService",
     script.Parent.services.MovingObstacleService,
-    {"MemoryManager", "AnalyticsService"},
+    {"MemoryManager", "AnalyticsService", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -185,7 +215,7 @@ print("9/11 Registering SystemEventConnections...")
 RegisterService(
     "SystemEventConnections",
     script.Parent.SystemEventConnections,
-    {"MemoryManager"},
+    {"MemoryManager", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -194,7 +224,7 @@ print("10/11 Registering GameStateEventManager...")
 RegisterService(
     "GameStateEventManager",
     script.Parent.GameStateEventManager,
-    {"MemoryManager", "AnalyticsService", "GameService"},
+    {"MemoryManager", "AnalyticsService", "GameService", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -203,7 +233,7 @@ print("11/11 Registering GameLifecycleManager...")
 RegisterService(
     "GameLifecycleManager",
     script.Parent.GameLifecycleManager,
-    {"MemoryManager", "GameService", "MainGameController", "AnalyticsService"},
+    {"MemoryManager", "GameService", "MainGameController", "AnalyticsService", "ConfigurationManager"},
     ServiceInterface.IService
 )
 
@@ -292,6 +322,10 @@ end
 
 function ServiceLocator.GetMemoryManager()
     return container:GetService("MemoryManager")
+end
+
+function ServiceLocator.GetConfigurationManager()
+    return container:GetService("ConfigurationManager")
 end
 
 -- Generic service accessor

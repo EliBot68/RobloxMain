@@ -333,7 +333,7 @@ function MemoryManager:DestroyAllPlayerGameObjects(playerId)
     
     activeGameObjects[playerId] = nil
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("🧹 Destroyed " .. destroyedCount .. " game objects for player " .. playerId)
     end
     
@@ -354,7 +354,7 @@ function MemoryManager:RegisterCleanupCallback(playerId, callbackName, cleanupFu
     
     playerCleanupCallbacks[playerId][callbackName] = cleanupFunction
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("📋 Registered cleanup callback: " .. callbackName .. " for player " .. playerId)
     end
     
@@ -376,7 +376,7 @@ function MemoryManager:ExecutePlayerCleanupCallbacks(playerId)
         
         if success then
             executedCount = executedCount + 1
-            if MEMORY_CONFIG.enableDetailedLogging then
+            if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
                 print("✅ Executed cleanup callback: " .. callbackName .. " for player " .. playerId)
             end
         else
@@ -567,7 +567,7 @@ function MemoryManager:PrintMemoryReport()
     print("   Total Game Objects: " .. stats.totalGameObjects)
     print("   Total Callbacks: " .. stats.totalCallbacks)
     
-    if MEMORY_CONFIG.enableDetailedLogging then
+    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
         print("\n   Per-Player Details:")
         for playerId, details in pairs(stats.playerDetails) do
             print("     Player " .. playerId .. ":")
@@ -588,9 +588,10 @@ end
 function MemoryManager:StartPeriodicCleanup()
     task.spawn(function() -- UPDATED for modern API
         while true do
-            task.wait(MEMORY_CONFIG.autoCleanupInterval) -- UPDATED for modern API
+            local cleanupInterval = config:Get("memory.TRACKING.AUTO_CLEANUP_INTERVAL")
+            task.wait(cleanupInterval) -- UPDATED for modern API
             
-            if MEMORY_CONFIG.enablePerformanceMonitoring then
+            if config:Get("memory.TRACKING.ENABLE_PERFORMANCE_MONITORING") then
                 self:PrintMemoryReport()
             end
             
@@ -599,14 +600,15 @@ function MemoryManager:StartPeriodicCleanup()
         end
     end)
     
-    print("⏰ Started periodic memory cleanup (every " .. MEMORY_CONFIG.autoCleanupInterval .. " seconds)")
+    local cleanupInterval = config:Get("memory.TRACKING.AUTO_CLEANUP_INTERVAL")
+    print("⏰ Started periodic memory cleanup (every " .. cleanupInterval .. " seconds)")
 end
 
 -- Initialize memory manager
 function MemoryManager:Init()
-    print("🧠 MemoryManager initialized")
+    print("🧠 MemoryManager initialized with ConfigurationManager")
     
-    if MEMORY_CONFIG.enablePerformanceMonitoring then
+    if config:Get("memory.TRACKING.ENABLE_PERFORMANCE_MONITORING") then
         self:StartPeriodicCleanup()
     end
     
