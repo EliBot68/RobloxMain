@@ -939,8 +939,8 @@ function QuestService:ScheduleNextDailyReset()
     print("⏰ Next daily quest reset scheduled in " .. math.floor(secondsUntilReset / 3600) .. " hours and " .. math.floor((secondsUntilReset % 3600) / 60) .. " minutes")
     
     -- Schedule the reset
-    spawn(function()
-        wait(secondsUntilReset)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(secondsUntilReset) -- UPDATED for modern API
         self:ResetAllPlayerQuests()
     end)
 end
@@ -1329,7 +1329,7 @@ function QuestService:Initialize()
     print("📋 QuestService initializing...")
     
     -- Wait for workspace to be ready
-    wait(1)
+    task.wait(1) -- UPDATED for modern API
     
     -- Setup quest board display
     self:SetupQuestBoard()
@@ -1368,8 +1368,8 @@ end
 -- Handle player joining
 local function onPlayerAdded(player)
     -- Load player quests
-    spawn(function()
-        wait(2) -- Wait for player to fully load
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(2) -- UPDATED for modern API - Wait for player to fully load
         QuestService:LoadPlayerQuests(player)
     end)
 end

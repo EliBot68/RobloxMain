@@ -181,7 +181,7 @@ function TeleportService:TeleportPlayerToMarket(player, character)
     humanoid.PlatformStand = true
     
     -- Wait for fade effect
-    wait(1)
+    task.wait(1) -- UPDATED for modern API
     
     -- Choose random spawn position around fountain
     local spawnPositions = {
@@ -273,8 +273,8 @@ function TeleportService:CreateTeleportEffect(position)
     Debris:AddItem(effectPart, 3)
     
     -- Disable emitters after 1 second
-    spawn(function()
-        wait(1)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(1) -- UPDATED for modern API
         sparkles.Enabled = false
         portal.Enabled = false
     end)
@@ -369,7 +369,7 @@ function TeleportService:TeleportPlayerWithEffects(player, targetCFrame, locatio
     end)
     
     -- Wait then teleport
-    wait(0.3)
+    task.wait(0.3) -- UPDATED for modern API
     humanoidRootPart.CFrame = targetCFrame
     
     -- Re-enable movement
@@ -391,7 +391,7 @@ function TeleportService:Initialize()
     print("🌀 TeleportService initializing...")
     
     -- Wait for workspace to be ready
-    wait(2)
+    task.wait(2) -- UPDATED for modern API
     
     -- Setup return rings
     self:SetupReturnRings()

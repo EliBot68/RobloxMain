@@ -657,7 +657,7 @@ function HubManagerService:OnStart()
 	print("🏙️ HubManagerService starting...")
 	
 	-- Wait for workspace to be ready
-	wait(2)
+	task.wait(2) -- UPDATED for modern API
 	
 	-- Setup the complete hub
 	self:SetupCompleteHub()

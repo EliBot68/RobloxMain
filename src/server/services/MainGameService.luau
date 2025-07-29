@@ -81,7 +81,7 @@ function MainGameService:SafeRequire(modulePath, moduleName, isOptional)
             else
                 if attempt < maxAttempts then
                     warn("⚠️ SafeRequire: " .. moduleName .. " failed (attempt " .. attempt .. "), retrying...")
-                    wait(0.5)
+                    task.wait(0.5) -- UPDATED for modern API
                 else
                     if isOptional then
                         warn("⚠️ SafeRequire: Optional module " .. moduleName .. " failed to load: " .. tostring(result))
@@ -159,8 +159,8 @@ function MainGameService:Init()
     
     -- Auto-start if configured
     if SERVICE_CONFIG.autoStartAfterInit then
-        spawn(function()
-            wait(1) -- Brief delay
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(1) -- UPDATED for modern API - Brief delay
             self:Start()
         end)
     end
@@ -491,8 +491,8 @@ function MainGameService:StartGame(player, gameConfig)
     end
     
     -- Start the actual game
-    spawn(function()
-        wait(1) -- Brief preparation time
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(1) -- UPDATED for modern API - Brief preparation time
         
         self:SetGameState("Running", {
             player = player,
@@ -529,8 +529,8 @@ function MainGameService:EndGame(player, results)
     })
     
     -- Auto-return to lobby after delay
-    spawn(function()
-        wait(3) -- Show results for 3 seconds
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(3) -- UPDATED for modern API - Show results for 3 seconds
         
         self:SetGameState("Lobby", {
             player = player,
@@ -584,7 +584,7 @@ function MainGameService:SetupEventConnections()
     
     -- Handle existing players
     for _, player in pairs(Players:GetPlayers()) do
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             self:HandlePlayerJoin(player)
         end)
     end
@@ -836,8 +836,8 @@ function MainGameService:ValidateAndRepairSystem()
         print("✅ System repair attempt completed")
         
         -- Re-validate after repairs
-        spawn(function()
-            wait(2)
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(2) -- UPDATED for modern API
             self:ValidateSystemIntegrity()
         end)
     end
@@ -883,9 +883,9 @@ end
 function MainGameService:StartHealthMonitoring()
     if SERVICE_CONFIG.healthCheckInterval <= 0 then return end
     
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while isStarted do
-            wait(SERVICE_CONFIG.healthCheckInterval)
+            task.wait(SERVICE_CONFIG.healthCheckInterval) -- UPDATED for modern API
             self:PerformHealthCheck()
         end
     end)
@@ -952,9 +952,9 @@ function MainGameService:SetupGameStateTracking()
     -- Track game state changes for analytics
     local previousState = self.State
     
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while isStarted do
-            wait(1)
+            task.wait(1) -- UPDATED for modern API
             
             if self.State ~= previousState then
                 if self.Services.AnalyticsService then
@@ -1074,8 +1074,8 @@ end
 
 -- Auto-initialize when required
 if RunService:IsServer() then
-    spawn(function()
-        wait(2) -- Brief delay to ensure other systems are ready
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(2) -- UPDATED for modern API - Brief delay to ensure other systems are ready
         
         print("🚀 Auto-initializing Enhanced MainGameService...")
         
@@ -1090,8 +1090,8 @@ if RunService:IsServer() then
             
             -- Perform initial system validation
             if SERVICE_CONFIG.validateWorldObjects then
-                spawn(function()
-                    wait(1)
+                task.spawn(function() -- UPDATED for modern API
+                    task.wait(1) -- UPDATED for modern API
                     MainGameService:ValidateAndRepairSystem()
                 end)
             end

@@ -283,8 +283,8 @@ function AnalyticsService:OnPlayerLeft(player)
         })
         
         -- Trigger immediate flush when player leaves to capture their session data
-        spawn(function()
-            wait(1) -- Small delay to ensure the leave event is logged
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(1) -- UPDATED for modern API - Small delay to ensure the leave event is logged
             self:FlushBuffer()
         end)
         
@@ -357,7 +357,7 @@ function AnalyticsService:FlushBuffer()
                 end
                 
                 -- Send batch to endpoint
-                spawn(function()
+                task.spawn(function() -- UPDATED for modern API
                     self:SendAnalyticsToEndpoint(eventsToSend)
                 end)
             end
@@ -1028,9 +1028,9 @@ function AnalyticsService:Init()
     end)
     
     -- Set up periodic buffer flush (every 5 minutes)
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while true do
-            wait(300) -- 5 minutes
+            task.wait(300) -- UPDATED for modern API - 5 minutes
             self:FlushBuffer()
         end
     end)

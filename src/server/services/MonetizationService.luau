@@ -595,8 +595,8 @@ end
     
     -- Apply gamepass benefits to existing players
     for _, player in pairs(Players:GetPlayers()) do
-        spawn(function()
-            wait(1) -- Small delay to ensure other services are ready
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(1) -- UPDATED for modern API - Small delay to ensure other services are ready
             self:ApplyGamepassBenefits(player)
             
             -- Broadcast VIP status to all players
@@ -609,8 +609,8 @@ end
     
     -- Handle new players joining
     Players.PlayerAdded:Connect(function(player)
-        spawn(function()
-            wait(2) -- Wait for player data to load
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(2) -- UPDATED for modern API - Wait for player data to load
             self:ApplyGamepassBenefits(player)
             
             -- Broadcast this player's VIP status to everyone

@@ -127,8 +127,8 @@ function ControllerBase.new(controllerName, config)
         
         -- Auto-start if configured
         if self.Config.autoStart then
-            spawn(function()
-                wait(0.1)
+            task.spawn(function() -- UPDATED for modern API
+                task.wait(0.1) -- UPDATED for modern API
                 self:Start()
             end)
         end

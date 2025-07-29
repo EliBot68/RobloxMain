@@ -104,8 +104,8 @@ function JumpMechanics:SetupInputHandling()
         )
         
         -- Customize the touch button
-        spawn(function()
-            wait(0.1) -- Wait for button creation
+        task.spawn(function() -- UPDATED for modern API
+            task.wait(0.1) -- UPDATED for modern API - Wait for button creation
             self:CustomizeTouchButton()
         end)
     end
@@ -271,8 +271,8 @@ function JumpMechanics:SetupCharacterMonitoring()
                 end
                 
                 -- Start cooldown
-                spawn(function()
-                    wait(self.jumpCooldown)
+                task.spawn(function() -- UPDATED for modern API
+                    task.wait(self.jumpCooldown) -- UPDATED for modern API
                     self.canJump = true
                 end)
                 
@@ -359,8 +359,8 @@ function JumpMechanics:FlashJumpButton()
     local originalColor = self.mobileJumpButton.BackgroundColor3
     self.mobileJumpButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     
-    spawn(function()
-        wait(0.1)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(0.1) -- UPDATED for modern API
         self.mobileJumpButton.BackgroundColor3 = originalColor
     end)
 end
@@ -393,8 +393,8 @@ function JumpMechanics:PlayJumpEffects(character)
     particles:Emit(20)
     
     -- Cleanup
-    spawn(function()
-        wait(2)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(2) -- UPDATED for modern API
         if attachment and attachment.Parent then
             attachment:Destroy()
         end
@@ -439,8 +439,8 @@ function JumpMechanics:PlayLandingEffects(character)
     dustParticles:Emit(15)
     
     -- Cleanup
-    spawn(function()
-        wait(2)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(2) -- UPDATED for modern API
         if attachment and attachment.Parent then
             attachment:Destroy()
         end

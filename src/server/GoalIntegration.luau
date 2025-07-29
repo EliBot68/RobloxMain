@@ -165,9 +165,9 @@ function GoalIntegration:TriggerGoalUpdate(player, eventType)
     if not player or not player.Parent then return end
     
     -- Use spawn to prevent blocking the original event
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         -- Small delay to ensure data is saved
-        wait(0.1)
+        task.wait(0.1) -- UPDATED for modern API
         
         -- Force goal update
         GoalService:ForceUpdatePlayerGoals(player)

@@ -206,7 +206,7 @@ end
 function UpgradeService:SetupUpgradeStalls()
     -- Wait for workspace to be ready
     game.Loaded:Wait()
-    wait(2)
+    task.wait(1) -- UPDATED for modern API - Brief delay for character to fully load
     
     -- Validate and wait for Hub folder
     local hubObject = WorldObjectValidator.waitForObject("workspace.Hub", 10)
@@ -297,7 +297,7 @@ end
 -- Handle player joining
 function UpgradeService:HandlePlayerAdded(player)
     -- Initialize player upgrade data
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         self:LoadPlayerUpgrades(player)
         self:ApplyAllUpgrades(player)
     end)
@@ -358,7 +358,7 @@ function UpgradeService:SavePlayerUpgrades(player)
         self.DataService:SetPlayerData(player, "upgrades", upgrades)
     else
         -- Fallback to DataStore
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             local success, error = pcall(function()
                 upgradeDataStore:SetAsync("Player_" .. player.UserId, upgrades)
             end)
@@ -538,7 +538,7 @@ function UpgradeService:ApplyAllUpgrades(player)
         player.CharacterAdded:Wait()
     end
     
-    wait(1) -- Brief delay for character to fully load
+    task.wait(1) -- UPDATED for modern API - Brief delay for character to fully load
     
     -- Apply each upgrade
     for upgradeId, upgradeData in pairs(playerUpgrades) do

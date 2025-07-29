@@ -527,7 +527,7 @@ if not knitSuccess then
 end
 
 -- Wait a moment for Knit to fully initialize
-wait(1)
+task.wait(1) -- UPDATED for modern API
 
 -- STEP 5: Safe Service Initialization with comprehensive error handling
 print("🚀 Initializing services with error protection...")
@@ -997,9 +997,9 @@ print("==========================================")
 print("🚀 Server is ready for players!")
 
 -- Set up periodic health monitoring
-spawn(function()
+task.spawn(function() -- UPDATED for modern API
     while true do
-        wait(600) -- Every 10 minutes
+        task.wait(600) -- UPDATED for modern API - Every 10 minutes
         if RuntimeValidator and RuntimeValidator.ValidateAll then
             pcall(RuntimeValidator.ValidateAll, RuntimeValidator)
         end

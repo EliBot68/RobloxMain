@@ -485,8 +485,8 @@ function UpgradeController:ShowUpgradeSuccessNotification(upgradeType, newLevel)
     slideIn:Play()
     
     -- Auto-remove
-    spawn(function()
-        wait(3)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(3) -- UPDATED for modern API
         local slideOut = TweenService:Create(
             notification,
             TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),

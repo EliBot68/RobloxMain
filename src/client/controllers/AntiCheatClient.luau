@@ -86,25 +86,25 @@ end
 -- Start monitoring systems
 function AntiCheatClient:StartMonitoring()
     if CLIENT_CONFIG.checkExploits then
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             self:MonitorExploits()
         end)
     end
     
     if CLIENT_CONFIG.monitorInputs then
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             self:MonitorInputs()
         end)
     end
     
     if CLIENT_CONFIG.monitorFPS then
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             self:MonitorPerformance()
         end)
     end
     
     if CLIENT_CONFIG.monitorUI then
-        spawn(function()
+        task.spawn(function() -- UPDATED for modern API
             self:MonitorUI()
         end)
     end
@@ -113,7 +113,7 @@ end
 -- Monitor for exploit tools/environments
 function AntiCheatClient:MonitorExploits()
     while monitoringState.isActive do
-        wait(5) -- Check every 5 seconds
+        task.wait(5) -- UPDATED for modern API - Check every 5 seconds
         
         -- Check for common exploit environments
         local suspiciousGlobals = {
@@ -204,9 +204,9 @@ end
 -- Monitor performance metrics
 function AntiCheatClient:MonitorPerformance()
     while monitoringState.isActive do
-        wait(2) -- Check every 2 seconds
+        task.wait(2) -- UPDATED for modern API - Check every 2 seconds
         
-        local fps = 1 / RunService.Heartbeat:Wait()
+        local fps = 1 / RunService.Heartbeat:Wait() -- Intentionally not using task.wait()
         
         -- Check for unusually high FPS (could indicate speed hacks)
         if fps > CLIENT_CONFIG.maxFPS then
@@ -260,7 +260,7 @@ function AntiCheatClient:MonitorUI()
         
         -- Check for unauthorized GUI injection
         if child:IsA("ScreenGui") and not child:GetAttribute("Authorized") then
-            wait(1) -- Give it time to be authorized
+            task.wait(1) -- UPDATED for modern API - Give it time to be authorized
             
             if not child:GetAttribute("Authorized") and child.Parent then
                 self:ReportSuspiciousActivity("unauthorized_gui", {
@@ -379,8 +379,8 @@ function AntiCheatClient:CreateWarningGUI()
     end)
     
     -- Auto-hide after 10 seconds
-    spawn(function()
-        wait(10)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(10) -- UPDATED for modern API
         if warningGui.Enabled then
             self:HideWarning()
         end

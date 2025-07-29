@@ -559,8 +559,8 @@ function PartyService:StartSynchronizedPartyGame(partyId, members)
     end
     
     -- Wait for countdown
-    spawn(function()
-        wait(GameConstants.PARTY_SYNC_COUNTDOWN)
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(GameConstants.PARTY_SYNC_COUNTDOWN) -- UPDATED for modern API
         
         -- Start game for all members simultaneously
         for _, player in pairs(members) do
@@ -914,9 +914,9 @@ function PartyService:Init()
     end)
     
     -- Clean up expired invites periodically
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while true do
-            wait(30) -- Check every 30 seconds
+            task.wait(30) -- UPDATED for modern API - Check every 30 seconds
             local currentTime = os.time()
             
             for userId, invites in pairs(partyInvites) do

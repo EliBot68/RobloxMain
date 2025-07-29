@@ -12,7 +12,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents
 repeat
-    wait(0.1)
+    task.wait(0.1) -- UPDATED for modern API
     RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 until RemoteEvents
 
@@ -177,14 +177,14 @@ local function attemptJump()
     updateStatus()
     
     -- Simulate landing after delay
-    spawn(function()
-        wait(1) -- Simulate jump duration
+    task.spawn(function() -- UPDATED for modern API
+        task.wait(1) -- UPDATED for modern API - Simulate jump duration
         demoState.isJumping = false
         
-        wait(0.5) -- Simulate air time
+        task.wait(0.5) -- UPDATED for modern API - Simulate air time
         demoState.isInAir = false
         
-        wait(0.5) -- Simulate cooldown
+        task.wait(0.5) -- UPDATED for modern API - Simulate cooldown
         demoState.canJump = true
         
         updateStatus()

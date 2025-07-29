@@ -92,9 +92,9 @@ function MovingObstacleService:SetupObstacleCleanup()
     end)
     
     -- Periodic cleanup of orphaned obstacles
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         while true do
-            wait(30) -- Clean up every 30 seconds
+            task.wait(30) -- UPDATED for modern API - Clean up every 30 seconds
             self:CleanupOrphanedObstacles()
         end
     end)

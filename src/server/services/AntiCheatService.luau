@@ -167,17 +167,17 @@ function AntiCheatService:StartMonitoring()
     end
     
     -- Movement monitoring
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         self:StartMovementMonitoring()
     end)
     
     -- Speed monitoring
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         self:StartSpeedMonitoring()
     end)
     
     -- Stat monitoring
-    spawn(function()
+    task.spawn(function() -- UPDATED for modern API
         self:StartStatMonitoring()
     end)
     
@@ -187,7 +187,7 @@ end
 -- Movement monitoring system
 function AntiCheatService:StartMovementMonitoring()
     while true do
-        wait(ANTICHEAT_CONFIG.positionUpdateRate)
+        task.wait(ANTICHEAT_CONFIG.positionUpdateRate) -- UPDATED for modern API
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
@@ -291,7 +291,7 @@ end
 -- Speed monitoring system
 function AntiCheatService:StartSpeedMonitoring()
     while true do
-        wait(ANTICHEAT_CONFIG.speedCheckInterval)
+        task.wait(ANTICHEAT_CONFIG.speedCheckInterval) -- UPDATED for modern API
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
@@ -339,7 +339,7 @@ end
 -- Stat monitoring system
 function AntiCheatService:StartStatMonitoring()
     while true do
-        wait(ANTICHEAT_CONFIG.statUpdateRate)
+        task.wait(ANTICHEAT_CONFIG.statUpdateRate) -- UPDATED for modern API
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
