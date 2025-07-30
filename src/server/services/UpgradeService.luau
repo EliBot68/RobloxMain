@@ -8,16 +8,10 @@ local Workspace = game:GetService("Workspace")
 local DataStoreService = game:GetService("DataStoreService")
 local TweenService = game:GetService("TweenService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
+local Services = require(ReplicatedStorage.Shared.Services)
+local WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
-local UpgradeService = ServiceBase.new("UpgradeService", {
-    enableDetailedLogging = true,
-    retryFailedRequires = true,
-    maxRetryAttempts = 3,
-    validateOnStart = true,
-    autoStart = false
-})
+local UpgradeService = {}
 
 -- Define dependencies
 UpgradeService.Dependencies = {
@@ -103,8 +97,31 @@ local UPGRADE_DEFINITIONS = {
     }
 }
 
--- Service-specific initialization
+--[[
+    Initializes the UpgradeService. Validates world objects, sets up upgrade stalls,
+    initializes data storage, and handles existing players.
+    
+    @return {void}
+]]
 function UpgradeService:OnInit()
+    -- Validate required world objects for upgrade stalls
+    local missingObjects = WorldObjectValidator.validateAllRequired()
+    if #missingObjects > 0 then
+        warn("⚠️ UpgradeService: Missing required world objects:")
+        for _, missing in ipairs(missingObjects) do
+            warn("  • " .. missing)
+        end
+    end
+    
+    -- Ensure Hub folder exists or can be created
+    local hubExists, hubObject = WorldObjectValidator.validateObjectWithWait("workspace.Hub", 3)
+    if not hubExists then
+        warn("⚠️ UpgradeService: Hub folder not found, attempting to create...")
+        WorldObjectValidator.createObjectIfMissing("workspace.Hub", "Folder", "workspace")
+    else
+        print("✅ UpgradeService: Hub folder validated")
+    end
+    
     -- Initialize DataStore fallback
     upgradeDataStore = DataStoreService:GetDataStore("PlayerUpgrades")
     
@@ -119,7 +136,11 @@ function UpgradeService:OnInit()
     return true
 end
 
--- Service-specific start logic
+--[[
+    Starts the UpgradeService by setting up physical upgrade stalls in the game world.
+    
+    @return {boolean} - True if service started successfully
+]]
 function UpgradeService:OnStart()
     -- Setup upgrade stalls in the world
     self:SetupUpgradeStalls()
@@ -128,7 +149,12 @@ function UpgradeService:OnStart()
     return true
 end
 
--- Setup remote events
+--[[
+    Sets up remote event connections for client-server communication.
+    Handles upgrade purchases, data requests, and shop interactions.
+    
+    @return {void}
+]]
 function UpgradeService:SetupRemoteEvents()
     if self.RemoteEvents then
         -- Purchase upgrade
@@ -173,15 +199,22 @@ end
 function UpgradeService:SetupUpgradeStalls()
     -- Wait for workspace to be ready
     game.Loaded:Wait()
-    task.wait(2) -- UPDATED for modern API
+    task.wait(1) -- UPDATED for modern API - Brief delay for character to fully load
     
-    -- Create upgrade stalls if they don't exist
-    local hubFolder = Workspace:FindFirstChild("Hub") or Workspace:FindFirstChild("World")
-    if hubFolder then
-        self:CreateUpgradeStall(hubFolder)
-    else
-        warn("⚠️ UpgradeService: Hub folder not found, upgrade stalls not created")
+    -- Validate and wait for Hub folder
+    local hubObject = WorldObjectValidator.waitForObject("workspace.Hub", 10)
+    if not hubObject then
+        -- Try alternative locations
+        hubObject = WorldObjectValidator.waitForObject("workspace.World", 5)
+        if not hubObject then
+            warn("⚠️ UpgradeService: No suitable parent found for upgrade stalls")
+            return
+        end
     end
+    
+    -- Create upgrade stalls
+    self:CreateUpgradeStall(hubObject)
+    print("✅ UpgradeService: Upgrade stalls setup completed")
 end
 
 -- Create upgrade stall in world
@@ -396,7 +429,14 @@ function UpgradeService:CalculateUpgradeCost(upgradeId, currentLevel, playerLeve
     return math.floor(cost)
 end
 
--- Purchase upgrade
+--[[
+    Processes a player's upgrade purchase. Validates the upgrade, checks player's
+    coins, deducts the cost, and updates the player's upgrade level.
+    
+    @param player {Player} - The player making the purchase
+    @param upgradeId {string} - The ID of the upgrade to purchase
+    @return {table} - Result table with success boolean and error message if failed
+]]
 function UpgradeService:PurchaseUpgrade(player, upgradeId)
     local upgrade = UPGRADE_DEFINITIONS[upgradeId]
     if not upgrade then
@@ -601,5 +641,8 @@ function UpgradeService:OnCleanup()
     -- Clear cache
     playerUpgradeCache = {}
 end
+
+-- Register service with centralized Services module
+Services.Register("UpgradeService", UpgradeService)
 
 return UpgradeService
