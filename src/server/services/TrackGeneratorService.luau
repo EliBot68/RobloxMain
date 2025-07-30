@@ -9,8 +9,8 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Debris = game:GetService("Debris")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local Services = require(ReplicatedStorage.Shared.Services)
+local WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local TrackGeneratorService = {}
 
@@ -239,9 +239,13 @@ function TrackGeneratorService:LoadObstacleTemplates()
 end
 
 function TrackGeneratorService:InitializePerformanceMonitoring()
-    spawn(function()
-        while true do
-            wait(10) -- Update every 10 seconds
+    local RunService = game:GetService("RunService")
+    local lastMemoryCheck = 0
+    
+    self.performanceConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastMemoryCheck >= 10 then -- Update every 10 seconds
+            lastMemoryCheck = currentTime
             performanceMetrics.memoryUsed = gcinfo()
         end
     end)
@@ -1256,5 +1260,8 @@ function TrackGeneratorService:GenerateMovingObstacles(track)
             track.id, tostring(createdObstacles)))
     end
 end
+
+-- Register service with centralized Services module
+Services.Register("TrackGeneratorService", TrackGeneratorService)
 
 return TrackGeneratorService

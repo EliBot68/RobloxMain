@@ -8,8 +8,8 @@ local TeleportService = game:GetService("TeleportService")
 local Stats = game:GetService("Stats")
 local Players = game:GetService("Players")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local Services = require(ReplicatedStorage.Shared.Services)
+local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local PerformanceMonitoringService = {}
 
@@ -410,43 +410,51 @@ function PerformanceMonitoringService.getOverallHealthStatus()
     end
 end
 
--- Real-time Performance Monitoring
+-- Real-time Performance Monitoring (Event-Driven)
 function PerformanceMonitoringService.startMonitoring()
-    -- FPS monitoring connection
+    -- FPS monitoring connection (already proper event-driven)
     local fpsConnection = RunService.Heartbeat:Connect(function()
         PerformanceMonitoringService.updateFPSMetrics()
     end)
     
-    -- Memory monitoring (every 5 seconds)
-    local memoryConnection = task.spawn(function()
-        while true do
+    -- Memory monitoring (every 5 seconds) - converted to heartbeat-based
+    local lastMemoryUpdate = 0
+    local memoryConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastMemoryUpdate >= 5 then
+            lastMemoryUpdate = currentTime
             PerformanceMonitoringService.updateMemoryMetrics()
-            task.wait(5)
         end
     end)
     
-    -- Ping monitoring for players (every 10 seconds)
-    local pingConnection = task.spawn(function()
-        while true do
+    -- Ping monitoring for players (every 10 seconds) - converted to heartbeat-based
+    local lastPingUpdate = 0
+    local pingConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastPingUpdate >= 10 then
+            lastPingUpdate = currentTime
             for _, player in pairs(Players:GetPlayers()) do
                 PerformanceMonitoringService.updatePingMetrics(player)
             end
-            task.wait(10)
         end
     end)
     
-    -- Service health monitoring (every 30 seconds)
-    local healthConnection = task.spawn(function()
-        while true do
+    -- Service health monitoring (every 30 seconds) - converted to heartbeat-based
+    local lastHealthCheck = 0
+    local healthConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastHealthCheck >= 30 then
+            lastHealthCheck = currentTime
             PerformanceMonitoringService.checkServiceHealth()
-            task.wait(30)
         end
     end)
     
-    -- Periodic reporting (every minute)
-    local reportConnection = task.spawn(function()
-        while true do
-            task.wait(CONFIG.LOG_INTERVAL)
+    -- Periodic reporting (every minute) - converted to heartbeat-based
+    local lastReportTime = 0
+    local reportConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastReportTime >= CONFIG.LOG_INTERVAL then
+            lastReportTime = currentTime
             local report = PerformanceMonitoringService.generatePerformanceReport()
             PerformanceMonitoringService.logPerformanceEvent("PERIODIC_REPORT", report)
         end
@@ -497,5 +505,8 @@ PerformanceMonitoringService.getHealthStatus = PerformanceMonitoringService.getO
 
 -- Initialize monitoring
 PerformanceMonitoringService.connections = PerformanceMonitoringService.startMonitoring()
+
+-- Register service with centralized Services module
+Services.Register("PerformanceMonitoringService", PerformanceMonitoringService)
 
 return PerformanceMonitoringService

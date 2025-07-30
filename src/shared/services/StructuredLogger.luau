@@ -603,9 +603,14 @@ end
 
 -- Monitor logging performance
 function StructuredLogger:MonitorPerformance()
-    task.spawn(function()
-        while true do
-            task.wait(config:Get("logging.PERFORMANCE.MONITOR_INTERVAL") or 300) -- 5 minutes
+    local RunService = game:GetService("RunService")
+    local lastMonitorTime = 0
+    local monitorInterval = config:Get("logging.PERFORMANCE.MONITOR_INTERVAL") or 300 -- 5 minutes
+    
+    self.performanceConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastMonitorTime >= monitorInterval then
+            lastMonitorTime = currentTime
             
             local stats = self:GetLogStats()
             local logsPerSecond = stats.total / stats.sessionUptime

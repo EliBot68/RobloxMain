@@ -1,39 +1,30 @@
 -- MovingObstacleService.luau
--- Server-side service for managing moving obstacles in Color Rush (Enterprise Configuration-Driven Service)
+-- Server-side service for managing moving obstacles in Color Rush
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
--- Import configuration system
+-- Import configuration system and utilities
 local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
-local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local Services = require(ReplicatedStorage.Shared.core.Services)
 
-local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
-    enableDetailedLogging = true,
-    retryFailedRequires = true,
-    maxRetryAttempts = 3,
-    validateOnStart = true,
-    autoStart = false
-})
+-- Try to load MovingObstacle module
+local MovingObstacle = nil
+pcall(function()
+    MovingObstacle = require(ReplicatedStorage.Shared.modules.MovingObstacle)
+end)
+
+-- Try to load WorldObjectValidator
+local WorldObjectValidator = nil
+pcall(function()
+    WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+end)
+
+local MovingObstacleService = {}
 
 -- Get configuration instance
 local config = ConfigurationManager.getInstance()
-
-local MovingObstacleService = ServiceBase.new("MovingObstacleService", {
-    enableDetailedLogging = true,
-    retryFailedRequires = true,
-    maxRetryAttempts = 3,
-    validateOnStart = true,
-    autoStart = false
-})
-
--- Define dependencies
-MovingObstacleService.Dependencies = {
-    { path = ReplicatedStorage.Shared.modules.MovingObstacle, name = "MovingObstacle", optional = false },
-}
 
 -- Active obstacles tracking
 local activeObstacles = {}
@@ -48,40 +39,42 @@ local trackObstacles = {}
     
     @return {boolean} - True if initialization was successful
 ]]
-function MovingObstacleService:OnInit()
+function MovingObstacleService:Initialize()
     -- Validate obstacle-related world objects
-    print("🔍 Validating moving obstacle world objects...")
-    local missingObjects = WorldObjectValidator.validateAllRequired()
-    if #missingObjects > 0 then
-        warn("⚠️ MovingObstacleService: Missing required world objects:")
-        for _, missing in ipairs(missingObjects) do
-            warn("  • " .. missing)
+    if WorldObjectValidator then
+        print("🔍 Validating moving obstacle world objects...")
+        local missingObjects = WorldObjectValidator.validateAllRequired()
+        if #missingObjects > 0 then
+            warn("⚠️ MovingObstacleService: Missing required world objects:")
+            for _, missing in ipairs(missingObjects) do
+                warn("  • " .. missing)
+            end
+        end
+        
+        -- Validate game tracks for obstacle placement
+        local gameTrackExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack", 3)
+        if not gameTrackExists then
+            warn("⚠️ MovingObstacleService: GameTrack not found - obstacles may not spawn correctly")
+        else
+            print("✅ MovingObstacleService: GameTrack validated for obstacle placement")
+        end
+        
+        -- Validate specific track folders
+        local trackFolders = {"workspace.GameTracks.Easy", "workspace.GameTracks.Medium", "workspace.GameTracks.Hard"}
+        local validatedTracks = 0
+        for _, trackPath in ipairs(trackFolders) do
+            local exists = WorldObjectValidator.validateObjectWithWait(trackPath, 2)
+            if exists then
+                validatedTracks = validatedTracks + 1
+            end
+        end
+        
+        if validatedTracks > 0 then
+            print("✅ MovingObstacleService: " .. validatedTracks .. " track folders validated")
         end
     end
     
-    -- Validate game tracks for obstacle placement
-    local gameTrackExists = WorldObjectValidator.validateObjectWithWait("workspace.GameTrack", 3)
-    if not gameTrackExists then
-        warn("⚠️ MovingObstacleService: GameTrack not found - obstacles may not spawn correctly")
-    else
-        print("✅ MovingObstacleService: GameTrack validated for obstacle placement")
-    end
-    
-    -- Validate specific track folders
-    local trackFolders = {"workspace.GameTracks.Easy", "workspace.GameTracks.Medium", "workspace.GameTracks.Hard"}
-    local validatedTracks = 0
-    for _, trackPath in ipairs(trackFolders) do
-        local exists = WorldObjectValidator.validateObjectWithWait(trackPath, 2)
-        if exists then
-            validatedTracks = validatedTracks + 1
-        end
-    end
-    
-    if validatedTracks > 0 then
-        print("✅ MovingObstacleService: " .. validatedTracks .. " track folders validated")
-    end
-    
-    if not self.MovingObstacle then
+    if not MovingObstacle then
         warn("❌ Failed to load MovingObstacle module - service disabled")
         return false
     end
@@ -89,8 +82,8 @@ function MovingObstacleService:OnInit()
     return true
 end
 
--- Service-specific start logic
-function MovingObstacleService:OnStart()
+-- Service start logic
+function MovingObstacleService:Start()
     -- Setup obstacle management
     self:SetupObstacleCleanup()
     
@@ -104,13 +97,22 @@ function MovingObstacleService:SetupObstacleCleanup()
         self:CleanupPlayerObstacles(player.UserId)
     end)
     
-    -- Periodic cleanup of orphaned obstacles
-    task.spawn(function() -- UPDATED for modern API
-        while true do
-            local cleanupInterval = config:Get("performance.MEMORY.GARBAGE_COLLECTION_INTERVAL")
-            task.wait(cleanupInterval) -- Configuration-driven cleanup interval
-            self:CleanupOrphanedObstacles()
-        end
+    -- Periodic cleanup of orphaned obstacles using heartbeat connection
+    task.spawn(function()
+        local RunService = game:GetService("RunService")
+        local lastCleanupTime = 0
+        local cleanupInterval = config:Get("performance.MEMORY.GARBAGE_COLLECTION_INTERVAL")
+        
+        local connection = RunService.Heartbeat:Connect(function()
+            local currentTime = tick()
+            if currentTime - lastCleanupTime >= cleanupInterval then
+                lastCleanupTime = currentTime
+                self:CleanupOrphanedObstacles()
+            end
+        end)
+        
+        -- Store connection for cleanup
+        self.cleanupConnection = connection
     end)
 end
 
@@ -132,7 +134,7 @@ function MovingObstacleService:CreateObstacle(config, position, parent)
     local obstacleId = "obstacle_" .. obstacleCounter
     
     -- Create obstacle instance
-    local obstacle = self.MovingObstacle.new(config)
+    local obstacle = MovingObstacle.new(config)
     local obstaclePart = obstacle:Create(position, parent)
     
     if not obstaclePart then
@@ -404,5 +406,11 @@ end
 function MovingObstacleService.Client:GetPresets(player)
     return self.Server:GetPresetConfigs()
 end
+
+-- Initialize the service
+MovingObstacleService:Initialize()
+
+-- Register with centralized Services module
+Services.Register("MovingObstacleService", MovingObstacleService)
 
 return MovingObstacleService

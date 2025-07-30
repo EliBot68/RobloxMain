@@ -29,11 +29,16 @@ function VisualComfortController:SetupComfortableLighting()
 end
 
 function VisualComfortController:StartBrightnessMonitoring()
-    -- Monitor every 5 seconds for overly bright objects
-    spawn(function()
-        while true do
+    -- Monitor brightness using heartbeat connection instead of polling
+    local RunService = game:GetService("RunService")
+    local lastCheckTime = 0
+    local checkInterval = 5 -- seconds
+    
+    self.brightnessConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastCheckTime >= checkInterval then
+            lastCheckTime = currentTime
             self:ReduceExcessiveBrightness()
-            wait(5)
         end
     end)
 end

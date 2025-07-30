@@ -814,18 +814,23 @@ function PlayerMovementController:SetupCameraEffects()
 end
 
 function PlayerMovementController:StartUpdateLoops()
-    -- Network update loop (send position to server periodically)
-    spawn(function()
-        while true do
-            wait(networkUpdateRate)
+    local RunService = game:GetService("RunService")
+    local lastNetworkUpdate = 0
+    local lastPerformanceUpdate = 0
+    
+    -- Combined update loop using heartbeat
+    self.updateConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        
+        -- Network update loop (send position to server periodically)
+        if currentTime - lastNetworkUpdate >= networkUpdateRate then
+            lastNetworkUpdate = currentTime
             self:SendNetworkUpdate()
         end
-    end)
-    
-    -- Performance monitoring
-    spawn(function()
-        while true do
-            wait(1)
+        
+        -- Performance monitoring
+        if currentTime - lastPerformanceUpdate >= 1 then
+            lastPerformanceUpdate = currentTime
             self:UpdatePerformanceMetrics()
         end
     end)

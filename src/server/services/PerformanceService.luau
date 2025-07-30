@@ -5,9 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PerformanceMonitoringService = SafeRequire.require(ReplicatedStorage.Shared.services.PerformanceMonitoringService)
+local Services = require(ReplicatedStorage.Shared.Services)
+local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local PerformanceMonitoringService = require(ReplicatedStorage.Shared.services.PerformanceMonitoringService)
 
 local PerformanceService = {}
 
@@ -232,18 +232,24 @@ function PerformanceService.initialize()
     RemoteEvents.RequestPerformanceReport.OnServerEvent:Connect(PerformanceService.handlePerformanceRequest)
     RemoteEvents.RequestHealthCheck.OnServerEvent:Connect(PerformanceService.handleHealthCheckRequest)
     
-    -- Start monitoring loops
-    task.spawn(function()
-        while true do
-            PerformanceService.broadcastPerformanceUpdates()
-            task.wait(1)
-        end
-    end)
+    -- Start monitoring using heartbeat connections
+    local RunService = game:GetService("RunService")
+    local lastUpdateTime = 0
+    local lastThresholdCheckTime = 0
     
-    task.spawn(function()
-        while true do
+    PerformanceService.updateConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        
+        -- Broadcast updates every second
+        if currentTime - lastUpdateTime >= 1 then
+            lastUpdateTime = currentTime
+            PerformanceService.broadcastPerformanceUpdates()
+        end
+        
+        -- Monitor thresholds every 10 seconds
+        if currentTime - lastThresholdCheckTime >= 10 then
+            lastThresholdCheckTime = currentTime
             PerformanceService.monitorThresholds()
-            task.wait(10) -- Check every 10 seconds
         end
     end)
     
@@ -260,8 +266,9 @@ PerformanceService.getHealthReport = PerformanceService.comprehensiveHealthCheck
 PerformanceService.sendAlert = PerformanceService.sendPerformanceAlert
 PerformanceService.getActiveClients = function() return activeClients end
 
--- Expose service to global scope for easy access
-_G.PerformanceService = PerformanceService
+-- Register with centralized Services module
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
+Services.Register("PerformanceService", PerformanceService)
 
 -- Auto-initialize
 PerformanceService.initialize()

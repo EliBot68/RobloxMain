@@ -7,12 +7,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
-local ServiceBase = require(script.Parent.ServiceBase)
+local Services = require(ReplicatedStorage.Shared.Services)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local WorldObjectValidator = require(ReplicatedStorage.Shared.modules.WorldObjectValidator)
 
-local SocialService = setmetatable({}, ServiceBase)
-SocialService.__index = SocialService
+local SocialService = {}
 
 -- DataStores
 local friendsStore = DataStoreService:GetDataStore("PlayerFriends")
@@ -37,8 +36,6 @@ local CHALLENGE_DURATION = 300 -- 5 minutes
     @return {void}
 ]]
 function SocialService:Initialize()
-    if not self:SafeRequire() then return end
-    
     print("🤝 Initializing SocialService...")
     
     self:SetupEventConnections()
@@ -741,9 +738,13 @@ function SocialService:SendPartyLeaderboard(player)
 end
 
 function SocialService:StartSocialUpdates()
-    spawn(function()
-        while true do
-            wait(30) -- Update every 30 seconds
+    local RunService = game:GetService("RunService")
+    local lastSocialUpdate = 0
+    
+    self.socialConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastSocialUpdate >= 30 then -- Update every 30 seconds
+            lastSocialUpdate = currentTime
             
             -- Clean up old challenges
             for challengeId, challenge in pairs(activeChallenges) do
@@ -759,5 +760,8 @@ function SocialService:StartSocialUpdates()
         end
     end)
 end
+
+-- Register service with centralized Services module
+Services.Register("SocialService", SocialService)
 
 return SocialService

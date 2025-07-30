@@ -529,25 +529,31 @@ function HubNavigationController:KnitStart()
 	-- Setup keyboard shortcuts
 	setupKeyboardShortcuts()
 	
-	-- Start monitoring loops
-	spawn(function()
-		while true do
+	-- Start monitoring using single heartbeat connection
+	local RunService = game:GetService("RunService")
+	local lastHubCheck = 0
+	local lastZoneCheck = 0
+	local lastBuildingCheck = 0
+	
+	HubNavigationController.monitorConnection = RunService.Heartbeat:Connect(function()
+		local currentTime = tick()
+		
+		-- Hub presence check every 0.5 seconds
+		if currentTime - lastHubCheck >= 0.5 then
+			lastHubCheck = currentTime
 			detectHubPresence()
-			wait(0.5) -- Check hub presence every 0.5 seconds
 		end
-	end)
-	
-	spawn(function()
-		while true do
+		
+		-- Zone check at specified interval
+		if currentTime - lastZoneCheck >= ZONE_CHECK_INTERVAL then
+			lastZoneCheck = currentTime
 			checkCurrentZone()
-			wait(ZONE_CHECK_INTERVAL)
 		end
-	end)
-	
-	spawn(function()
-		while true do
+		
+		-- Building check every 0.2 seconds for responsiveness
+		if currentTime - lastBuildingCheck >= 0.2 then
+			lastBuildingCheck = currentTime
 			checkNearbyBuildings()
-			wait(0.2) -- Check buildings every 0.2 seconds for responsiveness
 		end
 	end)
 	

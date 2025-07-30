@@ -586,10 +586,15 @@ end
 
 -- Start automatic cleanup monitoring
 function MemoryManager:StartPeriodicCleanup()
-    task.spawn(function() -- UPDATED for modern API
-        while true do
-            local cleanupInterval = config:Get("memory.TRACKING.AUTO_CLEANUP_INTERVAL")
-            task.wait(cleanupInterval) -- UPDATED for modern API
+    local RunService = game:GetService("RunService")
+    local lastCleanup = 0
+    
+    self.cleanupConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        local cleanupInterval = config:Get("memory.TRACKING.AUTO_CLEANUP_INTERVAL")
+        
+        if currentTime - lastCleanup >= cleanupInterval then
+            lastCleanup = currentTime
             
             if config:Get("memory.TRACKING.ENABLE_PERFORMANCE_MONITORING") then
                 self:PrintMemoryReport()

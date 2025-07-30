@@ -373,10 +373,14 @@ function TournamentService:BroadcastLeaderboardUpdate(category)
 end
 
 function TournamentService:StartWeeklyResetScheduler()
-    -- Check for week reset every hour
-    spawn(function()
-        while true do
-            wait(3600) -- Check every hour
+    -- Check for week reset every hour using heartbeat
+    local RunService = game:GetService("RunService")
+    local lastResetCheck = 0
+    
+    self.resetConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        if currentTime - lastResetCheck >= 3600 then -- Check every hour
+            lastResetCheck = currentTime
             
             local newWeek = self:GetCurrentWeek()
             if newWeek ~= currentWeek then

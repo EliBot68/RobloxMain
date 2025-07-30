@@ -408,27 +408,31 @@ function WeeklyLeaderboardService:Initialize()
         self:AddCoinsToPlayer(player, coinsEarned)
     end)
     
-    -- Weekly reset checker
-    spawn(function()
-        while true do
-            wait(60) -- Check every minute
+    -- Use single heartbeat connection for all timed operations
+    local RunService = game:GetService("RunService")
+    local lastWeekResetCheck = 0
+    local lastUpdate = 0
+    local lastSave = 0
+    
+    self.mainConnection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        
+        -- Weekly reset checker (every minute)
+        if currentTime - lastWeekResetCheck >= 60 then
+            lastWeekResetCheck = currentTime
             self:CheckForWeekReset()
         end
-    end)
-    
-    -- Periodic leaderboard updates
-    spawn(function()
-        while true do
-            wait(UPDATE_INTERVAL)
+        
+        -- Periodic leaderboard updates
+        if currentTime - lastUpdate >= UPDATE_INTERVAL then
+            lastUpdate = currentTime
             self:UpdateTopPlayers()
             self:BroadcastLeaderboardUpdate()
         end
-    end)
-    
-    -- Auto-save every 10 minutes
-    spawn(function()
-        while true do
-            wait(600) -- 10 minutes
+        
+        -- Auto-save every 10 minutes
+        if currentTime - lastSave >= 600 then
+            lastSave = currentTime
             self:SaveWeekData()
         end
     end)

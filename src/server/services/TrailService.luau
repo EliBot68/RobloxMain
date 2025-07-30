@@ -365,10 +365,15 @@ function TrailService:SetPlayerService(service)
     PlayerService = service
 end
 
--- Auto-save all player data periodically
-spawn(function()
-    while true do
-        wait(300) -- Save every 5 minutes
+-- Auto-save all player data periodically using heartbeat
+local RunService = game:GetService("RunService")
+local lastSaveTime = 0
+local saveInterval = 300 -- Save every 5 minutes
+
+local saveConnection = RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    if currentTime - lastSaveTime >= saveInterval then
+        lastSaveTime = currentTime
         for _, player in ipairs(Players:GetPlayers()) do
             if playerTrailData[player.UserId] then
                 TrailService:SavePlayerTrailData(player)
