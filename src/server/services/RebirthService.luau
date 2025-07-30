@@ -293,8 +293,8 @@ end
 -- Helper function to check if player is in game
 function RebirthService:IsPlayerInGame(player)
     -- This would check with your game track service
-    local EnhancedGameTrackService = require(script.Parent.EnhancedGameTrackService)
-    return EnhancedGameTrackService:IsPlayerInGame(player)
+    local GameTrackService = require(script.Parent.GameTrackService)
+    return GameTrackService:IsPlayerInGame(player)
 end
 
 -- Get player data with fallback

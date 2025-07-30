@@ -284,8 +284,8 @@ function WorldBuilderService:CreateDifficultyPortal(config)
         -- Enhanced error handling for game start
         local success, result = pcall(function()
             local ServerScriptService = game:GetService("ServerScriptService")
-            local EnhancedGameTrackService = require(ServerScriptService.Server.services.EnhancedGameTrackService)
-            return EnhancedGameTrackService:StartGame(player, config.difficulty)
+            local GameTrackService = require(ServerScriptService.Server.services.GameTrackService)
+            return GameTrackService:StartGame(player, config.difficulty)
         end)
         
         if not success then

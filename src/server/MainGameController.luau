@@ -171,7 +171,7 @@ function MainGameController:LoadServices()
         "TrackGeneratorService",
         "MovingObstacleService", 
         "DifficultyService",
-        "EnhancedGameTrackService",
+        "GameTrackService",
         "VisualComfortController" -- NEW: Reduces overly bright colors
     }
     
