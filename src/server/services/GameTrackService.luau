@@ -611,61 +611,6 @@ function GameTrackService:CalculateScore(gameState)
     return math.max(0, baseScore + coinBonus + timeBonus - obstaclePenalty)
 end
 
-function GameTrackService:SetupRemoteEvents()
-    if self.RemoteEvents then
-        -- Color change handling
-        local colorChangedEvent = self.RemoteEvents:GetRemoteEvent("ColorChanged")
-        if colorChangedEvent then
-            self.Connections.ColorChanged = colorChangedEvent.OnServerEvent:Connect(function(player, newColor)
-                local gameState = activeGames[player]
-                if gameState and COLORS[newColor] then
-                    gameState.currentColor = newColor
-                    colorChangedEvent:FireClient(player, newColor)
-                end
-            end)
-        end
-        
-        -- Collision handling
-        local coinCollectedEvent = self.RemoteEvents:GetRemoteEvent("CoinCollected")
-        if coinCollectedEvent then
-            self.Connections.CoinCollected = coinCollectedEvent.OnServerEvent:Connect(function(player, coinValue)
-                local gameState = activeGames[player]
-                if gameState then
-                    gameState.coinsCollected = gameState.coinsCollected + 1
-                    gameState.score = gameState.score + coinValue
-                end
-            end)
-        end
-        
-        local obstacleHitEvent = self.RemoteEvents:GetRemoteEvent("ObstacleHit")
-        if obstacleHitEvent then
-            self.Connections.ObstacleHit = obstacleHitEvent.OnServerEvent:Connect(function(player)
-                local gameState = activeGames[player]
-                if gameState then
-                    gameState.obstaclesHit = gameState.obstaclesHit + 1
-                end
-            end)
-        end
-        
-        local colorGateCheckEvent = self.RemoteEvents:GetRemoteEvent("ColorGateCheck")
-        if colorGateCheckEvent then
-            self.Connections.ColorGateCheck = colorGateCheckEvent.OnServerEvent:Connect(function(player, requiredColor, playerColor)
-                local gameState = activeGames[player]
-                if gameState then
-                    if requiredColor == playerColor then
-                        gameState.gatesPassed = gameState.gatesPassed + 1
-                        gameState.score = gameState.score + 100
-                    else
-                        -- Penalty for wrong color
-                        gameState.score = math.max(0, gameState.score - 50)
-                    end
-                end
-            end)
-        end
-    end
-end
-end
-
 function GameTrackService:GetPlayerDifficulty(player)
     local gameState = activeGames[player]
     return gameState and gameState.difficulty or nil
