@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
+local ConnectionManager = require(ReplicatedStorage.Shared.core.ConnectionManager)
 
 local player = Players.LocalPlayer
 local InputController = {}
@@ -25,13 +26,27 @@ function InputController:UnbindAction(actionName)
 end
 
 function InputController:OnKeyPressed(key, callback)
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Use ConnectionManager directly for UserInputService events
+    local connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         
         if input.KeyCode == key then
             callback()
         end
     end)
+    
+    -- Track the connection using ConnectionManager
+    local connectionId = ConnectionManager:TrackConnection(
+        connection,
+        {
+            service = "InputController",
+            player = player,
+            description = "Key binding for " .. tostring(key),
+            connectionType = ConnectionManager.ConnectionTypes.OTHER
+        }
+    )
+    
+    return connectionId
 end
 
 function InputController:SetPlayerController(controller)
@@ -55,25 +70,36 @@ function InputController:HandleColorChange(colorName)
 end
 
 function InputController:TrackControllerInput(inputMethod)
-    -- Track controller usage for quests and analytics
-    RemoteEvents.UpdateQuestProgress:FireServer("controller_input", 1, {
-        inputMethod = inputMethod,
-        timestamp = os.time()
-    })
+    -- Track controller usage for quests and analytics (with error handling)
+    local success, error = pcall(function()
+        RemoteEvents.UpdateQuestProgress:FireServer("controller_input", 1, {
+            inputMethod = inputMethod,
+            timestamp = os.time()
+        })
+    end)
+    
+    if not success then
+        warn("Failed to track controller input:", error)
+    end
     
     print("🎮 Controller input tracked: " .. inputMethod)
 end
 
 function InputController:SetupControllerSupport()
+    -- Validate GameConstants exist
+    if not GameConstants or not GameConstants.CONTROLLER_ENABLED then
+        warn("⚠️ GameConstants.CONTROLLER_ENABLED not found, controller support disabled")
+        return
+    end
+    
     if not GameConstants.CONTROLLER_ENABLED or not playerSettings or not playerSettings.controllerEnabled then
         return
     end
     
     print("🎮 Setting up Xbox controller support...")
     
-    -- Xbox controller D-pad mappings
-    -- D-pad Up = Red
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Xbox controller D-pad mappings with managed connections
+    local dpadConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         
         if input.KeyCode == Enum.KeyCode.DPadUp then
@@ -88,8 +114,18 @@ function InputController:SetupControllerSupport()
         end
     end)
     
+    ConnectionManager:TrackConnection(
+        dpadConnection,
+        {
+            service = "InputController",
+            player = player,
+            description = "Xbox controller D-pad input handling",
+            connectionType = ConnectionManager.ConnectionTypes.OTHER
+        }
+    )
+    
     -- Gamepad thumbstick support for additional accessibility
-    UserInputService.InputChanged:Connect(function(input, gameProcessed)
+    local thumbstickConnection = UserInputService.InputChanged:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         
         if input.KeyCode == Enum.KeyCode.Thumbstick1 then
@@ -113,6 +149,16 @@ function InputController:SetupControllerSupport()
             end
         end
     end)
+    
+    ConnectionManager:TrackConnection(
+        thumbstickConnection,
+        {
+            service = "InputController",
+            player = player,
+            description = "Xbox controller thumbstick input handling",
+            connectionType = ConnectionManager.ConnectionTypes.OTHER
+        }
+    )
     
     print("✅ Xbox controller D-pad support enabled (Up=Red, Left=Green, Right=Blue)")
 end
@@ -165,11 +211,13 @@ function InputController:SetupColorControls()
         self:HandleColorChange("BLUE")
     end)
     
-    -- Fun jump animation trigger (Space key)
+    -- Fun jump animation trigger (Space key) with safe require
     self:OnKeyPressed(Enum.KeyCode.Space, function()
-        local PolishController = require(script.Parent.PolishController)
-        if PolishController and PolishController.TriggerJumpAnimation then
+        local success, PolishController = pcall(require, script.Parent.PolishController)
+        if success and PolishController and PolishController.TriggerJumpAnimation then
             PolishController:TriggerJumpAnimation()
+        else
+            print("⚠️ PolishController not available for jump animation")
         end
     end)
     
@@ -189,48 +237,61 @@ function InputController:StyleMobileButtons()
     if contextActionGui then
         -- Enhanced button styling for better mobile experience
         local buttonSize = UDim2.new(0, 80, 0, 80) -- Larger tap-friendly size
+        
+        -- Fallback symbols in case GameConstants.COLORBLIND_SYMBOLS is missing
+        local fallbackSymbols = {
+            RED = "🔺",
+            GREEN = "⬟", 
+            BLUE = "⬢",
+            YELLOW = "⭐",
+            PURPLE = "⬥",
+            ORANGE = "⬣"
+        }
+        
+        local symbols = (GameConstants and GameConstants.COLORBLIND_SYMBOLS) or fallbackSymbols
+        
         local buttonConfigs = {
             {
                 name = "ColorRed",
                 color = Color3.new(1, 0.2, 0.2),
                 borderColor = Color3.new(0.8, 0, 0),
                 position = UDim2.new(0, 15, 1, -180),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.RED
+                symbol = symbols.RED
             },
             {
                 name = "ColorGreen", 
                 color = Color3.new(0.2, 1, 0.2),
                 borderColor = Color3.new(0, 0.8, 0),
                 position = UDim2.new(0, 105, 1, -180),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.GREEN
+                symbol = symbols.GREEN
             },
             {
                 name = "ColorBlue",
                 color = Color3.new(0.2, 0.2, 1),
                 borderColor = Color3.new(0, 0, 0.8),
                 position = UDim2.new(0, 195, 1, -180),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.BLUE
+                symbol = symbols.BLUE
             },
             {
                 name = "ColorYellow",
                 color = Color3.new(1, 1, 0.2),
                 borderColor = Color3.new(0.8, 0.8, 0),
                 position = UDim2.new(0, 285, 1, -180),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.YELLOW
+                symbol = symbols.YELLOW
             },
             {
                 name = "ColorPurple",
                 color = Color3.new(0.8, 0.2, 1),
                 borderColor = Color3.new(0.6, 0, 0.8),
                 position = UDim2.new(0, 15, 1, -90),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.PURPLE
+                symbol = symbols.PURPLE
             },
             {
                 name = "ColorOrange",
                 color = Color3.new(1, 0.6, 0.2),
                 borderColor = Color3.new(0.8, 0.4, 0),
                 position = UDim2.new(0, 105, 1, -90),
-                symbol = GameConstants.COLORBLIND_SYMBOLS.ORANGE
+                symbol = symbols.ORANGE
             }
         }
         
@@ -280,8 +341,8 @@ function InputController:StyleMobileButtons()
                     self:AddSymbolToButton(button, config.symbol)
                 end
                 
-                -- Add haptic feedback for mobile
-                button.MouseButton1Click:Connect(function()
+                -- Add haptic feedback for mobile with managed connections
+                local buttonClickConnection = button.MouseButton1Click:Connect(function()
                     -- Visual feedback for button press
                     local originalSize = imageLabel.Size
                     imageLabel.Size = UDim2.new(originalSize.X.Scale * 0.9, originalSize.X.Offset * 0.9,
@@ -292,25 +353,20 @@ function InputController:StyleMobileButtons()
                         {Size = originalSize}
                     ):Play()
                 end)
+                
+                ConnectionManager:TrackConnection(
+                    buttonClickConnection,
+                    {
+                        service = "InputController",
+                        player = player,
+                        description = "Mobile button visual feedback for " .. config.name,
+                        connectionType = ConnectionManager.ConnectionTypes.GUI
+                    }
+                )
             end
         end
         
         print("📱 Enhanced mobile color buttons styling applied")
-    end
-end
-        local blueButton = contextActionGui:FindFirstChild("ColorBlue")
-        if blueButton and blueButton:FindFirstChild("ImageLabel") then
-            blueButton.ImageLabel.BackgroundColor3 = Color3.new(0.2, 0.2, 1)
-            blueButton.ImageLabel.BackgroundTransparency = 0.2
-            blueButton.ImageLabel.BorderSizePixel = 2
-            blueButton.ImageLabel.BorderColor3 = Color3.new(0, 0, 0.8)
-            blueButton.Position = UDim2.new(0, 160, 1, -160) -- Bottom center
-            
-            -- Add symbol for colorblind mode
-            if playerSettings and playerSettings.colorblindMode then
-                self:AddSymbolToButton(blueButton, GameConstants.COLORBLIND_SYMBOLS.BLUE)
-            end
-        end
     end
 end
 
@@ -343,14 +399,24 @@ end
 function InputController:Init()
     print("🎮 InputController initializing...")
     
+    -- Initialize ConnectionManager
+    ConnectionManager:Initialize()
+    
     -- Wait for PlayerController to be available
     spawn(function()
         wait(1) -- Give time for other controllers to initialize
-        PlayerController = require(script.Parent.PlayerController)
-        self:SetupColorControls()
         
-        -- Listen for player settings updates
-        RemoteEvents.PlayerDataUpdated.OnClientEvent:Connect(function(data)
+        local success, controller = pcall(require, script.Parent.PlayerController)
+        if success and controller then
+            PlayerController = controller
+            self:SetupColorControls()
+        else
+            warn("⚠️ PlayerController not available, color controls disabled")
+            return
+        end
+        
+        -- Listen for player settings updates with managed connection
+        local settingsConnection = RemoteEvents.PlayerDataUpdated.OnClientEvent:Connect(function(data)
             if data and data.settings then
                 self:UpdatePlayerSettings(data.settings)
                 -- Re-style buttons when settings change
@@ -358,11 +424,27 @@ function InputController:Init()
             end
         end)
         
+        ConnectionManager:TrackConnection(
+            settingsConnection,
+            {
+                service = "InputController",
+                player = player,
+                description = "Player settings update handler",
+                connectionType = ConnectionManager.ConnectionTypes.REMOTE_HANDLER
+            }
+        )
+        
         -- Setup controller support
         self:SetupControllerSupport()
     end)
     
     print("✅ InputController initialized")
+end
+
+-- Cleanup method for proper resource management
+function InputController:Cleanup()
+    ConnectionManager:CleanupServiceConnections("InputController")
+    print("🧹 InputController cleanup completed")
 end
 
 return InputController
