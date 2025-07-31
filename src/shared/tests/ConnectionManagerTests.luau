@@ -5,7 +5,7 @@
 	to verify memory leak prevention and proper cleanup.
 --]]
 
-local Players = game:GetService("Players")
+local _Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,7 +15,7 @@ local function safeRequire(module, fallback)
 	return success and result or fallback or {}
 end
 
-local SafeRequire = safeRequire(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = safeRequire(ReplicatedStorage.Shared.utils.SafeRequire)
 local ConnectionManager = safeRequire(ReplicatedStorage.Shared.core.ConnectionManager)
 local ConnectionManagerService = safeRequire(ReplicatedStorage.Shared.services.ConnectionManagerService)
 
@@ -330,10 +330,10 @@ function ConnectionManagerTests:TestStaleConnectionCleanup()
 		wait(0.2)
 		
 		-- Force stale cleanup
-		local cleanedCount = ConnectionManager:CleanupStaleConnections()
+		local _cleanedCount = ConnectionManager:CleanupStaleConnections()
 		
 		-- Verify the connection was cleaned up as stale
-		local stats = ConnectionManager:GetStatistics()
+		local _stats = ConnectionManager:GetStatistics()
 		local details = ConnectionManager:GetConnectionDetails()
 		self:Assert(details[connectionId] == nil, "Stale connection should be cleaned up")
 	end)
