@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PlayerService = require(script.Parent.PlayerService)
+local PlayerService = require(script.Parent.Parent.core.PlayerService)
 
 -- Forward declare QuestService to avoid circular dependency
 local QuestService = nil

@@ -2,7 +2,7 @@
 -- Simplified UI system focused on color-matching game needs
 -- Replaces the complex enterprise UI system with game-focused functionality
 
-local Services = require(script.Parent.Parent.Services)
+local Services = require(script.Parent.Parent.core.Services)
 
 local SimpleUISystem = {}
 

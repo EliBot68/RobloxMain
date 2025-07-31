@@ -11,7 +11,10 @@ local RunService = game:GetService("RunService")
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local GameService = SafeRequire.require(script.Parent.GameService)
+local MainGameService = SafeRequire.require(script.Parent.MainGameService)
+
+-- Compatibility alias
+local GameService = MainGameService
 local MemoryManager = require(ReplicatedStorage.Shared.utilities.MemoryManager)
 
 local ArchwayService = {}

@@ -7,7 +7,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.PlayerService)
+local PlayerService = require(script.Parent.core.PlayerService)
 
 local LeaderboardService = {}
 

@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.PlayerService)
+local PlayerService = require(script.Parent.core.PlayerService)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
 

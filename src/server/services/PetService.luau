@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
-local PlayerService = SafeRequire.require(script.Parent.PlayerService)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local PetService = {}

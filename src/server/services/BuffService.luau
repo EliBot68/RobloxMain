@@ -7,10 +7,15 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local PlayerService = require(script.Parent.PlayerService)
-local GameService = require(script.Parent.GameService)
-local ShopService = require(script.Parent.ShopService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
+local MainGameService = SafeRequire.require(script.Parent.MainGameService)
+local ShopService = SafeRequire.require(script.Parent.economy.ShopService)
+local QuestService = SafeRequire.require(script.Parent.QuestService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
+
+-- Use MainGameService as GameService for compatibility
+local GameService = MainGameService
 
 local BuffService = {}
 

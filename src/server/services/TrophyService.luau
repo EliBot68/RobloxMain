@@ -7,7 +7,7 @@ local TweenService = game:GetService("TweenService")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.PlayerService)
+local PlayerService = require(script.Parent.core.PlayerService)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 -- Service references (set via setters)

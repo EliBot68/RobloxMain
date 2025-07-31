@@ -579,6 +579,27 @@ function ConfigurationManager:_loadMemoryConfig()
             MAX_OBJECTS_PER_PLAYER = 200
         },
         
+        -- Connection Management Settings
+        CONNECTION_MANAGEMENT = {
+            ENABLE_CONNECTION_POOLING = true,
+            MAX_POOL_SIZE_PER_TYPE = 25,
+            POOL_REUSE_THRESHOLD = 0.7,
+            STALE_CONNECTION_THRESHOLD = 300, -- 5 minutes
+            EMERGENCY_CLEANUP_THRESHOLD = 0.95, -- 95% of limit
+            AUTO_CLEANUP_STALE_CONNECTIONS = true
+        },
+        
+        -- Connection Pool Settings  
+        CONNECTION_POOLS = {
+            DEFAULT_POOL_SIZE = 10,
+            MAX_POOL_SIZE = 50,
+            POOL_TYPES = {
+                "PlayerAdded", "PlayerRemoving", "CharacterAdded", 
+                "CharacterRemoving", "Heartbeat", "Touched", 
+                "RemoteEvent", "MouseClick", "TweenCompleted"
+            }
+        },
+        
         -- Cleanup Settings
         CLEANUP = {
             FORCE_GC_INTERVAL = 300.0, -- 5 minutes

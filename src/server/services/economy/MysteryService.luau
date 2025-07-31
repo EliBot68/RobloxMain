@@ -8,7 +8,7 @@ local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
 
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PlayerService = require(script.Parent.PlayerService)
+local PlayerService = require(script.Parent.Parent.core.PlayerService)
 
 -- Forward declare services
 local ShopService = nil

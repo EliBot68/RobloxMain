@@ -3,7 +3,7 @@
 -- Replaces complex enterprise event architecture with focused game functionality
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Services = require(ReplicatedStorage.Shared.Services)
+local Services = require(ReplicatedStorage.Shared.core.Services)
 
 local SystemEventConnections = {}
 

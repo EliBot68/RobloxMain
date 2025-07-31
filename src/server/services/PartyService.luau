@@ -10,8 +10,11 @@ local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local PlayerService = SafeRequire.require(script.Parent.PlayerService)
-local GameService = SafeRequire.require(script.Parent.GameService)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
+local MainGameService = SafeRequire.require(script.Parent.MainGameService)
+
+-- Compatibility alias
+local GameService = MainGameService
 local LevelingService = SafeRequire.require(script.Parent.LevelingService)
 local QuestService = SafeRequire.require(script.Parent.QuestService)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
