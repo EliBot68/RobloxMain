@@ -1,0 +1,7 @@
+{
+    "aliases": {
+        "shared": "src/shared",
+        "client": "src/client",
+        "server": "src/server"
+    }
+}

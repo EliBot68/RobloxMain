@@ -1,0 +1,14 @@
+{
+    "luau-lsp.require.mode": "relativeToFile",
+    "luau-lsp.platform.type": "roblox",
+    "luau-lsp.types.robloxSecurityLevel": "PluginSecurity",
+    "files.associations": {
+        "*.lua": "luau",
+        "*.luau": "luau"
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.md": "$(basename).*.md",
+        "default.project.json": "default.project.*.json"
+    }
+}
