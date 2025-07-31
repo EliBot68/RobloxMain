@@ -8,9 +8,10 @@ local RunService = game:GetService("RunService")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.core.PlayerService)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
+local _GameConstants = require(ReplicatedStorage.Shared.constants.GameConstants)
 
 -- Service references (set via setters)
 local QuestService = nil

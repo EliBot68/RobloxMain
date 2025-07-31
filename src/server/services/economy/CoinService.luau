@@ -74,7 +74,7 @@ function CoinService:ProcessPurchase(player, purchaseData)
     
     -- Delegate upgrade purchases to UpgradeService
     if purchaseData.itemType == "upgrade" then
-        local UpgradeService = require(script.Parent.Parent.UpgradeService)
+        local UpgradeService = SafeRequire.require(script.Parent.Parent.UpgradeService)
         local success, message = UpgradeService:PurchaseUpgrade(player, purchaseData)
         
         if success then

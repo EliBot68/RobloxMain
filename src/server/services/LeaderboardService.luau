@@ -7,7 +7,8 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.core.PlayerService)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
 
 local LeaderboardService = {}
 

@@ -7,8 +7,9 @@ local TweenService = game:GetService("TweenService")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PlayerService = require(script.Parent.core.PlayerService)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local PlayerService = SafeRequire.require(script.Parent.core.PlayerService)
+local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 -- Service references (set via setters)
 local QuestService = nil
@@ -455,7 +456,7 @@ function TrophyService:_createChandelier(offset)
     pointLight.Parent = center
     
     -- Floating animation
-    local floatTween = TweenService:Create(
+    local _floatTween = TweenService:Create(
         chandelier,
         TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
         {}
