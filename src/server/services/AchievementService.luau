@@ -1,5 +1,5 @@
 -- AchievementService.luau
--- Handles achievement tracking, rewards, and daily bonus system
+-- Handles achievement tracking, rewards, and daily bonus system with comprehensive error handling
 
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local CriticalErrorHandler = require(ReplicatedStorage.Shared.core.CriticalErrorHandler)
 
 local AchievementService = ServiceBase.new("AchievementService", {
     enableDetailedLogging = true,
