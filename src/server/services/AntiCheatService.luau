@@ -3,17 +3,31 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local MessagingService = game:GetService("MessagingService")
+local _RunService = game:GetService("RunService")
+local _TeleportService = game:GetService("TeleportService")
+local _MessagingService = game:GetService("MessagingService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
 
 local AntiCheatService = {}
 
--- Anti-cheat configuration
+-- Anti-cheat configuration with performance optimization features
 local ANTICHEAT_CONFIG = {
+    -- Performance settings (enhanced from AntiCheatServiceAdvanced)
+    performanceMode = false, -- Set to true for high-performance servers
+    maxChecksPerSecond = 10, -- Limit checks for performance
+    batchSize = 15, -- Process violations in batches
+    adaptiveMonitoring = true, -- Adjust check frequency based on violation history
+    
+    -- Monitoring intervals (optimized for performance)
+    intervals = {
+        movement = 0.2, -- Check movement (performance: 0.5s, standard: 0.2s)
+        speed = 0.5, -- Check speed (performance: 1.0s, standard: 0.5s)
+        stats = 1.0, -- Check stats (performance: 2.0s, standard: 1.0s)
+        position = 0.1 -- Position checks (performance: 0.3s, standard: 0.1s)
+    },
+    
     -- Movement validation
     maxWalkSpeed = 50,
     maxJumpPower = 75,
@@ -511,7 +525,7 @@ function AntiCheatService:FormatViolationData(data)
     local formatted = {}
     
     for key, value in pairs(data) do
-        if type(value) == "Vector3" then
+        if typeof(value) == "Vector3" then
             table.insert(formatted, key .. ":" .. tostring(value))
         elseif type(value) == "number" then
             table.insert(formatted, key .. ":" .. string.format("%.2f", value))
@@ -788,6 +802,48 @@ function AntiCheatService:ManualCheck(userId)
         positionViolations = data.positionViolations,
         statViolations = data.statViolations,
         jumpViolations = data.jumpViolations
+    }
+end
+
+-- Performance optimization functions (integrated from AntiCheatServiceAdvanced)
+function AntiCheatService:EnablePerformanceMode()
+    print("🚀 AntiCheat: Enabling performance mode")
+    ANTICHEAT_CONFIG.performanceMode = true
+    ANTICHEAT_CONFIG.intervals.movement = 0.5
+    ANTICHEAT_CONFIG.intervals.speed = 1.0
+    ANTICHEAT_CONFIG.intervals.stats = 2.0
+    ANTICHEAT_CONFIG.intervals.position = 0.3
+    print("✅ AntiCheat: Performance mode enabled - monitoring intervals adjusted")
+end
+
+function AntiCheatService:DisablePerformanceMode()
+    print("🔧 AntiCheat: Disabling performance mode")
+    ANTICHEAT_CONFIG.performanceMode = false
+    ANTICHEAT_CONFIG.intervals.movement = 0.2
+    ANTICHEAT_CONFIG.intervals.speed = 0.5
+    ANTICHEAT_CONFIG.intervals.stats = 1.0
+    ANTICHEAT_CONFIG.intervals.position = 0.1
+    print("✅ AntiCheat: Standard mode enabled - full monitoring restored")
+end
+
+function AntiCheatService:GetPerformanceMetrics()
+    local totalChecks = 0
+    local totalViolations = 0
+    
+    for _, data in pairs(playerData) do
+        totalViolations = totalViolations + data.warnings
+    end
+    
+    for _, history in pairs(violationHistory) do
+        totalChecks = totalChecks + #history
+    end
+    
+    return {
+        performanceMode = ANTICHEAT_CONFIG.performanceMode,
+        totalChecks = totalChecks,
+        totalViolations = totalViolations,
+        activeMonitoring = ANTICHEAT_CONFIG.monitoringEnabled,
+        monitoredPlayers = self:GetActivePlayerCount()
     }
 end
 
