@@ -5,10 +5,11 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
+local _SoundService = game:GetService("SoundService")
 
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PlayerService = require(script.Parent.Parent.core.PlayerService)
+local PlayerService = SafeRequire.require(script.Parent.Parent.core.PlayerService)
 
 -- Forward declare services
 local ShopService = nil

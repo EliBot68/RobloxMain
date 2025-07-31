@@ -17,7 +17,7 @@ local ExclusiveService = {}
 
 -- DataStore for tracking exclusive ownership
 local exclusiveStore = DataStoreService:GetDataStore("ExclusiveCosmetics")
-local exclusiveScheduleStore = DataStoreService:GetDataStore("ExclusiveSchedule")
+local _exclusiveScheduleStore = DataStoreService:GetDataStore("ExclusiveSchedule")
 
 -- Current exclusive releases (7-day limited availability)
 local EXCLUSIVE_RELEASES = {
@@ -116,7 +116,7 @@ local EXCLUSIVE_RELEASES = {
 }
 
 -- Track active exclusives and countdown timers
-local activeExclusives = {}
+local _activeExclusives = {}
 local countdownConnections = {}
 local exclusiveOwners = {}
 
@@ -284,7 +284,7 @@ function ExclusiveService:CreateCountdownDisplay()
             self:OpenExclusivePurchase(player, exclusive)
             
             -- Track countdown viewing for quests
-            local QuestService = require(script.Parent.QuestService)
+            local QuestService = SafeRequire.require(script.Parent.QuestService)
             if QuestService then
                 QuestService:UpdateQuestProgress(player, "countdown_viewed", 1)
             end
@@ -317,7 +317,7 @@ function ExclusiveService:OpenExclusivePurchase(player, exclusive)
     end
     
     -- Check if player already owns this exclusive
-    local userId = tostring(player.UserId)
+    local _userId = tostring(player.UserId)
     local playerData = PlayerService:GetPlayerData(player)
     
     if playerData.exclusiveCosmetics and playerData.exclusiveCosmetics[exclusive.id] then
@@ -397,7 +397,7 @@ function ExclusiveService:PurchaseExclusive(player, exclusiveId)
     PlayerService:UpdatePlayerData(player, playerData)
     
     -- Update quest progress
-    local QuestService = require(script.Parent.QuestService)
+    local QuestService = SafeRequire.require(script.Parent.QuestService)
     if QuestService then
         -- Track exclusive purchase
         QuestService:UpdateQuestProgress(player, "exclusive_purchased", 1, {

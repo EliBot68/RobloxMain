@@ -4,8 +4,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local PlayerDataService = require(script.Parent.PlayerDataService)
+local PlayerService = SafeRequire.require(script.Parent.Parent.core.PlayerService)
+local UnifiedDataService = SafeRequire.require(script.Parent.Parent.core.UnifiedDataService)
 
 local CoinService = {}
 
@@ -35,8 +37,8 @@ function CoinService:SetupRemoteEvents()
 end
 
 function CoinService:SendPlayerCoins(player)
-    -- Get current coin balance from PlayerDataService
-    local playerData = PlayerDataService:GetPlayerData(player)
+    -- Get current coin balance from PlayerService
+    local playerData = PlayerService:GetPlayerData(player)
     if playerData then
         local coinBalance = playerData.coins or 0
         RemoteEvents.CoinBalanceUpdated:FireClient(player, coinBalance)
@@ -50,10 +52,10 @@ end
 
 function CoinService:UpdatePlayerCoins(player, newCoinAmount, animate)
     -- Update coins in player data
-    local playerData = PlayerDataService:GetPlayerData(player)
+    local playerData = PlayerService:GetPlayerData(player)
     if playerData then
         playerData.coins = newCoinAmount
-        PlayerDataService:SavePlayerData(player)
+        UnifiedDataService:SavePlayerData(player)
         
         -- Send update to client
         if animate then
@@ -70,10 +72,10 @@ function CoinService:ProcessPurchase(player, purchaseData)
         return
     end
     
-    -- Delegate upgrade purchases to EnhancedUpgradeService
+    -- Delegate upgrade purchases to UpgradeService
     if purchaseData.itemType == "upgrade" then
-        local EnhancedUpgradeService = require(script.Parent.EnhancedUpgradeService)
-        local success, message = EnhancedUpgradeService:ProcessUpgradePurchase(player, purchaseData)
+        local UpgradeService = require(script.Parent.Parent.UpgradeService)
+        local success, message = UpgradeService:PurchaseUpgrade(player, purchaseData)
         
         if success then
             RemoteEvents.PurchaseResult:FireClient(player, true, message, nil)
@@ -83,7 +85,7 @@ function CoinService:ProcessPurchase(player, purchaseData)
         return
     end
     
-    local playerData = PlayerDataService:GetPlayerData(player)
+    local playerData = PlayerService:GetPlayerData(player)
     if not playerData then
         RemoteEvents.PurchaseResult:FireClient(player, false, "Player data not found", nil)
         return
@@ -106,7 +108,7 @@ function CoinService:ProcessPurchase(player, purchaseData)
         -- Deduct coins
         local newBalance = currentCoins - price
         playerData.coins = newBalance
-        PlayerDataService:SavePlayerData(player)
+        UnifiedDataService:SavePlayerData(player)
         
         -- Send success result
         RemoteEvents.PurchaseResult:FireClient(player, true, message or "Purchase successful!", newBalance)
@@ -124,7 +126,7 @@ end
 
 function CoinService:ProcessSpecificPurchase(player, purchaseData, playerData)
     local itemType = purchaseData.itemType or "unknown"
-    local itemId = purchaseData.itemId
+    local _itemId = purchaseData.itemId
     
     if itemType == "shop_item" then
         return self:ProcessShopItemPurchase(player, purchaseData, playerData)
@@ -169,8 +171,8 @@ end
 
 function CoinService:ProcessUpgradePurchase(player, purchaseData, playerData)
     -- This method is kept for compatibility but shouldn't be called
-    -- Upgrade purchases are now handled by EnhancedUpgradeService
-    return false, "Upgrade purchases should be handled by EnhancedUpgradeService"
+    -- Upgrade purchases are now handled by UpgradeService
+    return false, "Upgrade purchases should be handled by UpgradeService"
 end
 
 function CoinService:ProcessBuffPurchase(player, purchaseData, playerData)
@@ -221,13 +223,13 @@ end
 function CoinService:AwardCoins(player, amount, reason, animate)
     animate = animate ~= false -- Default to true
     
-    local playerData = PlayerDataService:GetPlayerData(player)
+    local playerData = PlayerService:GetPlayerData(player)
     if playerData then
         local currentCoins = playerData.coins or 0
         local newTotal = currentCoins + amount
         
         playerData.coins = newTotal
-        PlayerDataService:SavePlayerData(player)
+        UnifiedDataService:SavePlayerData(player)
         
         if animate then
             RemoteEvents.CoinCollected:FireClient(player, newTotal)
@@ -247,14 +249,14 @@ function CoinService:AwardCoins(player, amount, reason, animate)
 end
 
 function CoinService:DeductCoins(player, amount, reason)
-    local playerData = PlayerDataService:GetPlayerData(player)
+    local playerData = PlayerService:GetPlayerData(player)
     if playerData then
         local currentCoins = playerData.coins or 0
         
         if currentCoins >= amount then
             local newTotal = currentCoins - amount
             playerData.coins = newTotal
-            PlayerDataService:SavePlayerData(player)
+            UnifiedDataService:SavePlayerData(player)
             
             RemoteEvents.InstantCoinUpdate:FireClient(player, newTotal)
             return true, newTotal
@@ -265,7 +267,7 @@ function CoinService:DeductCoins(player, amount, reason)
 end
 
 function CoinService:GetPlayerCoins(player)
-    local playerData = PlayerDataService:GetPlayerData(player)
+    local playerData = PlayerService:GetPlayerData(player)
     if playerData then
         return playerData.coins or 0
     end
@@ -282,7 +284,7 @@ end
 
 function CoinService:HandlePlayerRemoving(player)
     -- Clean up any player-specific data
-    -- PlayerDataService handles the main cleanup
+    -- PlayerService handles the main cleanup
 end
 
 function CoinService:Cleanup()

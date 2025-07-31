@@ -660,7 +660,7 @@ function MiniGameService:GiveRewards(player, rewards)
     -- Give XP (if LevelingService exists)
     if script.Parent:FindFirstChild("LevelingService") then
         local LevelingService = require(script.Parent.LevelingService)
-        LevelingService:AddExperience(player, rewards.xp)
+        LevelingService:AwardXp(player, rewards.xp)
     end
 end
 
