@@ -1,6 +1,10 @@
--- OptimizedAntiCheatService.luau
+﻿-- AntiCheatServiceAdvanced.luau
+-- TIER 2: Advanced Anti-Cheat Service with Performance Optimizations
 -- High-performance anti-cheat system that replaces tight polling loops with event-driven monitoring
 -- Reduces CPU overhead while maintaining security effectiveness
+-- 
+-- USE WHEN: High-value servers, competitive modes, or performance-critical environments
+-- ALTERNATIVE: Use AntiCheatService.luau for basic protection with standard performance
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -11,7 +15,7 @@ local ConfigurationManager = require(ReplicatedStorage.Shared.core.Configuration
 local PerformanceOptimizer = require(ReplicatedStorage.Shared.utilities.PerformanceOptimizer)
 local OptimizedMemoryManager = require(ReplicatedStorage.Shared.utilities.OptimizedMemoryManager)
 
-local OptimizedAntiCheatService = {}
+local AntiCheatServiceAdvanced = {}
 
 -- ========================================
 -- OPTIMIZED CONFIGURATION
@@ -78,7 +82,7 @@ local performanceMetrics = {
 -- ========================================
 
 -- Replace while true loops with smart monitoring
-function OptimizedAntiCheatService:InitializeOptimizedMonitoring()
+function AntiCheatServiceAdvanced:InitializeOptimizedMonitoring()
     local memoryManager = OptimizedMemoryManager
     
     -- Movement monitoring with adaptive intervals
@@ -135,7 +139,7 @@ function OptimizedAntiCheatService:InitializeOptimizedMonitoring()
     -- Start all monitoring systems
     for name, monitor in pairs(monitoringSystems) do
         monitor:Start()
-        print("🔍 Started optimized monitor: " .. name)
+        print("ðŸ” Started optimized monitor: " .. name)
     end
 end
 
@@ -144,7 +148,7 @@ end
 -- ========================================
 
 -- Batch check player movement for better performance
-function OptimizedAntiCheatService:BatchCheckPlayerMovement()
+function AntiCheatServiceAdvanced:BatchCheckPlayerMovement()
     local violations = {}
     local currentTime = tick()
     
@@ -173,7 +177,7 @@ function OptimizedAntiCheatService:BatchCheckPlayerMovement()
 end
 
 -- Optimized single player movement check
-function OptimizedAntiCheatService:CheckSinglePlayerMovement(data, character, currentTime)
+function AntiCheatServiceAdvanced:CheckSinglePlayerMovement(data, character, currentTime)
     local humanoidRootPart = character.HumanoidRootPart
     local currentPosition = humanoidRootPart.Position
     local deltaTime = currentTime - data.lastUpdateTime
@@ -208,7 +212,7 @@ function OptimizedAntiCheatService:CheckSinglePlayerMovement(data, character, cu
 end
 
 -- Batch check player speed
-function OptimizedAntiCheatService:BatchCheckPlayerSpeed()
+function AntiCheatServiceAdvanced:BatchCheckPlayerSpeed()
     local violations = {}
     local currentTime = tick()
     
@@ -231,7 +235,7 @@ function OptimizedAntiCheatService:BatchCheckPlayerSpeed()
 end
 
 -- Optimized single player speed check
-function OptimizedAntiCheatService:CheckSinglePlayerSpeed(data, character, currentTime)
+function AntiCheatServiceAdvanced:CheckSinglePlayerSpeed(data, character, currentTime)
     local humanoid = character.Humanoid
     local currentSpeed = humanoid.WalkSpeed
     
@@ -254,7 +258,7 @@ function OptimizedAntiCheatService:CheckSinglePlayerSpeed(data, character, curre
 end
 
 -- Batch check player stats
-function OptimizedAntiCheatService:BatchCheckPlayerStats()
+function AntiCheatServiceAdvanced:BatchCheckPlayerStats()
     local violations = {}
     local currentTime = tick()
     
@@ -271,7 +275,7 @@ function OptimizedAntiCheatService:BatchCheckPlayerStats()
 end
 
 -- Optimized single player stats check
-function OptimizedAntiCheatService:CheckSinglePlayerStats(data, currentTime)
+function AntiCheatServiceAdvanced:CheckSinglePlayerStats(data, currentTime)
     -- Get current stats from player data store or leaderstats
     local player = data.player
     local leaderstats = player:FindFirstChild("leaderstats")
@@ -318,19 +322,19 @@ end
 -- ========================================
 
 -- Process movement violations efficiently
-function OptimizedAntiCheatService:ProcessMovementViolations(violations)
+function AntiCheatServiceAdvanced:ProcessMovementViolations(violations)
     for _, violation in ipairs(violations) do
         self:RecordViolation(violation)
         performanceMetrics.violationsDetected = performanceMetrics.violationsDetected + 1
     end
     
     if #violations > 0 then
-        print("🚨 Processed " .. #violations .. " movement violations")
+        print("ðŸš¨ Processed " .. #violations .. " movement violations")
     end
 end
 
 -- Process speed violations
-function OptimizedAntiCheatService:ProcessSpeedViolations(violations)
+function AntiCheatServiceAdvanced:ProcessSpeedViolations(violations)
     for _, violation in ipairs(violations) do
         self:RecordViolation(violation)
         
@@ -342,7 +346,7 @@ function OptimizedAntiCheatService:ProcessSpeedViolations(violations)
 end
 
 -- Process stat violations
-function OptimizedAntiCheatService:ProcessStatViolations(violations)
+function AntiCheatServiceAdvanced:ProcessStatViolations(violations)
     for _, violation in ipairs(violations) do
         self:RecordViolation(violation)
         
@@ -354,7 +358,7 @@ function OptimizedAntiCheatService:ProcessStatViolations(violations)
 end
 
 -- Record violation in optimized data structure
-function OptimizedAntiCheatService:RecordViolation(violation)
+function AntiCheatServiceAdvanced:RecordViolation(violation)
     local userId = violation.userId
     
     if not violationHistory[userId] then
@@ -386,7 +390,7 @@ end
 -- ========================================
 
 -- Initialize player tracking with optimized data structure
-function OptimizedAntiCheatService:InitializePlayerTracking(player)
+function AntiCheatServiceAdvanced:InitializePlayerTracking(player)
     local userId = player.UserId
     
     -- Check whitelist first
@@ -422,17 +426,17 @@ function OptimizedAntiCheatService:InitializePlayerTracking(player)
     violationHistory[userId] = {}
     
     if isWhitelisted then
-        print("🔧 Developer " .. player.Name .. " whitelisted from anti-cheat")
+        print("ðŸ”§ Developer " .. player.Name .. " whitelisted from anti-cheat")
     else
-        print("🔍 Initialized optimized anti-cheat for " .. player.Name)
+        print("ðŸ” Initialized optimized anti-cheat for " .. player.Name)
     end
 end
 
 -- Cleanup player data efficiently
-function OptimizedAntiCheatService:CleanupPlayerData(userId)
+function AntiCheatServiceAdvanced:CleanupPlayerData(userId)
     if playerData[userId] then
         local player = playerData[userId].player
-        print("🧹 Cleaning up anti-cheat data for " .. (player and player.Name or "Unknown Player"))
+        print("ðŸ§¹ Cleaning up anti-cheat data for " .. (player and player.Name or "Unknown Player"))
     end
     
     playerData[userId] = nil
@@ -444,14 +448,14 @@ end
 -- ========================================
 
 -- Issue warning to player
-function OptimizedAntiCheatService:IssueWarning(userId)
+function AntiCheatServiceAdvanced:IssueWarning(userId)
     local data = playerData[userId]
     if not data then return end
     
     data.warnings = data.warnings + 1
     
     local player = data.player
-    print("⚠️ Warning issued to " .. player.Name .. " (Warning #" .. data.warnings .. ")")
+    print("âš ï¸ Warning issued to " .. player.Name .. " (Warning #" .. data.warnings .. ")")
     
     -- Ban if too many warnings
     if data.warnings >= ANTICHEAT_CONFIG.limits.warningsBeforeBan then
@@ -460,12 +464,12 @@ function OptimizedAntiCheatService:IssueWarning(userId)
 end
 
 -- Take immediate action for severe violations
-function OptimizedAntiCheatService:TakeImmediateAction(userId, violation)
+function AntiCheatServiceAdvanced:TakeImmediateAction(userId, violation)
     local data = playerData[userId]
     if not data then return end
     
     local player = data.player
-    print("🚨 IMMEDIATE ACTION: " .. violation.type .. " by " .. player.Name .. 
+    print("ðŸš¨ IMMEDIATE ACTION: " .. violation.type .. " by " .. player.Name .. 
           " (severity: " .. string.format("%.2f", violation.severity) .. ")")
     
     if violation.severity > 4.0 then
@@ -476,33 +480,33 @@ function OptimizedAntiCheatService:TakeImmediateAction(userId, violation)
 end
 
 -- Escalate violation
-function OptimizedAntiCheatService:EscalateViolation(userId, violation)
+function AntiCheatServiceAdvanced:EscalateViolation(userId, violation)
     local data = playerData[userId]
     if not data then return end
     
     -- Increase adaptive monitoring frequency for this player
     data.adaptiveMultiplier = math.max(0.1, data.adaptiveMultiplier * 0.5)
     
-    print("📈 Escalated monitoring for player " .. data.player.Name .. 
+    print("ðŸ“ˆ Escalated monitoring for player " .. data.player.Name .. 
           " due to " .. violation.type)
 end
 
 -- Kick player
-function OptimizedAntiCheatService:KickPlayer(userId, reason)
+function AntiCheatServiceAdvanced:KickPlayer(userId, reason)
     local data = playerData[userId]
     if data and data.player then
         data.player:Kick("Anti-Cheat: " .. reason)
-        print("👢 Kicked player " .. data.player.Name .. ": " .. reason)
+        print("ðŸ‘¢ Kicked player " .. data.player.Name .. ": " .. reason)
     end
 end
 
 -- Ban player (placeholder - implement with your ban system)
-function OptimizedAntiCheatService:BanPlayer(userId, reason)
+function AntiCheatServiceAdvanced:BanPlayer(userId, reason)
     local data = playerData[userId]
     if data and data.player then
         -- Implement actual ban logic here
         data.player:Kick("BANNED: " .. reason)
-        print("🔨 Banned player " .. data.player.Name .. ": " .. reason)
+        print("ðŸ”¨ Banned player " .. data.player.Name .. ": " .. reason)
     end
 end
 
@@ -511,7 +515,7 @@ end
 -- ========================================
 
 -- Get anti-cheat performance statistics
-function OptimizedAntiCheatService:GetPerformanceStats()
+function AntiCheatServiceAdvanced:GetPerformanceStats()
     local activePlayers = 0
     local monitoredPlayers = 0
     
@@ -543,10 +547,10 @@ function OptimizedAntiCheatService:GetPerformanceStats()
 end
 
 -- Print performance report
-function OptimizedAntiCheatService:PrintPerformanceReport()
+function AntiCheatServiceAdvanced:PrintPerformanceReport()
     local stats = self:GetPerformanceStats()
     
-    print("🛡️ Anti-Cheat Performance Report:")
+    print("ðŸ›¡ï¸ Anti-Cheat Performance Report:")
     print("   Players: " .. stats.players.active .. " active, " .. 
           stats.players.monitored .. " monitored")
     print("   Checks performed: " .. stats.performance.checksPerformed)
@@ -563,8 +567,8 @@ end
 -- INITIALIZATION
 -- ========================================
 
-function OptimizedAntiCheatService:Init()
-    print("🛡️ OptimizedAntiCheatService initializing...")
+function AntiCheatServiceAdvanced:Init()
+    print("ðŸ›¡ï¸ AntiCheatServiceAdvanced initializing...")
     
     -- Setup player management
     Players.PlayerAdded:Connect(function(player)
@@ -591,8 +595,9 @@ function OptimizedAntiCheatService:Init()
         end
     end)
     
-    print("✅ OptimizedAntiCheatService initialized with smart monitoring")
+    print("âœ… AntiCheatServiceAdvanced initialized with smart monitoring")
     return true
 end
 
-return OptimizedAntiCheatService
+return AntiCheatServiceAdvanced
+

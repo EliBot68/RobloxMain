@@ -1,6 +1,10 @@
--- PetServiceOrchestrator.luau
+﻿-- PetOrchestrationService.luau
+-- ORCHESTRATION LAYER: Coordinates pet components and advanced pet system features  
 -- Clean orchestrator service that coordinates pet components
 -- Implements clean architecture with proper separation of concerns
+--
+-- USE WHEN: Multiple pets, complex interactions, system-wide pet coordination
+-- COMPANION: Works alongside PetService.luau for core pet functionality
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -14,15 +18,15 @@ local PetDatabase = require(ReplicatedStorage.Shared.data.PetDatabase)
 local PetBehaviorService = require(ReplicatedStorage.Shared.services.PetBehaviorService)
 local PetModelService = require(ReplicatedStorage.Shared.services.PetModelService)
 
-local PetServiceOrchestrator = {}
-PetServiceOrchestrator.__index = PetServiceOrchestrator
+local PetOrchestrationService = {}
+PetOrchestrationService.__index = PetOrchestrationService
 
 -- Extend the base service
-setmetatable(PetServiceOrchestrator, {__index = ServiceArchitecture.BaseService})
+setmetatable(PetOrchestrationService, {__index = ServiceArchitecture.BaseService})
 
-function PetServiceOrchestrator.new()
+function PetOrchestrationService.new()
     local self = ServiceArchitecture.BaseService.new("PetService", "2.0.0")
-    setmetatable(self, PetServiceOrchestrator)
+    setmetatable(self, PetOrchestrationService)
     
     -- Component instances
     self.repository = nil
@@ -39,8 +43,8 @@ end
 -- SERVICE LIFECYCLE
 -- ========================================
 
-function PetServiceOrchestrator:_initialize()
-    print("🔧 Initializing Pet Service components...")
+function PetOrchestrationService:_initialize()
+    print("ðŸ”§ Initializing Pet Service components...")
     
     -- Initialize components
     self.repository = PetRepository.new()
@@ -50,22 +54,22 @@ function PetServiceOrchestrator:_initialize()
     -- Validate pet database
     local issues = PetDatabase:ValidatePetData()
     if #issues > 0 then
-        warn("⚠️ Pet database validation issues found:")
+        warn("âš ï¸ Pet database validation issues found:")
         for _, issue in ipairs(issues) do
             warn("  - " .. issue)
         end
     else
-        print("✅ Pet database validation passed")
+        print("âœ… Pet database validation passed")
     end
     
     -- Setup event handlers
     self:_setupEventHandlers()
     
-    print("✅ Pet Service components initialized")
+    print("âœ… Pet Service components initialized")
 end
 
-function PetServiceOrchestrator:_start()
-    print("🚀 Starting Pet Service...")
+function PetOrchestrationService:_start()
+    print("ðŸš€ Starting Pet Service...")
     
     -- Setup player connection handlers
     Players.PlayerAdded:Connect(function(player)
@@ -81,11 +85,11 @@ function PetServiceOrchestrator:_start()
         self:_onPlayerAdded(player)
     end
     
-    print("✅ Pet Service started")
+    print("âœ… Pet Service started")
 end
 
-function PetServiceOrchestrator:_stop()
-    print("🛑 Stopping Pet Service...")
+function PetOrchestrationService:_stop()
+    print("ðŸ›‘ Stopping Pet Service...")
     
     -- Clean up all active pets
     self.modelService:ClearAllModels()
@@ -95,14 +99,14 @@ function PetServiceOrchestrator:_stop()
         self.behaviorService:DespawnPetBehavior(player.UserId)
     end
     
-    print("✅ Pet Service stopped")
+    print("âœ… Pet Service stopped")
 end
 
 -- ========================================
 -- EVENT HANDLERS
 -- ========================================
 
-function PetServiceOrchestrator:_setupEventHandlers()
+function PetOrchestrationService:_setupEventHandlers()
     -- Pet purchase events
     self:AddEvent("pet_purchased", function(player, petId)
         self:_onPetPurchased(player, petId)
@@ -127,10 +131,10 @@ function PetServiceOrchestrator:_setupEventHandlers()
     end)
 end
 
-function PetServiceOrchestrator:_onPlayerAdded(player)
+function PetOrchestrationService:_onPlayerAdded(player)
     -- Load player's pet data
     local playerPets = self.repository:GetById(player.UserId)
-    print("📂 Loaded " .. #playerPets .. " pets for " .. player.Name)
+    print("ðŸ“‚ Loaded " .. #playerPets .. " pets for " .. player.Name)
     
     -- If player has an equipped pet, spawn it
     -- This would typically check for an "equipped" flag in the data
@@ -143,30 +147,30 @@ function PetServiceOrchestrator:_onPlayerAdded(player)
     end
 end
 
-function PetServiceOrchestrator:_onPlayerRemoving(player)
+function PetOrchestrationService:_onPlayerRemoving(player)
     -- Save any pending data and clean up
     self:DespawnPet(player)
     self.repository:ClearCache(player.UserId)
-    print("💾 Saved and cleaned up pet data for " .. player.Name)
+    print("ðŸ’¾ Saved and cleaned up pet data for " .. player.Name)
 end
 
-function PetServiceOrchestrator:_onPetPurchased(player, petId)
+function PetOrchestrationService:_onPetPurchased(player, petId)
     local success, message = self.repository:AddPetToPlayer(player.UserId, petId)
     if success then
-        print("🛒 " .. player.Name .. " purchased pet: " .. petId)
+        print("ðŸ›’ " .. player.Name .. " purchased pet: " .. petId)
         self:TriggerEvent("pet_inventory_updated", player, petId, "purchased")
     else
-        warn("❌ Failed to add purchased pet: " .. message)
+        warn("âŒ Failed to add purchased pet: " .. message)
     end
 end
 
-function PetServiceOrchestrator:_onPetEquipped(player, petId)
+function PetOrchestrationService:_onPetEquipped(player, petId)
     local success = self:EquipPet(player, petId)
     if success then
-        print("✨ " .. player.Name .. " equipped pet: " .. petId)
+        print("âœ¨ " .. player.Name .. " equipped pet: " .. petId)
         self:TriggerEvent("pet_equipped_success", player, petId)
     else
-        warn("❌ Failed to equip pet: " .. petId)
+        warn("âŒ Failed to equip pet: " .. petId)
     end
 end
 
@@ -174,7 +178,7 @@ end
 -- PUBLIC API - PET OWNERSHIP
 -- ========================================
 
-function PetServiceOrchestrator:PurchasePet(player, petId, currency)
+function PetOrchestrationService:PurchasePet(player, petId, currency)
     -- Validate input
     local isValid, error = self.behaviorService:ValidateInput({
         petId = petId,
@@ -230,23 +234,23 @@ function PetServiceOrchestrator:PurchasePet(player, petId, currency)
     end
 end
 
-function PetServiceOrchestrator:AwardPet(player, petId, reason)
+function PetOrchestrationService:AwardPet(player, petId, reason)
     -- Award pet without cost (for events, achievements, etc.)
     local success, message = self.repository:AddPetToPlayer(player.UserId, petId)
     if success then
         self:TriggerEvent("pet_awarded", player, petId, reason)
-        print("🎁 Awarded pet to " .. player.Name .. ": " .. petId .. " (reason: " .. reason .. ")")
+        print("ðŸŽ Awarded pet to " .. player.Name .. ": " .. petId .. " (reason: " .. reason .. ")")
         return true, "Pet awarded successfully"
     else
         return false, message
     end
 end
 
-function PetServiceOrchestrator:GetPlayerPets(player)
+function PetOrchestrationService:GetPlayerPets(player)
     return self.repository:GetById(player.UserId)
 end
 
-function PetServiceOrchestrator:GetPlayerPetCount(player)
+function PetOrchestrationService:GetPlayerPetCount(player)
     return self.repository:GetPlayerPetCount(player.UserId)
 end
 
@@ -254,7 +258,7 @@ end
 -- PUBLIC API - PET MANAGEMENT
 -- ========================================
 
-function PetServiceOrchestrator:EquipPet(player, petId)
+function PetOrchestrationService:EquipPet(player, petId)
     -- Validate ownership
     if not self.repository:HasPet(player.UserId, petId) then
         return false, "Pet not owned"
@@ -287,14 +291,14 @@ function PetServiceOrchestrator:EquipPet(player, petId)
     return true, "Pet equipped successfully"
 end
 
-function PetServiceOrchestrator:DespawnPet(player)
+function PetOrchestrationService:DespawnPet(player)
     local behaviorSuccess = self.behaviorService:DespawnPetBehavior(player.UserId)
     local modelSuccess = self.modelService:DestroyPetModel(player)
     
     return behaviorSuccess or modelSuccess, "Pet despawned"
 end
 
-function PetServiceOrchestrator:GetActivePet(player)
+function PetOrchestrationService:GetActivePet(player)
     return self.behaviorService:GetActivePetStatus(player.UserId)
 end
 
@@ -302,12 +306,12 @@ end
 -- PUBLIC API - PET INTERACTIONS
 -- ========================================
 
-function PetServiceOrchestrator:TriggerPetReaction(player, reactionType, extraData)
+function PetOrchestrationService:TriggerPetReaction(player, reactionType, extraData)
     local success, message = self.behaviorService:TriggerPetReaction(player.UserId, reactionType, extraData)
     return success, message
 end
 
-function PetServiceOrchestrator:ApplyPetPassive(player, gameData)
+function PetOrchestrationService:ApplyPetPassive(player, gameData)
     local success, result = self.behaviorService:ApplyPetPassive(player.UserId, gameData)
     if success then
         self:TriggerEvent("pet_passive_applied", player, result)
@@ -315,7 +319,7 @@ function PetServiceOrchestrator:ApplyPetPassive(player, gameData)
     return success, result
 end
 
-function PetServiceOrchestrator:UpdatePetVisual(player, visualData)
+function PetOrchestrationService:UpdatePetVisual(player, visualData)
     local success, message = self.modelService:UpdatePetVisual(player, visualData)
     return success, message
 end
@@ -324,15 +328,15 @@ end
 -- PUBLIC API - ADMINISTRATION
 -- ========================================
 
-function PetServiceOrchestrator:GetPetDatabase()
+function PetOrchestrationService:GetPetDatabase()
     return PetDatabase:GetAllPets()
 end
 
-function PetServiceOrchestrator:GetPetStats()
+function PetOrchestrationService:GetPetStats()
     return PetDatabase:GetDatabaseStats()
 end
 
-function PetServiceOrchestrator:GetServiceStats()
+function PetOrchestrationService:GetServiceStats()
     local activePets = self.behaviorService:GetActivePetCount()
     local activeModels = 0
     for _ in pairs(self.modelService:GetActiveModels()) do
@@ -349,7 +353,7 @@ function PetServiceOrchestrator:GetServiceStats()
     }
 end
 
-function PetServiceOrchestrator:CleanupInactiveData()
+function PetOrchestrationService:CleanupInactiveData()
     local modelsCleaned = self.modelService:CleanupInactiveModels()
     local cacheCleaned = self.repository:CleanExpiredCache()
     
@@ -363,7 +367,7 @@ end
 -- MYSTERY PET SYSTEM
 -- ========================================
 
-function PetServiceOrchestrator:OpenMysteryBox(player, boxType, minRarity)
+function PetOrchestrationService:OpenMysteryBox(player, boxType, minRarity)
     minRarity = minRarity or "Common"
     
     -- Get weighted random pet
@@ -403,7 +407,7 @@ end
 -- HEALTH STATUS IMPLEMENTATION
 -- ========================================
 
-function PetServiceOrchestrator:GetHealthStatus()
+function PetOrchestrationService:GetHealthStatus()
     local activePets = self.behaviorService:GetActivePetCount()
     local stats = self:GetServiceStats()
     
@@ -433,4 +437,5 @@ function PetServiceOrchestrator:GetHealthStatus()
     }
 end
 
-return PetServiceOrchestrator
+return PetOrchestrationService
+
