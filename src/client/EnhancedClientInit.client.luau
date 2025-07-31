@@ -5,7 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local _TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
@@ -232,7 +232,7 @@ function EnhancedClientInit:RegisterControllersWithDependencies()
     local phaseStartTime = tick()
     
     -- Controller dependency map
-    local dependencies = {
+    local _dependencies = {
         MainGameController = {"InputController", "GuiController"},
         PlayerController = {"InputController"},
         MobileUIController = {"GuiController"},

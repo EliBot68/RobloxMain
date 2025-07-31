@@ -1,69 +1,144 @@
 -- init.client.luau
--- Main client initialization script for Color Rush
--- Handles robust startup of all client-side systems
+-- Main client initialization script for Color Rush with comprehensive error handling
+-- Handles robust startup of all client-side systems with recovery mechanisms
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
+local _RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Wait for shared modules to load
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local ControllerRegistry = require(ReplicatedStorage.Shared.utils.ControllerRegistry)
+-- Essential modules with error handling
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared", 10)
+local SafeRequire = nil
+local CriticalErrorHandler = nil
 
-print("[ClientInit] Starting Color Rush client initialization...")
+-- Initialize error handler first
+if SharedFolder then
+    local coreFolder = SharedFolder:FindFirstChild("core")
+    if coreFolder then
+        local errorHandlerModule = coreFolder:FindFirstChild("CriticalErrorHandler")
+        if errorHandlerModule then
+            CriticalErrorHandler = require(errorHandlerModule).new()
+            print("✅ [ClientInit] CriticalErrorHandler integrated")
+        end
+    end
+    
+    local utilsFolder = SharedFolder:FindFirstChild("utils")
+    if utilsFolder then
+        local safeRequireModule = utilsFolder:FindFirstChild("SafeRequire")
+        if safeRequireModule then
+            SafeRequire = require(safeRequireModule)
+        end
+    end
+end
 
--- Client initialization manager
+-- Fallback SafeRequire if not found
+if not SafeRequire then
+    SafeRequire = {
+        require = function(moduleScript, defaultValue)
+            local success, result = pcall(require, moduleScript)
+            return success and result or defaultValue
+        end,
+        requireWithTimeout = function(moduleScript, timeout, defaultValue)
+            return SafeRequire.require(moduleScript, defaultValue)
+        end
+    }
+end
+
+-- Try to get ControllerRegistry
+local ControllerRegistry = nil
+if SharedFolder then
+    local utilsFolder = SharedFolder:FindFirstChild("utils")
+    if utilsFolder then
+        local registryModule = utilsFolder:FindFirstChild("ControllerRegistry")
+        if registryModule then
+            ControllerRegistry = SafeRequire.require(registryModule)
+        end
+    end
+end
+
+print("[ClientInit] Starting Color Rush client initialization with error handling...")
+
+-- Client initialization manager with error boundaries
 local ClientInit = {}
 
--- Initialization phases
-local PHASES = {
-    CORE = 1,        -- Essential systems
-    CONTROLLERS = 2,  -- Game controllers
-    UI = 3,          -- User interface
-    GAMEPLAY = 4,    -- Gameplay systems
-    POLISH = 5       -- Effects and polish
-}
-
--- Controller registration with priorities and phases
+-- Controller configuration for this implementation
 local CONTROLLER_CONFIG = {
-    -- PHASE 1: CORE SYSTEMS (Priority 100+)
-    {name = "InputController", path = ReplicatedStorage.Client.controllers.InputController, priority = 110, phase = PHASES.CORE},
-    {name = "GuiController", path = ReplicatedStorage.Client.controllers.GuiController, priority = 105, phase = PHASES.CORE},
-    {name = "SettingsController", path = ReplicatedStorage.Client.controllers.SettingsController, priority = 100, phase = PHASES.CORE},
-    
-    -- PHASE 2: MAIN CONTROLLERS (Priority 80-99)
-    {name = "MainGameController", path = ReplicatedStorage.Client.controllers.MainGameController, priority = 95, phase = PHASES.CONTROLLERS},
-    {name = "PlayerController", path = ReplicatedStorage.Client.controllers.PlayerController, priority = 90, phase = PHASES.CONTROLLERS},
-    {name = "GameController", path = ReplicatedStorage.Client.controllers.GameController, priority = 85, phase = PHASES.CONTROLLERS},
-    {name = "HubController", path = ReplicatedStorage.Client.controllers.HubController, priority = 80, phase = PHASES.CONTROLLERS},
-    
-    -- PHASE 3: UI SYSTEMS (Priority 60-79)
-    {name = "MobileUIController", path = ReplicatedStorage.Client.controllers.MobileUIController, priority = 75, phase = PHASES.UI},
-    {name = "NotificationController", path = ReplicatedStorage.Client.controllers.NotificationController, priority = 70, phase = PHASES.UI},
-    {name = "LeaderboardController", path = ReplicatedStorage.Client.controllers.LeaderboardController, priority = 65, phase = PHASES.UI},
-    {name = "ShopController", path = ReplicatedStorage.Client.controllers.ShopController, priority = 60, phase = PHASES.UI},
-    
-    -- PHASE 4: GAMEPLAY SYSTEMS (Priority 40-59)
-    {name = "AchievementController", path = ReplicatedStorage.Client.controllers.AchievementController, priority = 55, phase = PHASES.GAMEPLAY},
-    {name = "QuestController", path = ReplicatedStorage.Client.controllers.QuestController, priority = 50, phase = PHASES.GAMEPLAY},
-    {name = "SocialController", path = ReplicatedStorage.Client.controllers.SocialController, priority = 45, phase = PHASES.GAMEPLAY},
-    {name = "TutorialController", path = ReplicatedStorage.Client.controllers.TutorialController, priority = 40, phase = PHASES.GAMEPLAY},
-    
-    -- PHASE 5: POLISH & EFFECTS (Priority 20-39)
-    {name = "GameAudioController", path = ReplicatedStorage.Client.controllers.GameAudioController, priority = 35, phase = PHASES.POLISH},
-    {name = "ScreenEffectsController", path = ReplicatedStorage.Client.controllers.ScreenEffectsController, priority = 30, phase = PHASES.POLISH},
-    {name = "TrailController", path = ReplicatedStorage.Client.controllers.TrailController, priority = 25, phase = PHASES.POLISH},
-    {name = "PartyController", path = ReplicatedStorage.Client.controllers.PartyController, priority = 20, phase = PHASES.POLISH}
+    -- Core controllers
+    {name = "InputController", priority = 100, critical = true},
+    {name = "GuiController", priority = 95, critical = true},
+    {name = "SettingsController", priority = 90, critical = false},
+    {name = "MainGameController", priority = 85, critical = true},
+    {name = "PlayerController", priority = 80, critical = true},
+    {name = "HubController", priority = 75, critical = false},
+    {name = "MobileUIController", priority = 70, critical = false},
+    {name = "NotificationController", priority = 65, critical = false},
+    {name = "AchievementController", priority = 60, critical = false},
+    {name = "GameAudioController", priority = 55, critical = false}
 }
 
 -- Error tracking
 local initializationErrors = {}
 local criticalErrors = {}
+
+-- Create error boundary wrapper
+local function _createErrorBoundary(name, func, isCritical)
+    if CriticalErrorHandler then
+        return CriticalErrorHandler:CreateErrorBoundary(
+            "ClientInit." .. name,
+            func,
+            {
+                category = CriticalErrorHandler.ERROR_CATEGORIES.SYSTEM,
+                severity = isCritical and CriticalErrorHandler.ERROR_SEVERITY.CRITICAL or CriticalErrorHandler.ERROR_SEVERITY.ERROR,
+                recoveryStrategy = CriticalErrorHandler.RECOVERY_STRATEGIES.GRACEFUL,
+                gracefulFunction = function()
+                    print("⚠️ [ClientInit] " .. name .. " failed, using fallback")
+                    return false
+                end,
+                onError = function(errorData)
+                    local errorInfo = {
+                        context = name,
+                        error = errorData.error,
+                        timestamp = tick(),
+                        critical = isCritical
+                    }
+                    
+                    if isCritical then
+                        table.insert(criticalErrors, errorInfo)
+                    else
+                        table.insert(initializationErrors, errorInfo)
+                    end
+                end
+            }
+        )
+    else
+        -- Fallback error boundary
+        return function()
+            local success, result = pcall(func)
+            if not success then
+                warn("[ClientInit] " .. name .. " failed: " .. tostring(result))
+                local errorInfo = {
+                    context = name,
+                    error = result,
+                    timestamp = tick(),
+                    critical = isCritical
+                }
+                
+                if isCritical then
+                    table.insert(criticalErrors, errorInfo)
+                else
+                    table.insert(initializationErrors, errorInfo)
+                end
+                return false
+            end
+            return result  
+        end
+    end
+end
 
 -- Initialize core client systems
 function ClientInit:InitializeCore()
@@ -155,7 +230,12 @@ function ClientInit:InitializeControllers()
     local success = ControllerRegistry:InitializeAll()
     
     if not success then
-        table.insert(criticalErrors, "Controller initialization failed")
+        table.insert(criticalErrors, {
+            context = "Controller initialization",
+            error = "ControllerRegistry:InitializeAll() failed",
+            timestamp = tick(),
+            critical = true
+        })
         return false
     end
     
@@ -169,7 +249,12 @@ function ClientInit:StartControllers()
     local success = ControllerRegistry:StartAll()
     
     if not success then
-        table.insert(criticalErrors, "Controller startup failed")
+        table.insert(criticalErrors, {
+            context = "Controller startup",
+            error = "ControllerRegistry:StartAll() failed",
+            timestamp = tick(),
+            critical = true
+        })
         return false
     end
     
@@ -281,7 +366,7 @@ function ClientInit:Initialize()
     local updateStatus, loadingGui = self:ShowLoadingScreen()
     
     updateStatus("Initializing core systems...")
-    local coreErrors = self:InitializeCore()
+    local _coreErrors = self:InitializeCore()
     wait(0.1)
     
     updateStatus("Registering controllers...")
@@ -289,7 +374,12 @@ function ClientInit:Initialize()
     wait(0.1)
     
     if not registrationSuccess then
-        table.insert(criticalErrors, "Controller registration failed")
+        table.insert(criticalErrors, {
+            context = "Controller registration",
+            error = "RegisterControllers() failed",
+            timestamp = tick(),
+            critical = true
+        })
         self:HideLoadingScreen(loadingGui)
         error("[ClientInit] CRITICAL: Controller registration failed")
         return false
