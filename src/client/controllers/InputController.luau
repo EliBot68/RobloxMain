@@ -198,6 +198,40 @@ function InputController:SetupColorControls()
         Enum.KeyCode.Three
     )
     
+    -- Add additional color buttons for enhanced gameplay
+    ContextActionService:BindAction(
+        "ColorYellow",
+        function(actionName, inputState, inputObject)
+            if inputState == Enum.UserInputState.Begin then
+                self:HandleColorChange("YELLOW")
+            end
+        end,
+        true, -- Create touch button
+        Enum.KeyCode.Four
+    )
+    
+    ContextActionService:BindAction(
+        "ColorPurple",
+        function(actionName, inputState, inputObject)
+            if inputState == Enum.UserInputState.Begin then
+                self:HandleColorChange("PURPLE")
+            end
+        end,
+        true, -- Create touch button
+        Enum.KeyCode.Five
+    )
+    
+    ContextActionService:BindAction(
+        "ColorOrange",
+        function(actionName, inputState, inputObject)
+            if inputState == Enum.UserInputState.Begin then
+                self:HandleColorChange("ORANGE")
+            end
+        end,
+        true, -- Create touch button
+        Enum.KeyCode.Six
+    )
+    
     -- Also bind to keyboard for desktop
     self:OnKeyPressed(Enum.KeyCode.One, function()
         self:HandleColorChange("RED")
@@ -211,96 +245,126 @@ function InputController:SetupColorControls()
         self:HandleColorChange("BLUE")
     end)
     
+    self:OnKeyPressed(Enum.KeyCode.Four, function()
+        self:HandleColorChange("YELLOW")
+    end)
+    
+    self:OnKeyPressed(Enum.KeyCode.Five, function()
+        self:HandleColorChange("PURPLE")
+    end)
+    
+    self:OnKeyPressed(Enum.KeyCode.Six, function()
+        self:HandleColorChange("ORANGE")
+    end)
+    
     -- Fun jump animation trigger (Space key) with safe require
     self:OnKeyPressed(Enum.KeyCode.Space, function()
         local success, PolishController = pcall(require, script.Parent.PolishController)
         if success and PolishController and PolishController.TriggerJumpAnimation then
             PolishController:TriggerJumpAnimation()
         else
-            print("⚠️ PolishController not available for jump animation")
+            -- Silently fail - PolishController is optional for core functionality
+            -- print("⚠️ PolishController not available for jump animation")
         end
     end)
     
-    -- Style the mobile buttons
-    self:StyleMobileButtons()
+    -- Wait for buttons to be created before styling
+    spawn(function()
+        -- Wait multiple frames to ensure all buttons are created
+        for i = 1, 5 do
+            game:GetService("RunService").Heartbeat:Wait()
+        end
+        
+        -- Style the mobile buttons after they're created
+        self:StyleMobileButtons()
+    end)
     
     print("🎮 Color controls setup complete")
 end
 
 function InputController:StyleMobileButtons()
-    -- Wait a frame for buttons to be created
-    game:GetService("RunService").Heartbeat:Wait()
-    
+    -- Wait for ContextActionGui to be available
     local playerGui = player:WaitForChild("PlayerGui")
     local contextActionGui = playerGui:FindFirstChild("ContextActionGui")
     
-    if contextActionGui then
-        -- Enhanced button styling for better mobile experience
-        local buttonSize = UDim2.new(0, 80, 0, 80) -- Larger tap-friendly size
-        
-        -- Fallback symbols in case GameConstants.COLORBLIND_SYMBOLS is missing
-        local fallbackSymbols = {
-            RED = "🔺",
-            GREEN = "⬟", 
-            BLUE = "⬢",
-            YELLOW = "⭐",
-            PURPLE = "⬥",
-            ORANGE = "⬣"
+    if not contextActionGui then
+        warn("⚠️ ContextActionGui not found, retrying in 1 second...")
+        task.wait(1)
+        contextActionGui = playerGui:FindFirstChild("ContextActionGui")
+        if not contextActionGui then
+            warn("❌ ContextActionGui still not found, mobile buttons will not be styled")
+            return
+        end
+    end
+    
+    -- Enhanced button styling for better mobile experience
+    local buttonSize = UDim2.new(0, 80, 0, 80) -- Larger tap-friendly size
+    
+    -- Fallback symbols in case GameConstants.COLORBLIND_SYMBOLS is missing
+    local fallbackSymbols = {
+        RED = "🔺",
+        GREEN = "⬟", 
+        BLUE = "⬢",
+        YELLOW = "⭐",
+        PURPLE = "⬥",
+        ORANGE = "⬣"
+    }
+    
+    local symbols = (GameConstants and GameConstants.COLORBLIND_SYMBOLS) or fallbackSymbols
+    
+    local buttonConfigs = {
+        {
+            name = "ColorRed",
+            color = Color3.new(1, 0.2, 0.2),
+            borderColor = Color3.new(0.8, 0, 0),
+            position = UDim2.new(0, 15, 1, -180),
+            symbol = symbols.RED
+        },
+        {
+            name = "ColorGreen", 
+            color = Color3.new(0.2, 1, 0.2),
+            borderColor = Color3.new(0, 0.8, 0),
+            position = UDim2.new(0, 105, 1, -180),
+            symbol = symbols.GREEN
+        },
+        {
+            name = "ColorBlue",
+            color = Color3.new(0.2, 0.2, 1),
+            borderColor = Color3.new(0, 0, 0.8),
+            position = UDim2.new(0, 195, 1, -180),
+            symbol = symbols.BLUE
+        },
+        {
+            name = "ColorYellow",
+            color = Color3.new(1, 1, 0.2),
+            borderColor = Color3.new(0.8, 0.8, 0),
+            position = UDim2.new(0, 285, 1, -180),
+            symbol = symbols.YELLOW
+        },
+        {
+            name = "ColorPurple",
+            color = Color3.new(0.8, 0.2, 1),
+            borderColor = Color3.new(0.6, 0, 0.8),
+            position = UDim2.new(0, 15, 1, -90),
+            symbol = symbols.PURPLE
+        },
+        {
+            name = "ColorOrange",
+            color = Color3.new(1, 0.6, 0.2),
+            borderColor = Color3.new(0.8, 0.4, 0),
+            position = UDim2.new(0, 105, 1, -90),
+            symbol = symbols.ORANGE
         }
-        
-        local symbols = (GameConstants and GameConstants.COLORBLIND_SYMBOLS) or fallbackSymbols
-        
-        local buttonConfigs = {
-            {
-                name = "ColorRed",
-                color = Color3.new(1, 0.2, 0.2),
-                borderColor = Color3.new(0.8, 0, 0),
-                position = UDim2.new(0, 15, 1, -180),
-                symbol = symbols.RED
-            },
-            {
-                name = "ColorGreen", 
-                color = Color3.new(0.2, 1, 0.2),
-                borderColor = Color3.new(0, 0.8, 0),
-                position = UDim2.new(0, 105, 1, -180),
-                symbol = symbols.GREEN
-            },
-            {
-                name = "ColorBlue",
-                color = Color3.new(0.2, 0.2, 1),
-                borderColor = Color3.new(0, 0, 0.8),
-                position = UDim2.new(0, 195, 1, -180),
-                symbol = symbols.BLUE
-            },
-            {
-                name = "ColorYellow",
-                color = Color3.new(1, 1, 0.2),
-                borderColor = Color3.new(0.8, 0.8, 0),
-                position = UDim2.new(0, 285, 1, -180),
-                symbol = symbols.YELLOW
-            },
-            {
-                name = "ColorPurple",
-                color = Color3.new(0.8, 0.2, 1),
-                borderColor = Color3.new(0.6, 0, 0.8),
-                position = UDim2.new(0, 15, 1, -90),
-                symbol = symbols.PURPLE
-            },
-            {
-                name = "ColorOrange",
-                color = Color3.new(1, 0.6, 0.2),
-                borderColor = Color3.new(0.8, 0.4, 0),
-                position = UDim2.new(0, 105, 1, -90),
-                symbol = symbols.ORANGE
-            }
-        }
-        
-        -- Apply enhanced styling to each button
-        for _, config in pairs(buttonConfigs) do
-            local button = contextActionGui:FindFirstChild(config.name)
-            if button and button:FindFirstChild("ImageLabel") then
-                local imageLabel = button.ImageLabel
-                
+    }
+    
+    local styledButtonCount = 0
+    
+    -- Apply enhanced styling to each button with existence checks
+    for _, config in pairs(buttonConfigs) do
+        local button = contextActionGui:FindFirstChild(config.name)
+        if button then
+            local imageLabel = button:FindFirstChild("ImageLabel")
+            if imageLabel then
                 -- Enhanced styling for better mobile experience
                 imageLabel.BackgroundColor3 = config.color
                 imageLabel.BackgroundTransparency = 0.1 -- More visible
@@ -363,11 +427,17 @@ function InputController:StyleMobileButtons()
                         connectionType = ConnectionManager.ConnectionTypes.GUI
                     }
                 )
+                
+                styledButtonCount = styledButtonCount + 1
+            else
+                warn("⚠️ ImageLabel not found for button: " .. config.name)
             end
+        else
+            warn("⚠️ Button not found: " .. config.name .. " (may not be created yet)")
         end
-        
-        print("📱 Enhanced mobile color buttons styling applied")
     end
+    
+    print("📱 Enhanced mobile color buttons styling applied (" .. styledButtonCount .. "/" .. #buttonConfigs .. " buttons styled)")
 end
 
 function InputController:AddSymbolToButton(button, symbol)
