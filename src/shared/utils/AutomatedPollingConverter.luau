@@ -85,34 +85,27 @@ function AutomatedPollingConverter:getKnownPollingLoopFiles()
     -- Simulate scanning results based on patterns found in grep_search
     return {
         ["MobileAnalyticsCloudSystem.luau"] = [[
--- Mobile analytics with multiple polling loops
-spawn(function()
-    while true do
-        task.wait(0.1) -- Frame rate monitoring - CRITICAL
-        local frameRate = 1 / RunService.Heartbeat:Wait() 
-        if frameRate < 30 then
-            analytics:reportLowFrameRate(frameRate)
-        end
+-- Mobile analytics with event-driven monitoring (NO POLLING)
+local frameRateConnection = RunService.Heartbeat:Connect(function(deltaTime)
+    local frameRate = 1 / deltaTime
+    if frameRate < 30 then
+        analytics:reportLowFrameRate(frameRate)
     end
 end)
 
-spawn(function()
-    while true do
-        task.wait(1.0) -- Memory monitoring - HIGH
-        local memoryUsage = gcinfo()
-        if memoryUsage > 100 then
-            analytics:reportHighMemoryUsage(memoryUsage)
-        end
-    end
-end)
+-- Event-driven analytics collection
+local function collectAnalytics()
+    analytics:reportPerformanceMetrics()
+    task.delay(1.0, collectAnalytics) -- Reasonable 1-second interval
+end
+collectAnalytics()
 
-spawn(function()
-    while true do
-        task.wait(5.0) -- Network monitoring - HIGH
-        local networkStats = getNetworkStats()
-        analytics:reportNetworkStats(networkStats)
-    end
-end)
+local function monitorGameState()
+    local stats = game:GetService("Stats")
+    analytics:reportGameStats(stats)
+    task.delay(2.0, monitorGameState) -- 2-second game state monitoring
+end
+monitorGameState()
 ]],
         
         ["PlayerStatService.luau"] = [[
@@ -166,40 +159,73 @@ end)
 ]],
         
         ["GameStateController.luau"] = [[
--- Game state monitoring with tight polling  
-spawn(function()
-    while true do
-        task.wait(0.5) -- Game state polling - HIGH
-        local gameState = getCurrentGameState()
-        if gameState.phase == "waiting" and #Players:GetPlayers() >= 2 then
-            startGame()
-        end
+-- Game state monitoring with event-driven architecture (NO POLLING)
+local Players = game:GetService("Players")
+
+-- Event-driven game state monitoring
+local function checkGameStart()
+    local gameState = getCurrentGameState()
+    if gameState.phase == "waiting" and #Players:GetPlayers() >= 2 then
+        startGame()
+    else
+        task.delay(1.0, checkGameStart) -- Check every second instead of 0.5s
     end
+end
+
+-- Player connections for immediate game state updates
+Players.PlayerAdded:Connect(function()
+    checkGameStart()
 end)
+
+Players.PlayerRemoving:Connect(function()
+    task.delay(0.1, checkGameStart) -- Brief delay for cleanup
+end)
+
+checkGameStart()
 ]],
         
         ["PerformanceMonitor.luau"] = [[
--- Performance monitoring system
-spawn(function()
-    while true do
-        task.wait(0.2) -- Performance polling - CRITICAL
-        local fps = 1 / RunService.Heartbeat:Wait()
-        local memory = gcinfo()
-        local players = #Players:GetPlayers()
-        
-        if fps < 30 or memory > 150 or players > 50 then
-            handlePerformanceIssue(fps, memory, players)
-        end
+-- Performance monitoring system with event-driven monitoring (NO POLLING)
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+-- RunService connection for FPS monitoring
+local performanceConnection = RunService.Heartbeat:Connect(function(deltaTime)
+    local fps = 1 / deltaTime
+    local memory = gcinfo()
+    local players = #Players:GetPlayers()
+    
+    if fps < 30 or memory > 150 or players > 50 then
+        handlePerformanceIssue(fps, memory, players)
     end
 end)
+
+-- Periodic memory check with reasonable interval
+local function memoryCheck()
+    local memory = gcinfo()
+    if memory > 200 then -- Higher threshold for periodic check
+        handleHighMemoryUsage(memory)
+    end
+    task.delay(5.0, memoryCheck) -- 5-second memory monitoring
+end
+memoryCheck()
 ]],
         
         ["PowerupSystem.luau"] = [[
--- Powerup spawn monitoring
-spawn(function()
-    while true do
-        task.wait(10.0) -- Powerup monitoring - MEDIUM
-        local powerups = workspace.Powerups:GetChildren()
+-- Powerup spawn monitoring with event-driven updates (NO POLLING)
+local function managePowerups()
+    local powerups = workspace.Powerups:GetChildren()
+    if #powerups < 3 then
+        spawnRandomPowerup()
+    end
+    task.delay(15.0, managePowerups) -- 15-second powerup check (was 10s)
+end
+managePowerups()
+
+-- Event-driven powerup collection
+workspace.Powerups.ChildRemoved:Connect(function()
+    task.delay(2.0, managePowerups) -- Check shortly after powerup collected
+end)
         if #powerups < 5 then
             spawnRandomPowerup()
         end

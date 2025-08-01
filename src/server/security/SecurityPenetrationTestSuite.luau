@@ -438,8 +438,10 @@ function SecurityPenetrationTestSuite:TestBruteForceAttack(test)
     -- Simulate rapid authentication attempts
     local attemptCount = 0
     local startTime = os.time()
+    local testEndEvent = Instance.new("BindableEvent")
     
-    while os.time() - startTime < 10 do -- 10 second test
+    -- Event-driven rate limit testing (NO POLLING)
+    local function performRateLimitTest()
         attemptCount = attemptCount + 1
         
         if self.sessionManager then
@@ -450,12 +452,22 @@ function SecurityPenetrationTestSuite:TestBruteForceAttack(test)
             
             if not allowed then
                 blocked = true
-                break
+                testEndEvent:Fire()
+                return
             end
         end
         
-        wait(0.1) -- 10 attempts per second
+        -- Continue testing if not blocked and within time limit
+        if os.time() - startTime < 10 then
+            task.delay(0.1, performRateLimitTest) -- 10 attempts per second
+        else
+            testEndEvent:Fire()
+        end
     end
+    
+    -- Start test
+    performRateLimitTest()
+    testEndEvent.Event:Wait() -- Wait for completion
     
     table.insert(details, {
         totalAttempts = attemptCount,

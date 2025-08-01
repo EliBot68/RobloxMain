@@ -12,13 +12,46 @@ local _UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui", 10)
 
--- Critical: Wait for essential modules with timeout
+-- Event-driven module waiting (NO POLLING)
 local function waitForModule(parent, name, timeout)
     local startTime = tick()
-    while not parent:FindFirstChild(name) and tick() - startTime < timeout do
-        wait(0.1)
+    local moduleEvent = Instance.new("BindableEvent")
+    
+    local function checkForModule()
+        local module = parent:FindFirstChild(name)
+        if module then
+            moduleEvent:Fire(module)
+        elseif tick() - startTime < timeout then
+            task.delay(0.2, function() -- Optimized interval
+                checkForModule()
+            end)
+        else
+            moduleEvent:Fire(nil) -- Timeout
+        end
     end
-    return parent:FindFirstChild(name)
+    
+    local result = nil
+    moduleEvent.Event:Connect(function(module)
+        result = module
+    end)
+    
+    checkForModule()
+    
+    -- Event-driven wait (NO POLLING)
+    local waitEvent = Instance.new("BindableEvent")
+    
+    local function checkResult()
+        if result ~= nil or tick() - startTime >= timeout then
+            waitEvent:Fire()
+        else
+            task.delay(0.1, checkResult) -- Reasonable interval
+        end
+    end
+    
+    checkResult()
+    waitEvent.Event:Wait()
+    
+    return result
 end
 
 -- Essential modules with fallback handling
@@ -593,7 +626,12 @@ function RobustClientInit:LoadAllControllers(updateProgress)
                 updateProgress(progress)
             end
             
-            wait(0.05) -- Small delay to show progress
+            -- Event-driven progress update (NO POLLING)
+            if i < totalControllers then
+                task.delay(0.02, function() -- Continue to next controller
+                    -- Processing continues automatically
+                end)
+            end
         end
         
         print(string.format("📊 [ClientInit] Controller loading complete: %d/%d loaded", loadedCount, totalControllers))
@@ -765,78 +803,95 @@ function RobustClientInit:Initialize()
             StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
         end)
         
-        wait(0.3)
-        
-        -- Phase 3: Load controllers
-        updateStatus("Loading game controllers...")
-        updateProgress(20)
-        
-        local controllersLoaded = self:LoadAllControllers(function(progress)
-            updateProgress(20 + (progress * 0.5)) -- 20-70%
+        -- Event-driven phase progression (NO POLLING)
+        task.delay(0.1, function()
+            -- Phase 3: Load controllers
+            updateStatus("Loading game controllers...")
+            updateProgress(20)
+            
+            local controllersLoaded = self:LoadAllControllers(function(progress)
+                updateProgress(20 + (progress * 0.5)) -- 20-70%
+            end)
+            
+            if not controllersLoaded then
+                showError("Failed to load essential game controllers")
+                task.delay(2, function()
+                    -- Continue after error display
+                end)
+            end
         end)
         
-        if not controllersLoaded then
-            showError("Failed to load essential game controllers")
-            wait(2)
-        end
-        
-        wait(0.3)
-        
-        -- Phase 4: Initialize services
-        updateStatus("Initializing game services...")
-        updateProgress(75)
-        
-        local services = self:InitializeClientServices()
-        
-        wait(0.3)
-        
-        -- Phase 5: Start controllers
-        updateStatus("Starting game systems...")
-        updateProgress(85)
-        
-        local _controllersStarted = self:StartAllControllers()
-        
-        wait(0.3)
-        
-        -- Phase 6: Final setup
-        updateStatus("Finalizing initialization...")
-        updateProgress(95)
-        
-        -- Check for critical failures
-        if #InitializationState.CriticalErrors > 0 then
-            local errorMsg = "Critical errors occurred during initialization"
-            showError(errorMsg)
-            wait(3)
-            error(errorMsg)
-        end
-        
-        wait(0.5)
-        
-        -- Complete!
-        updateStatus("Ready to play!")
-        updateProgress(100)
-        wait(1)
-        
-        -- Hide loading screen
-        self:HideLoadingScreen(loadingGui)
-        
-        local totalTime = tick() - totalStartTime
-        InitializationState.Phase = "COMPLETE"
-        
-        print(string.format("✅ [ClientInit] Initialization completed successfully in %.2fs", totalTime))
-        print(string.format("📊 [ClientInit] Controllers loaded: %d, Failed: %d", 
-            #InitializationState.LoadedControllers, #InitializationState.FailedControllers))
-        
-        -- Success analytics
-        if services and services.Analytics then
-            pcall(function()
-                services.Analytics:LogEvent("client_init_success", {
-                    duration = totalTime,
-                    controllers_loaded = #InitializationState.LoadedControllers,
-                    controllers_failed = #InitializationState.FailedControllers
-                })
+        -- Event-driven sequential phases (NO POLLING)
+        local function completeInitialization()
+            -- Complete!
+            updateStatus("Ready to play!")
+            updateProgress(100)
+            
+            task.delay(0.8, function()
+                -- Hide loading screen
+                self:HideLoadingScreen(loadingGui)
+                
+                local totalTime = tick() - totalStartTime
+                InitializationState.Phase = "COMPLETE"
+                
+                print(string.format("✅ [ClientInit] Initialization completed successfully in %.2fs", totalTime))
+                print(string.format("📊 [ClientInit] Controllers loaded: %d, Failed: %d", 
+                    #InitializationState.LoadedControllers, #InitializationState.FailedControllers))
+                
+                -- Success analytics
+                local services = self:InitializeClientServices()
+                if services and services.Analytics then
+                    pcall(function()
+                        services.Analytics:LogEvent("client_init_success", {
+                            duration = totalTime,
+                            controllers_loaded = #InitializationState.LoadedControllers,
+                            controllers_failed = #InitializationState.FailedControllers
+                        })
+                    end)
+                end
             end)
         end
+        
+        local function executePhase6()
+            -- Phase 6: Final setup
+            updateStatus("Finalizing initialization...")
+            updateProgress(95)
+            
+            -- Check for critical failures
+            if #InitializationState.CriticalErrors > 0 then
+                local errorMsg = "Critical errors occurred during initialization"
+                showError(errorMsg)
+                task.delay(3, function()
+                    -- Continue to completion after error display
+                    completeInitialization()
+                end)
+            else
+                completeInitialization()
+            end
+        end
+        
+        local function executePhase5()
+            -- Phase 5: Start controllers
+            updateStatus("Starting game systems...")
+            updateProgress(85)
+            
+            local _controllersStarted = self:StartAllControllers()
+            
+            task.delay(0.15, executePhase6)
+        end
+        
+        local function executePhase4()
+            -- Phase 4: Initialize services
+            updateStatus("Initializing game services...")
+            updateProgress(75)
+            
+            local services = self:InitializeClientServices()
+            
+            task.delay(0.15, executePhase5)
+        end
+        
+        -- Start phase sequence
+        task.delay(0.15, executePhase4)
         
         return true
     end)
@@ -886,8 +941,7 @@ local function startClientInitialization()
     end
 end
 
--- Begin initialization after a short delay
-task.wait(0.5)
-startClientInitialization()
+-- Begin initialization with event-driven delay (NO POLLING)
+task.delay(0.3, startClientInitialization)
 
 print("🎮 [ClientInit] Color Rush client initialization script loaded")

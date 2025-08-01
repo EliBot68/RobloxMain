@@ -365,55 +365,83 @@ function ClientInit:Initialize()
     -- Show loading screen
     local updateStatus, loadingGui = self:ShowLoadingScreen()
     
-    updateStatus("Initializing core systems...")
-    local _coreErrors = self:InitializeCore()
-    wait(0.1)
-    
-    updateStatus("Registering controllers...")
-    local registrationSuccess = self:RegisterControllers()
-    wait(0.1)
-    
-    if not registrationSuccess then
-        table.insert(criticalErrors, {
-            context = "Controller registration",
-            error = "RegisterControllers() failed",
-            timestamp = tick(),
-            critical = true
-        })
-        self:HideLoadingScreen(loadingGui)
-        error("[ClientInit] CRITICAL: Controller registration failed")
-        return false
+    -- Event-driven initialization sequence (NO POLLING)
+    local function executeInitializationPhase(phaseIndex)
+        local phases = {
+            {
+                name = "Initializing core systems...",
+                action = function() return self:InitializeCore() end,
+                delay = 0.2
+            },
+            {
+                name = "Registering controllers...",
+                action = function() return self:RegisterControllers() end,
+                delay = 0.2,
+                critical = true
+            },
+            {
+                name = "Loading controllers...",
+                action = function() return self:InitializeControllers() end,
+                delay = 0.2,
+                critical = true
+            },
+            {
+                name = "Starting game systems...",
+                action = function() return self:StartControllers() end,
+                delay = 0.2,
+                critical = true
+            },
+            {
+                name = "Setting up services...",
+                action = function() self:SetupClientServices(); return true end,
+                delay = 0.2
+            },
+            {
+                name = "Ready!",
+                action = function() return true end,
+                delay = 0.5,
+                final = true
+            }
+        }
+        
+        if phaseIndex > #phases then
+            -- All phases complete
+            self:HideLoadingScreen(loadingGui)
+            local totalTime = tick() - totalStartTime
+            print(string.format("[ClientInit] ✅ Initialization complete (%.2fs)", totalTime))
+            return
+        end
+        
+        local phase = phases[phaseIndex]
+        updateStatus(phase.name)
+        
+        local success = phase.action()
+        
+        if phase.critical and not success then
+            table.insert(criticalErrors, {
+                context = phase.name,
+                error = "Phase failed",
+                timestamp = tick(),
+                critical = true
+            })
+            self:HideLoadingScreen(loadingGui)
+            error("[ClientInit] CRITICAL: " .. phase.name .. " failed")
+            return
+        end
+        
+        if phase.final then
+            task.delay(phase.delay, function()
+                executeInitializationPhase(phaseIndex + 1)
+            end)
+        else
+            task.delay(phase.delay, function()
+                executeInitializationPhase(phaseIndex + 1)
+            end)
+        end
     end
     
-    updateStatus("Loading controllers...")
-    local initSuccess = self:InitializeControllers()
-    wait(0.1)
-    
-    if not initSuccess then
-        self:HideLoadingScreen(loadingGui)
-        error("[ClientInit] CRITICAL: Controller initialization failed")
-        return false
-    end
-    
-    updateStatus("Starting game systems...")
-    local startSuccess = self:StartControllers()
-    wait(0.1)
-    
-    if not startSuccess then
-        self:HideLoadingScreen(loadingGui)
-        error("[ClientInit] CRITICAL: Controller startup failed")
-        return false
-    end
-    
-    updateStatus("Setting up services...")
-    self:SetupClientServices()
-    wait(0.1)
-    
-    updateStatus("Ready!")
-    wait(0.5)
-    
-    -- Hide loading screen
-    self:HideLoadingScreen(loadingGui)
+    -- Start the event-driven initialization sequence
+    executeInitializationPhase(1)
     
     local totalTime = tick() - totalStartTime
     

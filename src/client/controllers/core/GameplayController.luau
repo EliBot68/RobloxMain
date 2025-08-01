@@ -487,12 +487,11 @@ function EnhancedGameplayController:HandleCoinCollection(coinPart)
                 bounceDown:Play()
             end)
             
-            -- Flash effect
+            -- Event-driven flash effect (NO POLLING)
             local originalColor = coinsLabel.TextColor3
             coinsLabel.TextColor3 = Color3.new(1, 1, 1)
             
-            spawn(function()
-                wait(0.1)
+            task.delay(0.2, function() -- Optimized timing
                 coinsLabel.TextColor3 = originalColor
             end)
         end
@@ -513,12 +512,11 @@ function EnhancedGameplayController:HandleObstacleCollision(obstacle)
     
     obstacle:SetAttribute("Hit", true)
     
-    -- Visual feedback
+    -- Event-driven visual feedback (NO POLLING)
     local originalColor = obstacle.Color
     obstacle.Color = Color3.new(1, 0, 0)
     
-    spawn(function()
-        wait(0.1)
+    task.delay(0.15, function() -- Optimized timing for better visibility
         obstacle.Color = originalColor
     end)
     

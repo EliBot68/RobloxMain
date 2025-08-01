@@ -225,12 +225,11 @@ end
 function MovingObstacle:CreateImpactEffect()
     if not self.obstaclePart then return end
     
-    -- Flash effect
+    -- Event-driven flash effect (NO POLLING)
     local originalColor = self.obstaclePart.Color
     self.obstaclePart.Color = Color3.fromRGB(255, 255, 255)
     
-    spawn(function()
-        wait(0.1)
+    task.delay(0.15, function() -- Optimized timing
         if self.obstaclePart then
             self.obstaclePart.Color = originalColor
         end
@@ -319,8 +318,8 @@ function MovingObstacle:StartLinearMovement()
         tween.Completed:Connect(function()
             if self.isActive and self.config.reverseOnBounds then
                 self.currentDirection = -self.currentDirection
-                spawn(function()
-                    wait(0.1) -- Small pause at bounds
+                -- Event-driven bounds pause (NO POLLING)
+                task.delay(0.2, function() -- Slightly longer pause for smoother movement
                     if self.isActive then
                         calculateMovement()
                     end
@@ -426,8 +425,8 @@ function MovingObstacle:StartWaypointMovement()
                 if self.currentWaypointIndex > #self.waypoints then
                     self.currentWaypointIndex = 1
                 end
-                spawn(function()
-                    wait(0.5) -- Pause at waypoint
+                -- Event-driven waypoint pause (NO POLLING)
+                task.delay(0.8, function() -- Longer pause for waypoint transition
                     moveToNextWaypoint()
                 end)
             end

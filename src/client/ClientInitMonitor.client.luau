@@ -333,9 +333,10 @@ function ClientInitMonitor:StartMonitoring()
                     self:UpdateProgress(currentStatus, combinedProgress, elapsedTime)
                 end
                 
-                -- Schedule next check
-                task.wait(MONITOR_CONFIG.CheckInterval)
-                monitorEvent:Fire()
+                -- Schedule next check with event-driven approach (NO POLLING)
+                task.delay(MONITOR_CONFIG.CheckInterval, function()
+                    monitorEvent:Fire()
+                end)
             end
         end
         

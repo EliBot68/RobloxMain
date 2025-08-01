@@ -402,46 +402,41 @@ function CoreErrorHandlingTests.RunAllTests()
     
     local overallStartTime = tick()
     
-    -- Run all tests
-    CoreErrorHandlingTests.TestInitialization()
-    task.wait(0.1)
+    -- Event-driven test sequencing (NO POLLING)
+    local function runTestSequence()
+        local tests = {
+            CoreErrorHandlingTests.TestInitialization,
+            CoreErrorHandlingTests.TestErrorSeverityLevels,
+            CoreErrorHandlingTests.TestErrorCategories,
+            CoreErrorHandlingTests.TestRecoveryStrategies,
+            CoreErrorHandlingTests.TestBasicErrorBoundary,
+            CoreErrorHandlingTests.TestErrorBoundaryWithError,
+            CoreErrorHandlingTests.TestGracefulRecovery,
+            CoreErrorHandlingTests.TestFallbackRecovery,
+            CoreErrorHandlingTests.TestErrorLogging,
+            CoreErrorHandlingTests.TestUserNotifications,
+            CoreErrorHandlingTests.TestPerformance,
+            CoreErrorHandlingTests.TestStressConditions
+        }
+        
+        local currentTest = 1
+        local function runNextTest()
+            if currentTest <= #tests then
+                tests[currentTest]()
+                currentTest = currentTest + 1
+                -- Small delay between tests for readability
+                task.delay(0.05, runNextTest)
+            else
+                -- All tests complete
+                local overallTime = tick() - overallStartTime
+                CoreErrorHandlingTests.PrintResults(overallTime)
+            end
+        end
+        
+        runNextTest()
+    end
     
-    CoreErrorHandlingTests.TestErrorSeverityLevels()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestErrorCategories()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestRecoveryStrategies()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestBasicErrorBoundary()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestErrorBoundaryWithError()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestGracefulRecovery()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestFallbackRecovery()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestErrorLogging()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestUserNotifications()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestPerformance()
-    task.wait(0.1)
-    
-    CoreErrorHandlingTests.TestStressConditions()
-    
-    local overallTime = tick() - overallStartTime
-    
-    -- Print results
-    CoreErrorHandlingTests.PrintResults(overallTime)
+    runTestSequence()
     
     return TestResults
 end
