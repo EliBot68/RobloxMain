@@ -546,13 +546,21 @@ function MobileAnalyticsCloudSystem.initializeCrashReporting()
 end
 
 function MobileAnalyticsCloudSystem.setupErrorHandling()
-    -- Monitor for script errors and crashes
-    spawn(function()
-        while true do
-            -- This would monitor for actual errors in a real implementation
-            task.wait(10)
-        end
+    -- Event-driven error monitoring system
+    local errorMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleErrorMonitoring()
+        -- This would monitor for actual errors in a real implementation
+        task.wait(10)
+        errorMonitoringEvent:Fire()
+    end
+    
+    errorMonitoringEvent.Event:Connect(function()
+        spawn(scheduleErrorMonitoring)
     end)
+    
+    -- Start the error monitoring cycle
+    spawn(scheduleErrorMonitoring)
 end
 
 -- ========================================
@@ -999,85 +1007,101 @@ function MobileAnalyticsCloudSystem.startMonitoringSystems()
         deviceInfo = 0
     }
     
-    -- Analytics batch processing with adaptive timing
-    spawn(function()
-        while true do
-            local batchSize = #AnalyticsState.events.batch
-            
-            if batchSize > 0 then
-                MobileAnalyticsCloudSystem.sendAnalyticsBatch()
-                -- More frequent when active
-                adaptiveIntervals.analytics = math.max(10, adaptiveIntervals.analytics * 0.8)
-                stableCounts.analytics = 0
-            else
-                -- Less frequent when idle
-                stableCounts.analytics = stableCounts.analytics + 1
-                if stableCounts.analytics > 3 then
-                    adaptiveIntervals.analytics = math.min(300, adaptiveIntervals.analytics * 1.3)
-                end
+    -- Event-driven analytics batch processing
+    local analyticsBatchEvent = Instance.new("BindableEvent")
+    
+    local function scheduleAnalyticsBatch()
+        local batchSize = #AnalyticsState.events.batch
+        
+        if batchSize > 0 then
+            MobileAnalyticsCloudSystem.sendAnalyticsBatch()
+            -- More frequent when active
+            adaptiveIntervals.analytics = math.max(10, adaptiveIntervals.analytics * 0.8)
+            stableCounts.analytics = 0
+        else
+            -- Less frequent when idle
+            stableCounts.analytics = stableCounts.analytics + 1
+            if stableCounts.analytics > 3 then
+                adaptiveIntervals.analytics = math.min(300, adaptiveIntervals.analytics * 1.3)
             end
-            
-            task.wait(adaptiveIntervals.analytics)
         end
+        
+        task.wait(adaptiveIntervals.analytics)
+        analyticsBatchEvent:Fire()
+    end
+    
+    analyticsBatchEvent.Event:Connect(function()
+        spawn(scheduleAnalyticsBatch)
     end)
     
-    -- Cloud sync monitoring with adaptive timing
-    spawn(function()
-        while true do
-            local queueSize = #CloudSyncState.dataManager.sync_queue
-            
-            if queueSize > 0 then
-                CloudSyncState.syncManager:processSyncQueue()
-                -- More frequent when queue has items
-                adaptiveIntervals.cloudSync = math.max(30, adaptiveIntervals.cloudSync * 0.9)
-                stableCounts.cloudSync = 0
-            else
-                -- Less frequent when queue is empty
-                stableCounts.cloudSync = stableCounts.cloudSync + 1
-                if stableCounts.cloudSync > 2 then
-                    adaptiveIntervals.cloudSync = math.min(600, adaptiveIntervals.cloudSync * 1.2)
-                end
+    -- Event-driven cloud sync monitoring
+    local cloudSyncEvent = Instance.new("BindableEvent")
+    
+    local function scheduleCloudSync()
+        local queueSize = #CloudSyncState.dataManager.sync_queue
+        
+        if queueSize > 0 then
+            CloudSyncState.syncManager:processSyncQueue()
+            -- More frequent when queue has items
+            adaptiveIntervals.cloudSync = math.max(30, adaptiveIntervals.cloudSync * 0.9)
+            stableCounts.cloudSync = 0
+        else
+            -- Less frequent when queue is empty
+            stableCounts.cloudSync = stableCounts.cloudSync + 1
+            if stableCounts.cloudSync > 2 then
+                adaptiveIntervals.cloudSync = math.min(600, adaptiveIntervals.cloudSync * 1.2)
             end
-            
-            task.wait(adaptiveIntervals.cloudSync)
         end
+        
+        task.wait(adaptiveIntervals.cloudSync)
+        cloudSyncEvent:Fire()
+    end
+    
+    cloudSyncEvent.Event:Connect(function()
+        spawn(scheduleCloudSync)
     end)
     
-    -- Offline queue processing with adaptive timing
-    spawn(function()
-        while true do
-            local offlineQueueSize = #CloudSyncState.offlineManager.queue
-            
-            if offlineQueueSize > 0 then
-                CloudSyncState.offlineManager:processOfflineQueue()
-                -- More frequent when offline queue has items
-                adaptiveIntervals.offline = math.max(60, adaptiveIntervals.offline * 0.9)
-                stableCounts.offline = 0
-            else
-                -- Less frequent when offline queue is empty
-                stableCounts.offline = stableCounts.offline + 1
-                if stableCounts.offline > 2 then
-                    adaptiveIntervals.offline = math.min(900, adaptiveIntervals.offline * 1.2)
-                end
+    -- Event-driven offline queue processing
+    local offlineQueueEvent = Instance.new("BindableEvent")
+    
+    local function scheduleOfflineQueue()
+        local offlineQueueSize = #CloudSyncState.offlineManager.queue
+        
+        if offlineQueueSize > 0 then
+            CloudSyncState.offlineManager:processOfflineQueue()
+            -- More frequent when offline queue has items
+            adaptiveIntervals.offline = math.max(60, adaptiveIntervals.offline * 0.9)
+            stableCounts.offline = 0
+        else
+            -- Less frequent when offline queue is empty
+            stableCounts.offline = stableCounts.offline + 1
+            if stableCounts.offline > 2 then
+                adaptiveIntervals.offline = math.min(900, adaptiveIntervals.offline * 1.2)
             end
-            
-            task.wait(adaptiveIntervals.offline)
         end
+        
+        task.wait(adaptiveIntervals.offline)
+        offlineQueueEvent:Fire()
+    end
+    
+    offlineQueueEvent.Event:Connect(function()
+        spawn(scheduleOfflineQueue)
     end)
     
-    -- Device info updates with adaptive timing
-    spawn(function()
-        while true do
-            local oldDeviceInfo = table.clone(AnalyticsState.deviceInfo)
-            MobileAnalyticsCloudSystem.updateDeviceInfo()
-            
-            -- Check if device info actually changed
-            local changed = false
-            for key, value in pairs(AnalyticsState.deviceInfo) do
-                if oldDeviceInfo[key] ~= value then
-                    changed = true
-                    break
-                end
+    -- Event-driven device info updates
+    local deviceInfoEvent = Instance.new("BindableEvent")
+    
+    local function scheduleDeviceInfoUpdate()
+        local oldDeviceInfo = table.clone(AnalyticsState.deviceInfo)
+        MobileAnalyticsCloudSystem.updateDeviceInfo()
+        
+        -- Check if device info actually changed
+        local changed = false
+        for key, value in pairs(AnalyticsState.deviceInfo) do
+            if oldDeviceInfo[key] ~= value then
+                changed = true
+                break
+            end
             end
             
             if changed then

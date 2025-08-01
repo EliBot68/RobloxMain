@@ -785,12 +785,26 @@ end
 -- ========================================
 
 function SecurityEncryptionSystem:ScheduleKeyRotation()
-    spawn(function()
-        while true do
-            wait(3600) -- Check every hour
-            self:CheckKeyRotationNeeds()
-        end
+    -- Event-driven key rotation system
+    local keyRotationEvent = Instance.new("BindableEvent")
+    
+    local function scheduleKeyRotationCheck()
+        -- Adaptive interval based on security level and key activity
+        local keyCount = 0
+        for _ in pairs(self.dataKeys) do keyCount = keyCount + 1 end
+        
+        local interval = keyCount > 20 and 2400 or 3600 -- More frequent checks with more keys
+        wait(interval)
+        keyRotationEvent:Fire()
+    end
+    
+    keyRotationEvent.Event:Connect(function()
+        self:CheckKeyRotationNeeds()
+        spawn(scheduleKeyRotationCheck)
     end)
+    
+    -- Start the key rotation monitoring cycle
+    spawn(scheduleKeyRotationCheck)
 end
 
 function SecurityEncryptionSystem:CheckKeyRotationNeeds()

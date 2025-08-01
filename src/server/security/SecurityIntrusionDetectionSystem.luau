@@ -376,39 +376,75 @@ end
 -- ========================================
 
 function SecurityIntrusionDetectionSystem:StartRealTimeMonitoring()
-    -- Main monitoring loop
-    spawn(function()
-        while true do
-            wait(IDS_CONFIG.realTimeMonitoring)
-            self:ProcessEventQueue()
-            self:MonitorSystemHealth()
-            self:CheckActiveThreats()
-        end
+    -- Create BindableEvents for event-driven monitoring
+    local mainMonitoringEvent = Instance.new("BindableEvent")
+    local behaviorAnalysisEvent = Instance.new("BindableEvent")
+    local patternCorrelationEvent = Instance.new("BindableEvent")
+    local reportGenerationEvent = Instance.new("BindableEvent")
+    
+    -- Adaptive main monitoring system
+    local function scheduleMainMonitoring()
+        local queueSize = #self.eventQueue
+        local threatLevel = self:GetCurrentThreatLevel()
+        
+        -- Adaptive interval based on activity (30% to 300% of base)
+        local baseInterval = IDS_CONFIG.realTimeMonitoring
+        local adaptiveMultiplier = queueSize > 50 and 0.3 or (threatLevel > 7 and 0.5 or (queueSize < 5 and 2.0 or 1.0))
+        local interval = baseInterval * adaptiveMultiplier
+        
+        wait(interval)
+        mainMonitoringEvent:Fire()
+    end
+    
+    mainMonitoringEvent.Event:Connect(function()
+        self:ProcessEventQueue()
+        self:MonitorSystemHealth()
+        self:CheckActiveThreats()
+        spawn(scheduleMainMonitoring)
     end)
     
-    -- Behavior analysis loop
-    spawn(function()
-        while true do
-            wait(IDS_CONFIG.behaviorAnalysisInterval)
-            self:AnalyzeBehaviorPatterns()
-        end
+    -- Adaptive behavior analysis system
+    local function scheduleBehaviorAnalysis()
+        local activeConnections = self:GetActiveConnectionCount()
+        local interval = activeConnections > 20 and (IDS_CONFIG.behaviorAnalysisInterval * 0.7) or IDS_CONFIG.behaviorAnalysisInterval
+        wait(interval)
+        behaviorAnalysisEvent:Fire()
+    end
+    
+    behaviorAnalysisEvent.Event:Connect(function()
+        self:AnalyzeBehaviorPatterns()
+        spawn(scheduleBehaviorAnalysis)
     end)
     
-    -- Pattern correlation loop
-    spawn(function()
-        while true do
-            wait(IDS_CONFIG.patternAnalysisInterval)
-            self:PerformPatternCorrelation()
-        end
+    -- Adaptive pattern correlation system
+    local function schedulePatternCorrelation()
+        local patternCount = self:GetActivePatternCount()
+        local interval = patternCount > 15 and (IDS_CONFIG.patternAnalysisInterval * 0.8) or IDS_CONFIG.patternAnalysisInterval
+        wait(interval)
+        patternCorrelationEvent:Fire()
+    end
+    
+    patternCorrelationEvent.Event:Connect(function()
+        self:PerformPatternCorrelation()
+        spawn(schedulePatternCorrelation)
     end)
     
-    -- Report generation loop
-    spawn(function()
-        while true do
-            wait(IDS_CONFIG.reportGenerationInterval)
-            self:GenerateSecurityReport()
-        end
+    -- Event-driven report generation system
+    local function scheduleReportGeneration()
+        wait(IDS_CONFIG.reportGenerationInterval)
+        reportGenerationEvent:Fire()
+    end
+    
+    reportGenerationEvent.Event:Connect(function()
+        self:GenerateSecurityReport()
+        spawn(scheduleReportGeneration)
     end)
+    
+    -- Start all monitoring cycles
+    spawn(scheduleMainMonitoring)
+    spawn(scheduleBehaviorAnalysis)
+    spawn(schedulePatternCorrelation)
+    spawn(scheduleReportGeneration)
     
     print("📊 Real-time monitoring started")
 end

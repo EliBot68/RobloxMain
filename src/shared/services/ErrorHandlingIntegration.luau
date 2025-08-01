@@ -169,15 +169,24 @@ function ErrorHandlingIntegration:_setupDeveloperToolsIntegration()
     -- Setup performance monitoring
     local monitorInterval = config:Get("debugging.DEVELOPER_TOOLS.PERFORMANCE_MONITOR_INTERVAL")
     if monitorInterval and monitorInterval > 0 then
-        spawn(function()
-            while true do
-                wait(monitorInterval)
-                self.devTools.PerformanceMonitor:StartMonitoring({
-                    interval = math.min(monitorInterval / 10, 5),
-                    duration = monitorInterval * 2
-                })
-            end
+        -- Event-driven performance monitoring
+        local performanceMonitoringEvent = Instance.new("BindableEvent")
+        
+        local function schedulePerformanceMonitoring()
+            wait(monitorInterval)
+            performanceMonitoringEvent:Fire()
+        end
+        
+        performanceMonitoringEvent.Event:Connect(function()
+            self.devTools.PerformanceMonitor:StartMonitoring({
+                interval = math.min(monitorInterval / 10, 5),
+                duration = monitorInterval * 2
+            })
+            spawn(schedulePerformanceMonitoring)
         end)
+        
+        -- Start the performance monitoring cycle
+        spawn(schedulePerformanceMonitoring)
     end
     
     print("🔗 DeveloperTools integration complete")
@@ -360,9 +369,15 @@ function ErrorHandlingIntegration:_setupSystemInspection()
     local interval = config:Get("debugging.INSPECTION.INSPECTION_INTERVAL")
     
     spawn(function()
-        while true do
+        -- Event-driven system inspection
+        local systemInspectionEvent = Instance.new("BindableEvent")
+        
+        local function scheduleSystemInspection()
             wait(interval)
-            
+            systemInspectionEvent:Fire()
+        end
+        
+        systemInspectionEvent.Event:Connect(function()
             -- Inspect system health
             self.debugUtils.SystemInspector:InspectPerformance()
             
@@ -371,7 +386,11 @@ function ErrorHandlingIntegration:_setupSystemInspection()
             end
             
             self.debugUtils.SystemInspector:InspectServices()
-        end
+            spawn(scheduleSystemInspection)
+        end)
+        
+        -- Start the system inspection cycle
+        spawn(scheduleSystemInspection)
     end)
     
     print("🔗 System inspection setup complete")

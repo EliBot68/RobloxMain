@@ -401,26 +401,43 @@ function HubPuzzleService:Initialize()
         self:OnPuzzleCompleted(player)
     end)
     
-    -- Weekly reset checker (every hour)
-    spawn(function()
-        while true do
-            wait(3600) -- 1 hour
-            local newWeek = self:GetCurrentWeek()
-            if newWeek ~= currentWeek then
-                self:ResetWeeklyPuzzles()
-            end
+    -- Event-driven weekly reset checker
+    local weeklyResetEvent = Instance.new("BindableEvent")
+    
+    local function scheduleWeeklyResetCheck()
+        wait(3600) -- 1 hour
+        weeklyResetEvent:Fire()
+    end
+    
+    weeklyResetEvent.Event:Connect(function()
+        local newWeek = self:GetCurrentWeek()
+        if newWeek ~= currentWeek then
+            self:ResetWeeklyPuzzles()
         end
+        spawn(scheduleWeeklyResetCheck)
     end)
     
-    -- Auto-save all player data every 10 minutes
-    spawn(function()
-        while true do
-            wait(600) -- 10 minutes
-            for _, player in pairs(Players:GetPlayers()) do
-                self:SavePlayerPuzzleData(player)
-            end
+    -- Event-driven auto-save system
+    local autoSaveEvent = Instance.new("BindableEvent")
+    
+    local function scheduleAutoSave()
+        -- Adaptive interval based on player count
+        local playerCount = #Players:GetPlayers()
+        local interval = playerCount > 20 and 480 or 600 -- More frequent saves with more players
+        wait(interval)
+        autoSaveEvent:Fire()
+    end
+    
+    autoSaveEvent.Event:Connect(function()
+        for _, player in pairs(Players:GetPlayers()) do
+            self:SavePlayerPuzzleData(player)
         end
+        spawn(scheduleAutoSave)
     end)
+    
+    -- Start the monitoring cycles
+    spawn(scheduleWeeklyResetCheck)
+    spawn(scheduleAutoSave)
     
     print("✅ HubPuzzleService initialized!")
 end

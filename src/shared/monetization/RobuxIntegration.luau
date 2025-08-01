@@ -1017,13 +1017,21 @@ function RobuxIntegration.startMonitoringSystems()
         end
     end
     
-    -- Start adaptive monitoring
-    spawn(function()
-        while true do
-            performSystemUpdate()
-            task.wait(monitoringInterval) -- Adaptive interval (30s - 5min)
-        end
+    -- Event-driven adaptive monitoring system
+    local monitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleMonitoringUpdate()
+        performSystemUpdate()
+        task.wait(monitoringInterval) -- Adaptive interval (30s - 5min)
+        monitoringEvent:Fire()
+    end
+    
+    monitoringEvent.Event:Connect(function()
+        spawn(scheduleMonitoringUpdate)
     end)
+    
+    -- Start the monitoring cycle
+    spawn(scheduleMonitoringUpdate)
     
     print("📊 Monitoring systems started with adaptive intervals")
 end

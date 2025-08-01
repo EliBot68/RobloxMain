@@ -480,14 +480,22 @@ function ContentManager:BroadcastNotification(message, notificationType)
 end
 
 function ContentManager:StartUpdateChecker()
-    -- Periodic content update checker
+    -- Event-driven content update checker
     if CONTENT_CONFIG.enableAutoUpdates then
-        spawn(function()
-            while true do
-                wait(CONTENT_CONFIG.updateCheckInterval)
-                self:CheckForContentUpdates()
-            end
+        local updateCheckerEvent = Instance.new("BindableEvent")
+        
+        local function scheduleUpdateCheck()
+            wait(CONTENT_CONFIG.updateCheckInterval)
+            updateCheckerEvent:Fire()
+        end
+        
+        updateCheckerEvent.Event:Connect(function()
+            self:CheckForContentUpdates()
+            spawn(scheduleUpdateCheck)
         end)
+        
+        -- Start the update checking cycle
+        spawn(scheduleUpdateCheck)
     end
 end
 

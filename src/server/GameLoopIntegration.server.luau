@@ -391,32 +391,49 @@ end
 -- Create game control remotes
 createGameControlRemotes()
 
--- Debug information
-spawn(function()
-    while true do
-        wait(10) -- Print stats every 10 seconds
-        
-        local activePlayers = 0
-        for userId, gameState in pairs(gameStates) do
-            if gameState.isPlaying then
-                activePlayers = activePlayers + 1
-                local player = Players:GetPlayerByUserId(userId)
-                if player then
-                    local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
-                    if difficulty then
-                        print("🎮 " .. player.Name .. " - Level: " .. difficulty.level .. 
-                              " Speed: " .. string.format("%.1f", difficulty.speed) .. 
-                              " Distance: " .. string.format("%.1f", gameState.distanceTraveled))
-                    end
+-- Debug information with adaptive monitoring
+local debugEvent = Instance.new("BindableEvent")
+
+local function scheduleDebugUpdate()
+    local activePlayers = 0
+    for userId, gameState in pairs(gameStates) do
+        if gameState.isPlaying then
+            activePlayers = activePlayers + 1
+        end
+    end
+    
+    -- Adaptive interval based on activity
+    local interval = activePlayers > 0 and 8 or 15 -- More frequent when players are active
+    wait(interval)
+    debugEvent:Fire()
+end
+
+debugEvent.Event:Connect(function()
+    local activePlayers = 0
+    for userId, gameState in pairs(gameStates) do
+        if gameState.isPlaying then
+            activePlayers = activePlayers + 1
+            local player = Players:GetPlayerByUserId(userId)
+            if player then
+                local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
+                if difficulty then
+                    print("🎮 " .. player.Name .. " - Level: " .. difficulty.level .. 
+                          " Speed: " .. string.format("%.1f", difficulty.speed) .. 
+                          " Distance: " .. string.format("%.1f", gameState.distanceTraveled))
                 end
             end
         end
-        
-        if activePlayers > 0 then
-            print("📊 Active players: " .. activePlayers)
-        end
     end
+    
+    if activePlayers > 0 then
+        print("📊 Active players: " .. activePlayers)
+    end
+    
+    spawn(scheduleDebugUpdate)
 end)
+
+-- Start the debug monitoring cycle
+spawn(scheduleDebugUpdate)
 
 print("🎮 Game Loop Integration initialized with Difficulty System!")
 print("📍 Key Integration Points:")

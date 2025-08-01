@@ -201,13 +201,21 @@ function ProfessionalLighting:Initialize()
     -- Apply lighting immediately
     self:ApplyToLighting()
     
-    -- Start monitoring system
-    spawn(function()
-        while true do
-            self:MonitorAndAdjustLights()
-            wait(10)  -- Check every 10 seconds
-        end
+    -- Event-driven monitoring system
+    local monitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleMonitoring()
+        self:MonitorAndAdjustLights()
+        wait(10)  -- Check every 10 seconds
+        monitoringEvent:Fire()
+    end
+    
+    monitoringEvent.Event:Connect(function()
+        spawn(scheduleMonitoring)
     end)
+    
+    -- Start the monitoring cycle
+    spawn(scheduleMonitoring)
     
     print("✅ Professional Lighting System active")
 end

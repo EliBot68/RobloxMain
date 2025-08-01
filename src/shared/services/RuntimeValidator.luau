@@ -264,16 +264,24 @@ function RuntimeValidator:StartPeriodicValidation()
         return -- Only run periodic validation on server
     end
     
-    spawn(function()
-        while true do
-            task.wait(self.ValidationInterval)
-            
-            if tick() - self.LastValidation >= self.ValidationInterval then
-                print("🔄 Running periodic validation...")
-                self:ValidateAll()
-            end
+    -- Event-driven periodic validation system
+    local periodicValidationEvent = Instance.new("BindableEvent")
+    
+    local function schedulePeriodicValidation()
+        task.wait(self.ValidationInterval)
+        periodicValidationEvent:Fire()
+    end
+    
+    periodicValidationEvent.Event:Connect(function()
+        if tick() - self.LastValidation >= self.ValidationInterval then
+            print("🔄 Running periodic validation...")
+            self:ValidateAll()
         end
+        spawn(schedulePeriodicValidation)
     end)
+    
+    -- Start the periodic validation cycle
+    spawn(schedulePeriodicValidation)
 end
 
 function RuntimeValidator:GetValidationStatus(): {boolean}

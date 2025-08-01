@@ -384,13 +384,24 @@ function CollisionController:InitializeCollisionSystem()
     -- Initialize collision processing system
     collisionQueue = {}
     
-    -- Setup performance monitoring
-    spawn(function()
-        while true do
-            wait(5) -- Update every 5 seconds
-            self:UpdatePerformanceMetrics()
-        end
+    -- Event-driven performance monitoring
+    local performanceUpdateEvent = Instance.new("BindableEvent")
+    
+    local function schedulePerformanceUpdate()
+        -- Adaptive interval based on collision activity
+        local queueSize = #collisionQueue
+        local interval = queueSize > 50 and 3 or (queueSize > 10 and 4 or 6)
+        wait(interval)
+        performanceUpdateEvent:Fire()
+    end
+    
+    performanceUpdateEvent.Event:Connect(function()
+        self:UpdatePerformanceMetrics()
+        spawn(schedulePerformanceUpdate)
     end)
+    
+    -- Start the performance monitoring cycle
+    spawn(schedulePerformanceUpdate)
     
     print("⚙️ Collision system initialized")
 end

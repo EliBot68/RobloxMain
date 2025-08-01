@@ -945,13 +945,21 @@ function AdaptiveUISystem.setupPerformanceMonitoring()
         }
     }
     
-    -- Start performance monitoring loop
-    spawn(function()
-        while true do
-            UIState.performanceMonitor.frameTracker:update()
-            task.wait()
-        end
+    -- Event-driven performance monitoring system
+    local performanceMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function schedulePerformanceMonitoring()
+        UIState.performanceMonitor.frameTracker:update()
+        task.wait()
+        performanceMonitoringEvent:Fire()
+    end
+    
+    performanceMonitoringEvent.Event:Connect(function()
+        spawn(schedulePerformanceMonitoring)
     end)
+    
+    -- Start the performance monitoring cycle
+    spawn(schedulePerformanceMonitoring)
     
     print("📊 Performance monitoring initialized")
 end

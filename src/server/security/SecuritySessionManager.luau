@@ -334,12 +334,21 @@ end
 -- ========================================
 
 function SecuritySessionManager:InitializeRateLimiting()
-    spawn(function()
-        while true do
-            wait(60) -- Reset every minute
-            self:ResetRateLimits()
-        end
+    -- Event-driven rate limit reset system
+    local rateLimitResetEvent = Instance.new("BindableEvent")
+    
+    local function scheduleRateLimitReset()
+        wait(60) -- Reset every minute
+        rateLimitResetEvent:Fire()
+    end
+    
+    rateLimitResetEvent.Event:Connect(function()
+        self:ResetRateLimits()
+        spawn(scheduleRateLimitReset)
     end)
+    
+    -- Start the rate limit reset cycle
+    spawn(scheduleRateLimitReset)
 end
 
 function SecuritySessionManager:CheckRateLimit(player, action)
@@ -422,12 +431,24 @@ end
 -- ========================================
 
 function SecuritySessionManager:InitializeAbuseMonitoring()
-    spawn(function()
-        while true do
-            wait(300) -- Check every 5 minutes
-            self:AnalyzeSuspiciousActivity()
-        end
+    -- Event-driven abuse monitoring system
+    local abuseMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleAbuseMonitoring()
+        -- Adaptive interval based on recent suspicious activity
+        local recentActivityCount = #self.securityEvents
+        local interval = recentActivityCount > 20 and 180 or 300 -- More frequent checks with higher activity
+        wait(interval)
+        abuseMonitoringEvent:Fire()
+    end
+    
+    abuseMonitoringEvent.Event:Connect(function()
+        self:AnalyzeSuspiciousActivity()
+        spawn(scheduleAbuseMonitoring)
     end)
+    
+    -- Start the abuse monitoring cycle
+    spawn(scheduleAbuseMonitoring)
 end
 
 function SecuritySessionManager:PerformPreAuthenticationChecks(player, playerIP)
@@ -767,12 +788,26 @@ end
 -- ========================================
 
 function SecuritySessionManager:InitializeSessionCleanup()
-    spawn(function()
-        while true do
-            wait(SECURITY_CONFIG.sessionRefreshInterval)
-            self:CleanupExpiredSessions()
-        end
+    -- Event-driven session cleanup system
+    local sessionCleanupEvent = Instance.new("BindableEvent")
+    
+    local function scheduleSessionCleanup()
+        -- Adaptive interval based on active session count
+        local sessionCount = 0
+        for _ in pairs(self.activeSessions) do sessionCount = sessionCount + 1 end
+        
+        local interval = sessionCount > 50 and (SECURITY_CONFIG.sessionRefreshInterval * 0.5) or SECURITY_CONFIG.sessionRefreshInterval
+        wait(interval)
+        sessionCleanupEvent:Fire()
+    end
+    
+    sessionCleanupEvent.Event:Connect(function()
+        self:CleanupExpiredSessions()
+        spawn(scheduleSessionCleanup)
     end)
+    
+    -- Start the session cleanup cycle
+    spawn(scheduleSessionCleanup)
 end
 
 function SecuritySessionManager:CleanupExpiredSessions()

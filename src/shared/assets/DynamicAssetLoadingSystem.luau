@@ -816,18 +816,31 @@ function DynamicAssetLoadingSystem.createAdaptiveMonitor()
 end
 
 function DynamicAssetLoadingSystem.startPerformanceMonitoring()
-    spawn(function()
-        while true do
-            -- Update all monitors
-            LoadingState.performanceMonitor.frameRateMonitor:update()
-            LoadingState.performanceMonitor.memoryMonitor:update()
-            
-            -- Check for performance issues and adapt
-            DynamicAssetLoadingSystem.checkPerformanceAndAdapt()
-            
-            task.wait(1) -- Monitor every second
-        end
+    -- Event-driven performance monitoring system
+    local performanceMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function schedulePerformanceMonitoring()
+        -- Update all monitors
+        LoadingState.performanceMonitor.frameRateMonitor:update()
+        LoadingState.performanceMonitor.memoryMonitor:update()
+        
+        -- Check for performance issues and adapt
+        DynamicAssetLoadingSystem.checkPerformanceAndAdapt()
+        
+        -- Adaptive interval based on system performance
+        local currentFPS = 1 / RunService.Heartbeat:Wait()
+        local interval = currentFPS < 30 and 0.5 or (currentFPS < 45 and 0.8 or 1.2) -- More frequent monitoring if low FPS
+        
+        task.wait(interval)
+        performanceMonitoringEvent:Fire()
+    end
+    
+    performanceMonitoringEvent.Event:Connect(function()
+        spawn(schedulePerformanceMonitoring)
     end)
+    
+    -- Start the performance monitoring cycle
+    spawn(schedulePerformanceMonitoring)
 end
 
 function DynamicAssetLoadingSystem.updateFrameRate(monitor)
@@ -1058,21 +1071,35 @@ end
 -- ========================================
 
 function DynamicAssetLoadingSystem.startDynamicProcessing()
-    spawn(function()
-        while true do
-            -- Process asset loading queue
-            DynamicAssetLoadingSystem.processLoadingQueue()
-            
-            -- Update device profile periodically
-            if tick() % 30 < 1 then -- Every 30 seconds
-                DynamicAssetLoadingSystem.updateDeviceProfile()
-            end
-            
-            -- Perform maintenance
-            DynamicAssetLoadingSystem.performMaintenance()
-            
-            task.wait(0.5)
+    -- Event-driven dynamic processing system
+    local dynamicProcessingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleDynamicProcessing()
+        -- Process asset loading queue
+        DynamicAssetLoadingSystem.processLoadingQueue()
+        
+        -- Update device profile periodically
+        if tick() % 30 < 1 then -- Every 30 seconds
+            DynamicAssetLoadingSystem.updateDeviceProfile()
         end
+        
+        -- Perform maintenance
+        DynamicAssetLoadingSystem.performMaintenance()
+        
+        -- Adaptive interval based on queue size and system load
+        local queueSize = #LoadingState.loadingQueue
+        local interval = queueSize > 50 and 0.2 or (queueSize > 10 and 0.3 or 0.5)
+        
+        task.wait(interval)
+        dynamicProcessingEvent:Fire()
+    end
+    
+    dynamicProcessingEvent.Event:Connect(function()
+        spawn(scheduleDynamicProcessing)
+    end)
+    
+    -- Start the dynamic processing cycle
+    spawn(scheduleDynamicProcessing)
     end)
     
     print("🔄 Dynamic processing started")

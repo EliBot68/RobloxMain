@@ -865,19 +865,29 @@ end
 function SecurityPenetrationTestSuite:ScheduleAutomaticTests()
     if not self.testingEnabled then return end
     
-    spawn(function()
-        while true do
-            wait(3600) -- Run tests every hour
-            
-            -- Run basic security validation tests
-            self:ExecuteTestSuite("input_validation", PENTEST_CONFIG.intensityLevels.LOW)
-            
-            wait(1800) -- Wait 30 minutes
-            
-            -- Run anti-cheat tests
-            self:ExecuteTestSuite("anti_cheat", PENTEST_CONFIG.intensityLevels.MEDIUM)
-        end
+    -- Event-driven automatic testing system
+    local automaticTestingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleAutomaticTesting()
+        wait(3600) -- Run tests every hour
+        
+        -- Run basic security validation tests
+        self:ExecuteTestSuite("input_validation", PENTEST_CONFIG.intensityLevels.LOW)
+        
+        wait(1800) -- Wait 30 minutes
+        
+        -- Run anti-cheat tests
+        self:ExecuteTestSuite("anti_cheat", PENTEST_CONFIG.intensityLevels.MEDIUM)
+        
+        automaticTestingEvent:Fire()
+    end
+    
+    automaticTestingEvent.Event:Connect(function()
+        spawn(scheduleAutomaticTesting)
     end)
+    
+    -- Start the automatic testing cycle
+    spawn(scheduleAutomaticTesting)
 end
 
 function SecurityPenetrationTestSuite:IsTestEnvironmentSafe()

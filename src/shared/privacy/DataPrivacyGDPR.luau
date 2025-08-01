@@ -1148,12 +1148,26 @@ end
 -- ========================================
 
 function DataPrivacyGDPR.startPrivacyOperations()
-    spawn(function()
-        while true do
-            DataPrivacyGDPR.performRoutinePrivacyTasks()
-            task.wait(3600) -- Run every hour
-        end
+    -- Event-driven privacy operations system
+    local privacyOperationsEvent = Instance.new("BindableEvent")
+    
+    local function schedulePrivacyOperations()
+        DataPrivacyGDPR.performRoutinePrivacyTasks()
+        
+        -- Adaptive interval based on pending requests and consent expiry
+        local pendingRequests = #PrivacyState.pendingDataRequests
+        local interval = pendingRequests > 10 and 1800 or 3600 -- More frequent with more requests (30min vs 1hr)
+        
+        task.wait(interval)
+        privacyOperationsEvent:Fire()
+    end
+    
+    privacyOperationsEvent.Event:Connect(function()
+        spawn(schedulePrivacyOperations)
     end)
+    
+    -- Start the privacy operations cycle
+    spawn(schedulePrivacyOperations)
     
     print("🔄 Privacy operations started")
 end

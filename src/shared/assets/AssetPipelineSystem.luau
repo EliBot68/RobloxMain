@@ -881,12 +881,34 @@ end
 
 function AssetPipelineSystem.startPipelineProcessing()
     if PIPELINE_CONFIG.pipeline.enableAutomaticOptimization then
-        spawn(function()
-            while true do
-                AssetPipelineSystem.processPendingAssets()
-                task.wait(1)
+        -- Event-driven pipeline processing with adaptive intervals
+        local processingEvent = Instance.new("BindableEvent")
+        
+        local function scheduleProcessing()
+            local pendingCount = #(PipelineState.processingQueue or {})
+            local interval = 1 -- Base interval
+            
+            -- Adaptive interval based on queue size
+            if pendingCount > 50 then
+                interval = 0.5 -- Process more frequently with large queue
+            elseif pendingCount > 10 then
+                interval = 0.8 -- Slightly more frequent with medium queue
+            elseif pendingCount == 0 then
+                interval = 5 -- Much less frequent when queue is empty
             end
+            
+            task.spawn(function()
+                task.wait(interval)
+                processingEvent:Fire()
+            end)
+        end
+        
+        processingEvent.Event:Connect(function()
+            AssetPipelineSystem.processPendingAssets()
+            scheduleProcessing()
         end)
+        
+        scheduleProcessing()
     end
     
     print("🔄 Pipeline processing started")

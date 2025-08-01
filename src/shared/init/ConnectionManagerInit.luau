@@ -20,17 +20,24 @@ game:BindToClose(function()
 end)
 
 -- Set up periodic statistics reporting (optional)
-spawn(function()
-    while true do
-        wait(300) -- Every 5 minutes
-        
-        local stats = ConnectionManager:GetStatistics()
-        if stats.overview.totalConnections > 0 then
-            print("📊 Connection Stats: " .. stats.overview.totalConnections .. " active, " .. 
-                  stats.overview.memoryLeaksPreventend .. " leaks prevented")
-        end
+local statsReportingEvent = Instance.new("BindableEvent")
+
+local function scheduleStatsReporting()
+    wait(300) -- Every 5 minutes
+    statsReportingEvent:Fire()
+end
+
+statsReportingEvent.Event:Connect(function()
+    local stats = ConnectionManager:GetStatistics()
+    if stats.overview.totalConnections > 0 then
+        print("📊 Connection Stats: " .. stats.overview.totalConnections .. " active, " .. 
+              stats.overview.memoryLeaksPreventend .. " leaks prevented")
     end
+    spawn(scheduleStatsReporting)
 end)
+
+-- Start the statistics reporting cycle
+spawn(scheduleStatsReporting)
 
 -- Set up emergency cleanup trigger (optional - for debugging)
 local function setupEmergencyCleanup()

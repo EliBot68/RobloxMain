@@ -517,12 +517,21 @@ end
 -- ========================================
 
 function ServerSecurityValidator:InitializeRateLimiting()
-    spawn(function()
-        while true do
-            wait(60) -- Reset every minute
-            self:ResetRateLimits()
-        end
+    -- Event-driven rate limit reset system
+    local rateLimitResetEvent = Instance.new("BindableEvent")
+    
+    local function scheduleRateLimitReset()
+        wait(60) -- Reset every minute
+        rateLimitResetEvent:Fire()
+    end
+    
+    rateLimitResetEvent.Event:Connect(function()
+        self:ResetRateLimits()
+        spawn(scheduleRateLimitReset)
     end)
+    
+    -- Start the rate limit reset cycle
+    spawn(scheduleRateLimitReset)
 end
 
 function ServerSecurityValidator:CheckRateLimit(player, requestType)

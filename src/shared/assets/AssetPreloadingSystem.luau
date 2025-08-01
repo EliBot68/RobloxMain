@@ -985,16 +985,35 @@ end
 -- ========================================
 
 function AssetPreloadingSystem.startBackgroundProcessing()
-    spawn(function()
-        while true do
-            AssetPreloadingSystem.processPreloadQueues()
-            AssetPreloadingSystem.performCacheMaintenance()
-            AssetPreloadingSystem.updatePerformanceMetrics()
-            
-            task.wait(1)
+    -- Event-driven background processing with adaptive scheduling
+    local processingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleProcessing()
+        local queueSize = #(PreloadingState.preloadQueue or {})
+        local cacheSize = #(PreloadingState.cache or {})
+        local interval = 1
+        
+        -- Adaptive interval based on workload
+        if queueSize > 100 or cacheSize > 500 then
+            interval = 0.5 -- High workload
+        elseif queueSize == 0 and cacheSize < 50 then
+            interval = 5 -- Low workload
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            processingEvent:Fire()
+        end)
+    end
+    
+    processingEvent.Event:Connect(function()
+        AssetPreloadingSystem.processPreloadQueues()
+        AssetPreloadingSystem.performCacheMaintenance()
+        AssetPreloadingSystem.updatePerformanceMetrics()
+        scheduleProcessing()
     end)
     
+    scheduleProcessing()
     print("🔄 Background processing started")
 end
 

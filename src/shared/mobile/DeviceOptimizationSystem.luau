@@ -1092,22 +1092,29 @@ function DeviceOptimizationSystem.initializeAutoOptimization()
         end
     }
     
-    -- Start auto-optimization loop
-    spawn(function()
-        while true do
-            -- Event-driven optimization with smart scheduling
-            if OptimizationState.autoOptimizer.active then
-                OptimizationState.autoOptimizer:adaptToConditions()
-                
-                -- Adaptive interval based on system load
-                local systemLoad = OptimizationState.autoOptimizer:getCurrentLoad()
-                local waitTime = systemLoad > 0.8 and 10 or 5 -- Longer wait if high load
-                task.wait(waitTime)
-            else
-                task.wait(30) -- Much longer wait when not active
-            end
+    -- Event-driven auto-optimization system
+    local autoOptimizationEvent = Instance.new("BindableEvent")
+    
+    local function scheduleAutoOptimization()
+        if OptimizationState.autoOptimizer.active then
+            OptimizationState.autoOptimizer:adaptToConditions()
+            
+            -- Adaptive interval based on system load
+            local systemLoad = OptimizationState.autoOptimizer:getCurrentLoad()
+            local waitTime = systemLoad > 0.8 and 10 or 5 -- Longer wait if high load
+            task.wait(waitTime)
+        else
+            task.wait(30) -- Much longer wait when not active
         end
+        autoOptimizationEvent:Fire()
+    end
+    
+    autoOptimizationEvent.Event:Connect(function()
+        spawn(scheduleAutoOptimization)
     end)
+    
+    -- Start the auto-optimization cycle
+    spawn(scheduleAutoOptimization)
     
     print("🤖 Auto-optimization initialized")
 end

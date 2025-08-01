@@ -313,21 +313,40 @@ function AdminLifecyclePanel:SetupRemoteEvents()
 end
 
 function AdminLifecyclePanel:StartStatusUpdates()
-    spawn(function()
-        while true do
-            self:UpdateStatus()
-            wait(2) -- Update every 2 seconds
-        end
+    -- Create BindableEvents for adaptive status updates
+    local statusUpdateEvent = Instance.new("BindableEvent")
+    local playerListUpdateEvent = Instance.new("BindableEvent")
+    
+    -- Adaptive status update system
+    local function scheduleStatusUpdate()
+        local interval = isVisible and 1.5 or 3.0 -- More frequent when panel is open
+        wait(interval)
+        statusUpdateEvent:Fire()
+    end
+    
+    statusUpdateEvent.Event:Connect(function()
+        self:UpdateStatus()
+        spawn(scheduleStatusUpdate)
     end)
     
-    spawn(function()
-        while true do
-            if isVisible then
-                self:UpdatePlayerList()
-            end
-            wait(5) -- Update player list every 5 seconds
+    -- Adaptive player list update system
+    local function schedulePlayerListUpdate()
+        local playerCount = #Players:GetPlayers()
+        local interval = isVisible and (playerCount > 10 and 3 or 5) or 10 -- Adaptive based on visibility and player count
+        wait(interval)
+        playerListUpdateEvent:Fire()
+    end
+    
+    playerListUpdateEvent.Event:Connect(function()
+        if isVisible then
+            self:UpdatePlayerList()
         end
+        spawn(schedulePlayerListUpdate)
     end)
+    
+    -- Start the update cycles
+    spawn(scheduleStatusUpdate)
+    spawn(schedulePlayerListUpdate)
 end
 
 function AdminLifecyclePanel:TogglePanel()

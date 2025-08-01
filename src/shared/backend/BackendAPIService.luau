@@ -255,24 +255,32 @@ function BackendAPIService.initializeRateLimiting()
         APIState.rateLimitResets[serviceName] = tick() + limits.window
     end
     
-    -- Start rate limit reset timer with smart scheduling
-    spawn(function()
-        while true do
-            BackendAPIService.resetRateLimitCounters()
-            
-            -- Adaptive scheduling: check more frequently if there's active rate limiting
-            local hasActiveRateLimits = false
-            for serviceName, resetTime in pairs(APIState.rateLimitResets) do
-                if resetTime > tick() then
-                    hasActiveRateLimits = true
-                    break
-                end
+    -- Event-driven rate limit reset system
+    local rateLimitResetEvent = Instance.new("BindableEvent")
+    
+    local function scheduleRateLimitReset()
+        BackendAPIService.resetRateLimitCounters()
+        
+        -- Adaptive scheduling: check more frequently if there's active rate limiting
+        local hasActiveRateLimits = false
+        for serviceName, resetTime in pairs(APIState.rateLimitResets) do
+            if resetTime > tick() then
+                hasActiveRateLimits = true
+                break
             end
-            
-            local waitTime = hasActiveRateLimits and 30 or 120 -- More frequent when rate limits are active
-            task.wait(waitTime)
         end
+        
+        local waitTime = hasActiveRateLimits and 30 or 120 -- More frequent when rate limits are active
+        task.wait(waitTime)
+        rateLimitResetEvent:Fire()
+    end
+    
+    rateLimitResetEvent.Event:Connect(function()
+        spawn(scheduleRateLimitReset)
     end)
+    
+    -- Start the rate limit reset cycle
+    spawn(scheduleRateLimitReset)
     
     print("⏱️ Rate limiting initialized")
 end
@@ -709,24 +717,32 @@ function BackendAPIService.setupHealthMonitoring()
         APIState.lastHealthCheck[serviceName] = 0
     end
     
-    -- Start health check routine with adaptive intervals
-    spawn(function()
-        while true do
-            BackendAPIService.performHealthChecks()
-            
-            -- Adaptive scheduling: check more frequently if any service is unhealthy
-            local hasUnhealthyServices = false
-            for serviceName, status in pairs(APIState.healthStatus) do
-                if status ~= "healthy" and status ~= "unknown" then
-                    hasUnhealthyServices = true
-                    break
-                end
+    -- Event-driven health check system
+    local healthCheckEvent = Instance.new("BindableEvent")
+    
+    local function scheduleHealthCheck()
+        BackendAPIService.performHealthChecks()
+        
+        -- Adaptive scheduling: check more frequently if any service is unhealthy
+        local hasUnhealthyServices = false
+        for serviceName, status in pairs(APIState.healthStatus) do
+            if status ~= "healthy" and status ~= "unknown" then
+                hasUnhealthyServices = true
+                break
             end
-            
-            local waitTime = hasUnhealthyServices and 30 or 120 -- More frequent checks when services are down
-            task.wait(waitTime)
         end
+        
+        local waitTime = hasUnhealthyServices and 30 or 120 -- More frequent checks when services are down
+        task.wait(waitTime)
+        healthCheckEvent:Fire()
+    end
+    
+    healthCheckEvent.Event:Connect(function()
+        spawn(scheduleHealthCheck)
     end)
+    
+    -- Start the health check cycle
+    spawn(scheduleHealthCheck)
     
     print("🔍 Health monitoring started")
 end
@@ -795,17 +811,25 @@ function BackendAPIService.initializeRequestTracking()
         APIState.stats.requestsByEndpoint[serviceName] = 0
     end
     
-    -- Start statistics cleanup routine with adaptive scheduling
-    spawn(function()
-        while true do
-            BackendAPIService.cleanupOldRequests()
-            
-            -- Adaptive scheduling: clean more frequently if there are many requests
-            local totalRequests = APIState.stats.totalRequests
-            local waitTime = totalRequests > 10000 and 1800 or 7200 -- 30 min vs 2 hours
-            task.wait(waitTime)
-        end
+    -- Event-driven statistics cleanup system
+    local statsCleanupEvent = Instance.new("BindableEvent")
+    
+    local function scheduleStatsCleanup()
+        BackendAPIService.cleanupOldRequests()
+        
+        -- Adaptive scheduling: clean more frequently if there are many requests
+        local totalRequests = APIState.stats.totalRequests
+        local waitTime = totalRequests > 10000 and 1800 or 7200 -- 30 min vs 2 hours
+        task.wait(waitTime)
+        statsCleanupEvent:Fire()
+    end
+    
+    statsCleanupEvent.Event:Connect(function()
+        spawn(scheduleStatsCleanup)
     end)
+    
+    -- Start the statistics cleanup cycle
+    spawn(scheduleStatsCleanup)
     
     print("📊 Request tracking initialized")
 end

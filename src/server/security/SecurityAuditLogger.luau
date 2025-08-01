@@ -728,40 +728,90 @@ end
 -- ========================================
 
 function SecurityAuditLogger:InitializeBatchProcessing()
-    spawn(function()
-        while true do
-            wait(AUDIT_CONFIG.batchInterval)
-            if #self.logBuffer > 0 then
-                self:FlushLogBuffer()
-            end
-            if #self.complianceBuffer > 0 then
-                self:FlushComplianceBuffer()
-            end
-            if #self.alertQueue > 0 then
-                self:ProcessAlertQueue()
-            end
+    -- Event-driven batch processing with adaptive intervals
+    local batchEvent = Instance.new("BindableEvent")
+    
+    local function scheduleBatchProcessing()
+        local bufferActivity = #self.logBuffer + #self.complianceBuffer + #self.alertQueue
+        local interval = AUDIT_CONFIG.batchInterval
+        
+        -- Adaptive interval based on buffer activity
+        if bufferActivity > 100 then
+            interval = interval * 0.5 -- Process more frequently with high activity
+        elseif bufferActivity == 0 then
+            interval = interval * 3 -- Process less frequently when idle
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            batchEvent:Fire()
+        end)
+    end
+    
+    batchEvent.Event:Connect(function()
+        if #self.logBuffer > 0 then
+            self:FlushLogBuffer()
+        end
+        if #self.complianceBuffer > 0 then
+            self:FlushComplianceBuffer()
+        end
+        if #self.alertQueue > 0 then
+            self:ProcessAlertQueue()
+        end
+        scheduleBatchProcessing()
     end)
+    
+    scheduleBatchProcessing()
 end
 
 function SecurityAuditLogger:InitializeRetentionPolicy()
-    spawn(function()
-        while true do
-            wait(86400) -- Daily cleanup
-            self:ApplyRetentionPolicy()
-        end
+    -- Event-driven retention policy with smart scheduling
+    local retentionEvent = Instance.new("BindableEvent")
+    
+    local function scheduleRetention()
+        task.spawn(function()
+            task.wait(86400) -- Daily cleanup
+            retentionEvent:Fire()
+        end)
+    end
+    
+    retentionEvent.Event:Connect(function()
+        self:ApplyRetentionPolicy()
+        scheduleRetention()
     end)
+    
+    scheduleRetention()
 end
 
 function SecurityAuditLogger:InitializeComplianceReporting()
-    spawn(function()
-        while true do
-            wait(3600) -- Hourly compliance buffer flush
-            if #self.complianceBuffer > 0 then
-                self:FlushComplianceBuffer()
-            end
+    -- Event-driven compliance reporting with adaptive scheduling
+    local complianceEvent = Instance.new("BindableEvent")
+    
+    local function scheduleCompliance()
+        local bufferSize = #self.complianceBuffer
+        local interval = 3600 -- Base hourly interval
+        
+        -- More frequent flushing when buffer is large
+        if bufferSize > 50 then
+            interval = 1800 -- 30 minutes
+        elseif bufferSize == 0 then
+            interval = 7200 -- 2 hours
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            complianceEvent:Fire()
+        end)
+    end
+    
+    complianceEvent.Event:Connect(function()
+        if #self.complianceBuffer > 0 then
+            self:FlushComplianceBuffer()
+        end
+        scheduleCompliance()
     end)
+    
+    scheduleCompliance()
 end
 
 function SecurityAuditLogger:FlushComplianceBuffer()

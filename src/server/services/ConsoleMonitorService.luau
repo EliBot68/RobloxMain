@@ -275,9 +275,29 @@ local function startRealTimeMonitoring()
 	spawn(function()
 		local interval = DeveloperConfig.SETTINGS.MONITORING_INTERVAL
 		
-		while true do
-			wait(interval)
+		-- Event-driven monitoring with adaptive intervals
+		local monitorEvent = Instance.new("BindableEvent")
+		
+		local function scheduleMonitoring()
+			local queueSize = ContentProvider.RequestQueueSize
+			local adaptiveInterval = interval
 			
+			-- Adaptive monitoring based on system stress
+			if queueSize > 50 then
+				adaptiveInterval = interval * 0.3 -- Monitor very frequently during high load
+			elseif queueSize > 20 then
+				adaptiveInterval = interval * 0.7 -- Monitor more frequently during medium load
+			elseif queueSize < 5 then
+				adaptiveInterval = interval * 2 -- Monitor less frequently during low load
+			end
+			
+			task.spawn(function()
+				task.wait(adaptiveInterval)
+				monitorEvent:Fire()
+			end)
+		end
+		
+		monitorEvent.Event:Connect(function()
 			-- Check ContentProvider queue
 			local queueSize = ContentProvider.RequestQueueSize
 			if queueSize > 20 then
@@ -327,7 +347,13 @@ local function startRealTimeMonitoring()
 					end
 				end
 			end
-		end
+			
+			-- Schedule next monitoring cycle
+			scheduleMonitoring()
+		end)
+		
+		-- Start monitoring
+		scheduleMonitoring()
 	end)
 end
 

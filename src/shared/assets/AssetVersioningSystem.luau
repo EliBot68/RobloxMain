@@ -834,15 +834,30 @@ end
 -- ========================================
 
 function AssetVersioningSystem.startPerformanceMonitoring()
-    spawn(function()
-        while true do
-            AssetVersioningSystem.updatePerformanceMetrics()
-            AssetVersioningSystem.processDownloadQueue()
-            AssetVersioningSystem.processDistributionQueue()
-            
-            task.wait(1)
-        end
+    -- Event-driven performance monitoring system
+    local performanceMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function schedulePerformanceMonitoring()
+        AssetVersioningSystem.updatePerformanceMetrics()
+        AssetVersioningSystem.processDownloadQueue()
+        AssetVersioningSystem.processDistributionQueue()
+        
+        -- Adaptive interval based on queue sizes
+        local downloadQueueSize = #VersioningState.downloadQueue
+        local distributionQueueSize = #VersioningState.distributionQueue
+        local totalQueueSize = downloadQueueSize + distributionQueueSize
+        
+        local interval = totalQueueSize > 50 and 0.5 or (totalQueueSize > 10 and 0.8 or 1.2)
+        task.wait(interval)
+        performanceMonitoringEvent:Fire()
+    end
+    
+    performanceMonitoringEvent.Event:Connect(function()
+        spawn(schedulePerformanceMonitoring)
     end)
+    
+    -- Start the performance monitoring cycle
+    spawn(schedulePerformanceMonitoring)
     
     print("📊 Performance monitoring started")
 end
@@ -905,12 +920,31 @@ function AssetVersioningSystem.processDistributionQueue()
 end
 
 function AssetVersioningSystem.startCDNHealthMonitoring()
-    spawn(function()
-        while true do
-            AssetVersioningSystem.checkCDNHealth()
-            task.wait(30) -- Check every 30 seconds
+    -- Event-driven CDN health monitoring system
+    local cdnHealthEvent = Instance.new("BindableEvent")
+    
+    local function scheduleCDNHealthCheck()
+        AssetVersioningSystem.checkCDNHealth()
+        
+        -- Adaptive interval based on CDN health status
+        local unhealthyCount = 0
+        for _, endpoint in ipairs(VersioningState.cdnEndpoints) do
+            if not endpoint.healthy then
+                unhealthyCount = unhealthyCount + 1
+            end
         end
+        
+        local interval = unhealthyCount > 0 and 15 or 30 -- More frequent checks if CDN issues
+        task.wait(interval)
+        cdnHealthEvent:Fire()
+    end
+    
+    cdnHealthEvent.Event:Connect(function()
+        spawn(scheduleCDNHealthCheck)
     end)
+    
+    -- Start the CDN health monitoring cycle
+    spawn(scheduleCDNHealthCheck)
 end
 
 function AssetVersioningSystem.checkCDNHealth()

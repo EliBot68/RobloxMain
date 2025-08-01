@@ -541,11 +541,21 @@ function PuzzleService:ScheduleWeeklyReset()
         wait(secondsUntilReset)
         self:PerformWeeklyReset()
         
-        -- Schedule recurring resets
-        while true do
+        -- Event-driven recurring reset system
+        local weeklyResetEvent = Instance.new("BindableEvent")
+        
+        local function scheduleWeeklyReset()
             wait(WEEK_DURATION)
-            self:PerformWeeklyReset()
+            weeklyResetEvent:Fire()
         end
+        
+        weeklyResetEvent.Event:Connect(function()
+            self:PerformWeeklyReset()
+            spawn(scheduleWeeklyReset)
+        end)
+        
+        -- Start the weekly reset cycle
+        spawn(scheduleWeeklyReset)
     end)
 end
 

@@ -194,16 +194,25 @@ function RecordingSessionManager:SetupCharacterRecording(player, character)
 end
 
 function RecordingSessionManager:StartMomentDetection()
-    -- Monitor game state for optimal recording moments
-    spawn(function()
-        while true do
-            wait(1) -- Check every second
-            
-            self:DetectPerfectStreakMoments()
-            self:DetectMultiplayerMoments()
-            self:DetectDramaticMoments()
-        end
+    -- Event-driven optimal recording moment detection
+    local momentDetectionEvent = Instance.new("BindableEvent")
+    
+    local function scheduleMomentDetection()
+        wait(1) -- Check every second
+        
+        self:DetectPerfectStreakMoments()
+        self:DetectMultiplayerMoments()
+        self:DetectDramaticMoments()
+        
+        momentDetectionEvent:Fire()
+    end
+    
+    momentDetectionEvent.Event:Connect(function()
+        spawn(scheduleMomentDetection)
     end)
+    
+    -- Start the moment detection cycle
+    spawn(scheduleMomentDetection)
 end
 
 function RecordingSessionManager:DetectPerfectStreakMoments()

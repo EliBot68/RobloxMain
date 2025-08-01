@@ -1050,13 +1050,21 @@ function AccessibilityNotificationSystem.initializeInAppNotifications()
         initialize = function(self)
             self:createContainer()
             
-            -- Start notification processing
-            spawn(function()
-                while true do
-                    self:processQueue()
-                    task.wait(0.1)
-                end
+            -- Event-driven notification processing
+            local notificationProcessingEvent = Instance.new("BindableEvent")
+            
+            local function scheduleNotificationProcessing()
+                self:processQueue()
+                task.wait(0.1)
+                notificationProcessingEvent:Fire()
+            end
+            
+            notificationProcessingEvent.Event:Connect(function()
+                spawn(scheduleNotificationProcessing)
             end)
+            
+            -- Start the notification processing cycle
+            spawn(scheduleNotificationProcessing)
             
             print("📲 In-app notifications initialized")
         end,
@@ -1235,19 +1243,31 @@ function AccessibilityNotificationSystem.initializeBackgroundProcessing()
         end,
         
         startScheduler = function(self)
-            self.scheduler = spawn(function()
-                while true do
-                    self:checkTasks()
-                    
-                    -- Adaptive scheduling: longer waits when no active tasks
-                    local activeTasks = 0
-                    for _, task in pairs(self.tasks) do
-                        if task.running then
-                            activeTasks = activeTasks + 1
-                        end
+            -- Event-driven scheduler system
+            local schedulerEvent = Instance.new("BindableEvent")
+            
+            local function scheduleTaskCheck()
+                self:checkTasks()
+                
+                -- Adaptive scheduling: longer waits when no active tasks
+                local activeTasks = 0
+                for _, task in pairs(self.tasks) do
+                    if task.running then
+                        activeTasks = activeTasks + 1
                     end
-                    
-                    local waitTime = activeTasks > 0 and 10 or 60 -- More frequent when tasks are active
+                end
+                
+                local waitTime = activeTasks > 0 and 10 or 60 -- More frequent when tasks are active
+                task.wait(waitTime)
+                schedulerEvent:Fire()
+            end
+            
+            schedulerEvent.Event:Connect(function()
+                spawn(scheduleTaskCheck)
+            end)
+            
+            self.scheduler = spawn(scheduleTaskCheck)
+        end,
                     task.wait(waitTime)
                 end
             end)

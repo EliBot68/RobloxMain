@@ -481,13 +481,23 @@ function RebirthController:Init()
         wait(2) -- Wait for other systems to load
         self:CreateRebirthGUI()
         
-        -- Update info periodically
-        spawn(function()
-            while true do
-                wait(5)
-                self:UpdateRebirthInfo()
-            end
+        -- Event-driven rebirth info updates
+        local rebirthUpdateEvent = Instance.new("BindableEvent")
+        
+        local function scheduleRebirthUpdate()
+            -- Adaptive interval: check more frequently if player is close to rebirth threshold
+            local interval = currentRebirthInfo and currentRebirthInfo.canRebirth and 3 or 8
+            wait(interval)
+            rebirthUpdateEvent:Fire()
+        end
+        
+        rebirthUpdateEvent.Event:Connect(function()
+            self:UpdateRebirthInfo()
+            spawn(scheduleRebirthUpdate)
         end)
+        
+        -- Start the update cycle
+        spawn(scheduleRebirthUpdate)
     end)
 end
 

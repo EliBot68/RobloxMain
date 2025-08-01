@@ -959,15 +959,28 @@ end
 -- ========================================
 
 function AssetValidationSystem.startBackgroundProcessing()
-    spawn(function()
-        while true do
-            AssetValidationSystem.processValidationQueue()
-            AssetValidationSystem.updateValidationMetrics()
-            AssetValidationSystem.performMaintenanceTasks()
-            
-            task.wait(1)
-        end
+    -- Event-driven validation processing system
+    local validationProcessingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleValidationProcessing()
+        AssetValidationSystem.processValidationQueue()
+        AssetValidationSystem.updateValidationMetrics()
+        AssetValidationSystem.performMaintenanceTasks()
+        
+        -- Adaptive interval based on queue size and system load
+        local queueSize = #ValidationState.validationQueue
+        local interval = queueSize > 20 and 0.5 or (queueSize > 5 and 0.8 or 1.2)
+        
+        task.wait(interval)
+        validationProcessingEvent:Fire()
+    end
+    
+    validationProcessingEvent.Event:Connect(function()
+        spawn(scheduleValidationProcessing)
     end)
+    
+    -- Start the validation processing cycle
+    spawn(scheduleValidationProcessing)
     
     print("🔄 Background validation processing started")
 end

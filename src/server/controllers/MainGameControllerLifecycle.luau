@@ -69,20 +69,38 @@ function MainGameController:CleanupFinishedGames()
 end
 
 function MainGameController:SetupGameLoopMonitoring()
-    -- Monitor active game sessions
-    spawn(function()
-        while true do
-            wait(5) -- Check every 5 seconds
-            
-            if self.activeSessions then
-                for sessionId, session in pairs(self.activeSessions) do
-                    -- Monitor session health
-                    if not self:IsSessionHealthy(session) then
-                        warn("⚠️ Unhealthy session detected: " .. sessionId)
-                        self:AttemptSessionRecovery(session)
-                    end
+    -- Event-driven session monitoring
+    local sessionMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleSessionMonitoring()
+        local sessionCount = 0
+        if self.activeSessions then
+            for _ in pairs(self.activeSessions) do
+                sessionCount = sessionCount + 1
+            end
+        end
+        
+        -- Adaptive interval based on active sessions (2-8 seconds)
+        local interval = sessionCount > 10 and 2 or (sessionCount > 3 and 3 or 5)
+        wait(interval)
+        sessionMonitoringEvent:Fire()
+    end
+    
+    sessionMonitoringEvent.Event:Connect(function()
+        if self.activeSessions then
+            for sessionId, session in pairs(self.activeSessions) do
+                -- Monitor session health
+                if not self:IsSessionHealthy(session) then
+                    warn("⚠️ Unhealthy session detected: " .. sessionId)
+                    self:AttemptSessionRecovery(session)
                 end
             end
+        end
+        spawn(scheduleSessionMonitoring)
+    end)
+    
+    -- Start the session monitoring cycle
+    spawn(scheduleSessionMonitoring)
         end
     end)
 end
