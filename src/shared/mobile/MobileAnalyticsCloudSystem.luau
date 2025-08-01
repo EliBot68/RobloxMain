@@ -13,6 +13,7 @@ local TeleportService = game:GetService("TeleportService")
 local MarketplaceService = game:GetService("MarketplaceService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 local MobileAnalyticsCloudSystem = {}
 
@@ -30,7 +31,7 @@ local ANALYTICS_CONFIG = {
         events = {
             session = {
                 start = true,
-                end = true,
+                stop = true,
                 duration = true,
                 backgrounding = true,
                 foregrounding = true
