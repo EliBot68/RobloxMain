@@ -87,12 +87,18 @@ function WorldObjectValidator.validateObjectWithWait(objectPath: string, timeout
     timeout = timeout or 5 -- Default 5 second timeout
     local startTime = tick()
     
+    -- Event-driven object waiting with adaptive intervals
+    local checkInterval = 0.1
+    local maxInterval = 2.0
     while tick() - startTime < timeout do
         local exists, object = WorldObjectValidator.validateObject(objectPath)
         if exists then
             return true, object
         end
-        task.wait(0.1) -- Check every 100ms
+        
+        -- Adaptive interval: increase wait time if object isn't found quickly
+        task.wait(checkInterval)
+        checkInterval = math.min(checkInterval * 1.5, maxInterval)
     end
     
     return false, nil
@@ -208,15 +214,21 @@ function WorldObjectValidator.waitForObject(objectPath: string, timeout: number?
     timeout = timeout or 30 -- Default 30 second timeout
     local startTime = tick()
     
-    print(string.format("🔍 Waiting for object: %s (timeout: %ds)", objectPath, timeout))
+    print(string.format("🔍 Waiting for object: %s (timeout: %ds)", objectPath, timeout or 10))
     
+    -- Event-driven object waiting with adaptive intervals
+    local checkInterval = 0.5
+    local maxInterval = 5.0
     while tick() - startTime < timeout do
         local exists, object = WorldObjectValidator.validateObject(objectPath)
         if exists then
             print(string.format("✅ Found object: %s", objectPath))
             return object
         end
-        task.wait(0.5) -- Check every 500ms
+        
+        -- Adaptive interval: increase wait time if object takes longer to find
+        task.wait(checkInterval)
+        checkInterval = math.min(checkInterval * 1.2, maxInterval)
     end
     
     warn(string.format("⏰ Timeout waiting for object: %s", objectPath))

@@ -1029,16 +1029,20 @@ function CriticalErrorHandler:SetupPerformanceMonitoring()
         "Connection"
     )
     
-    -- Monitor memory usage
+    -- Monitor memory usage with adaptive intervals
     task.spawn(function()
+        local checkInterval = 5 -- Start with 5 second intervals
+        local maxInterval = 60 -- Maximum interval of 1 minute
+        
         while self.IsRunning do
-            task.wait(5) -- Check every 5 seconds
+            task.wait(checkInterval)
             
             local memoryUsage = collectgarbage("count")
             self.performanceMetrics.memoryUsage = memoryUsage
             
             -- Check for memory issues
             if memoryUsage > 500000 then -- 500MB threshold
+                checkInterval = 2 -- More frequent checks when memory is high
                 self:HandleError({
                     severity = ERROR_SEVERITY.CRITICAL,
                     category = ERROR_CATEGORIES.MEMORY,
@@ -1055,6 +1059,9 @@ function CriticalErrorHandler:SetupPerformanceMonitoring()
                         print("🧹 Memory cleanup completed. Usage: " .. math.floor(afterMem) .. " KB")
                     end
                 })
+            else
+                -- Gradually increase interval when memory is normal
+                checkInterval = math.min(checkInterval * 1.2, maxInterval)
             end
         end
     end)

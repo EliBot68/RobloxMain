@@ -280,10 +280,17 @@ function EventDrivenObjectValidator.benchmarkValidation(objectPath, iterations)
     local pollingStartTime = tick()
     for i = 1, iterations do
         local startTime = tick()
-        while tick() - startTime < 0.5 do -- Simulate 500ms timeout
-            local exists = EventDrivenObjectValidator.validateObject(objectPath)
-            if exists then break end
-            task.wait(0.1) -- Polling delay
+        -- Event-driven simulation: immediate check with smart fallback
+        local exists = EventDrivenObjectValidator.validateObject(objectPath)
+        if not exists then
+            -- Only wait if object doesn't exist, with adaptive delay
+            local checkInterval = 0.1
+            while tick() - startTime < 0.5 do
+                exists = EventDrivenObjectValidator.validateObject(objectPath)
+                if exists then break end
+                task.wait(checkInterval)
+                checkInterval = math.min(checkInterval * 1.5, 0.3) -- Adaptive polling reduction
+            end
         end
     end
     local pollingTime = tick() - pollingStartTime

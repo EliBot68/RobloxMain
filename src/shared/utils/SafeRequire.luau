@@ -190,14 +190,19 @@ function SafeRequire.requireWithTimeout(modulePath, timeout, fallback)
         task.cancel(timeoutThread)
     end)
     
-    -- Enhanced waiting loop with progress reporting
+    -- Enhanced waiting loop with adaptive intervals and progress reporting
     local progressTime = startTime
+    local checkInterval = 0.1
+    local maxInterval = 1.0
+    
     while not completed and not timeoutReached do
-        task.wait(0.1)
+        task.wait(checkInterval)
         
         -- Progress reporting every 2 seconds for long loads
         if tick() - progressTime > 2 then
             progressTime = tick()
+            -- Increase interval as time goes on (longer waits for slower loads)
+            checkInterval = math.min(checkInterval * 1.2, maxInterval)
             local elapsed = tick() - startTime
             if elapsed > 3 then -- Only report for loads taking longer than 3 seconds
                 print(string.format("[SafeRequire] Still loading %s... (%.1fs elapsed)", modulePathStr, elapsed))
@@ -347,9 +352,14 @@ function SafeRequire.requireBatch(moduleList, fallbackMap, options)
         
         startNext()
         
-        -- Wait for completion
+        -- Wait for completion with adaptive intervals
+        local waitInterval = 0.1
+        local maxWaitInterval = 0.5
+        
         while completedCount < totalCount do
-            task.wait(0.1)
+            task.wait(waitInterval)
+            -- Gradually increase wait interval if processing is taking time
+            waitInterval = math.min(waitInterval * 1.1, maxWaitInterval)
         end
     else
         -- Sequential processing for dependency-sensitive modules

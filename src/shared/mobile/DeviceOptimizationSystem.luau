@@ -1081,16 +1081,31 @@ function DeviceOptimizationSystem.initializeAutoOptimization()
             else
                 self:switchToProfile("balanced")
             end
+        end,
+        
+        getCurrentLoad = function(self)
+            local performance = OptimizationState.performance
+            -- Calculate system load based on frame rate and memory usage
+            local frameLoad = math.max(0, (60 - performance.frameRate) / 60)
+            local memoryLoad = performance.memoryUsage / 100
+            return math.max(frameLoad, memoryLoad)
         end
     }
     
     -- Start auto-optimization loop
     spawn(function()
         while true do
+            -- Event-driven optimization with smart scheduling
             if OptimizationState.autoOptimizer.active then
                 OptimizationState.autoOptimizer:adaptToConditions()
+                
+                -- Adaptive interval based on system load
+                local systemLoad = OptimizationState.autoOptimizer:getCurrentLoad()
+                local waitTime = systemLoad > 0.8 and 10 or 5 -- Longer wait if high load
+                task.wait(waitTime)
+            else
+                task.wait(30) -- Much longer wait when not active
             end
-            task.wait(5) -- Check every 5 seconds
         end
     end)
     

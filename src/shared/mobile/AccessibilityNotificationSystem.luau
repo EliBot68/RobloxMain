@@ -1238,7 +1238,17 @@ function AccessibilityNotificationSystem.initializeBackgroundProcessing()
             self.scheduler = spawn(function()
                 while true do
                     self:checkTasks()
-                    task.wait(30) -- Check every 30 seconds
+                    
+                    -- Adaptive scheduling: longer waits when no active tasks
+                    local activeTasks = 0
+                    for _, task in pairs(self.tasks) do
+                        if task.running then
+                            activeTasks = activeTasks + 1
+                        end
+                    end
+                    
+                    local waitTime = activeTasks > 0 and 10 or 60 -- More frequent when tasks are active
+                    task.wait(waitTime)
                 end
             end)
         end,
