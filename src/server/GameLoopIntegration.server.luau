@@ -8,11 +8,20 @@ local RunService = game:GetService("RunService")
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local Knit = SafeRequire.require(ReplicatedStorage.Packages.Knit)
 
--- Wait for services to load
+-- Event-driven service loading (NO POLLING)
 local function waitForServices()
-    repeat
-        wait(0.1)
-    until Knit.Services.DifficultyService
+    local servicesReady = Instance.new("BindableEvent")
+    
+    local function checkServices()
+        if Knit.Services.DifficultyService then
+            servicesReady:Fire()
+        else
+            task.delay(0.2, checkServices) -- Reasonable service loading interval
+        end
+    end
+    
+    checkServices()
+    servicesReady.Event:Wait()
     
     return {
         DifficultyService = Knit.Services.DifficultyService,

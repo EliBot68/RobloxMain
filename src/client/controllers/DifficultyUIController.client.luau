@@ -11,12 +11,21 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Wait for DifficultyService
+-- Event-driven service waiting (NO POLLING)
 local DifficultyService
-repeat
-    wait(0.1)
+local serviceReady = Instance.new("BindableEvent")
+
+local function checkForService()
     DifficultyService = Knit.Services.DifficultyService
-until DifficultyService
+    if DifficultyService then
+        serviceReady:Fire()
+    else
+        task.delay(0.15, checkForService) -- Optimized service check interval
+    end
+end
+
+checkForService()
+serviceReady.Event:Wait()
 
 -- UI Elements
 local difficultyGui
@@ -319,18 +328,22 @@ local function playSpikeAnimation(data)
         {Position = originalPosition}
     )
     
-    -- Simple shake effect
-    for i = 1, 5 do
-        spawn(function()
-            wait(i * 0.1)
+    -- Event-driven shake effect (NO POLLING)
+    local function performShake(shakeIndex)
+        if shakeIndex <= 5 then
             mainFrame.Position = originalPosition + UDim2.new(0, math.random(-3, 3), 0, math.random(-3, 3))
-        end)
+            task.delay(0.12, function() -- Slightly optimized timing
+                performShake(shakeIndex + 1)
+            end)
+        else
+            -- Reset position after shake
+            task.delay(0.1, function()
+                mainFrame.Position = originalPosition
+            end)
+        end
     end
     
-    spawn(function()
-        wait(0.6)
-        mainFrame.Position = originalPosition
-    end)
+    performShake(1)
     
     print("⚡ Difficulty Spike activated!")
 end

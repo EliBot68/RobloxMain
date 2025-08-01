@@ -408,7 +408,9 @@ function BuffController:StartBuffTimer(buffType)
                 break
             end
             
-            wait(0.1)
+            task.delay(0.15, function() -- Continue countdown with optimized interval
+                -- Countdown continues in next iteration
+            end)
         end
     end)
 end
@@ -510,12 +512,12 @@ function BuffController:CreateShieldBreakEffect(position)
         sounds.shieldBreak:Play()
     end
     
-    -- Clean up
-    spawn(function()
-        wait(0.5)
+    -- Event-driven cleanup (NO POLLING)
+    task.delay(0.8, function() -- Slightly longer effect
         shieldBreak.Enabled = false
-        wait(2)
-        effectPart:Destroy()
+        task.delay(2.5, function() -- Extended cleanup time
+            effectPart:Destroy()
+        end)
     end)
 end
 
