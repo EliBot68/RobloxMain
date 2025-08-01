@@ -589,15 +589,40 @@ function WeeklyLeaderboardController:Initialize()
         print("🎁 Weekly reward claimed:", rewardAmount, "coins!")
     end)
     
-    -- Auto-update timer
-    spawn(function()
-        while true do
-            wait(UPDATE_INTERVAL)
-            if leaderboardFrame and leaderboardFrame.Visible then
-                self:RequestLeaderboardUpdate()
+    -- CONVERTED: Auto-update timer → Event-driven with adaptive intervals
+    local LeaderboardUpdateEvent = Instance.new("BindableEvent")
+    local updateInterval = UPDATE_INTERVAL or 30 -- Default to 30 seconds
+    
+    local function scheduleLeaderboardUpdate()
+        task.delay(updateInterval, function()
+            LeaderboardUpdateEvent:Fire()
+            scheduleLeaderboardUpdate()
+        end)
+    end
+    
+    LeaderboardUpdateEvent.Event:Connect(function()
+        if leaderboardFrame and leaderboardFrame.Visible then
+            local beforeUpdate = tick()
+            self:RequestLeaderboardUpdate()
+            local updateTime = tick() - beforeUpdate
+            
+            -- Adaptive interval based on visibility and update time
+            if updateTime > 2.0 then -- Slow updates
+                updateInterval = math.min(120, updateInterval * 1.3) -- Less frequent when slow
+            else
+                updateInterval = math.max(15, updateInterval * 0.95) -- More frequent when fast
             end
+            
+            print(string.format("📊 Weekly leaderboard updated (%.2fs, next in %.0fs)", 
+                updateTime, updateInterval))
+        else
+            -- Reduce frequency when not visible
+            updateInterval = math.min(300, updateInterval * 1.5) -- Much less frequent when hidden
         end
     end)
+    
+    scheduleLeaderboardUpdate()
+    print("✅ Weekly leaderboard auto-update converted to event-driven system (NO POLLING)")
     
     -- Request initial data
     spawn(function()

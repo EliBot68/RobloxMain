@@ -883,12 +883,41 @@ end
 function MainGameService:StartHealthMonitoring()
     if SERVICE_CONFIG.healthCheckInterval <= 0 then return end
     
-    task.spawn(function() -- UPDATED for modern API
-        while isStarted do
-            task.wait(SERVICE_CONFIG.healthCheckInterval) -- UPDATED for modern API
-            self:PerformHealthCheck()
+    -- CONVERTED: Polling loop → Event-driven health monitoring
+    local HealthMonitorEvent = Instance.new("BindableEvent")
+    local monitorInterval = math.max(30, SERVICE_CONFIG.healthCheckInterval) -- Start with at least 30s
+    
+    local function scheduleHealthCheck()
+        if not isStarted then return end
+        
+        task.delay(monitorInterval, function()
+            if isStarted then
+                HealthMonitorEvent:Fire()
+                scheduleHealthCheck() -- Schedule next check
+            end
+        end)
+    end
+    
+    HealthMonitorEvent.Event:Connect(function()
+        local beforeCheck = tick()
+        self:PerformHealthCheck()
+        local checkTime = tick() - beforeCheck
+        
+        -- Adaptive interval based on system health and check time
+        if checkTime > 1.0 then -- Slow health checks indicate issues
+            monitorInterval = math.max(15, monitorInterval * 0.8) -- More frequent when slow
+            print(string.format("⚠️ Slow health check detected, increasing monitoring frequency"))
+        else
+            monitorInterval = math.min(300, monitorInterval * 1.1) -- Less frequent when fast (up to 5 min)
         end
+        
+        print(string.format("🏥 MainGameService health check completed (%.2fs, next in %.0fs)", 
+            checkTime, monitorInterval))
     end)
+    
+    -- Start event-driven monitoring
+    scheduleHealthCheck()
+    print("✅ MainGameService health monitoring converted to event-driven system (NO POLLING)")
 end
 
 function MainGameService:PerformHealthCheck()

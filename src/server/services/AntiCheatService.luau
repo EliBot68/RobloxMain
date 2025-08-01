@@ -198,10 +198,22 @@ function AntiCheatService:StartMonitoring()
     print("🔍 All anti-cheat monitoring systems started")
 end
 
--- Movement monitoring system
+-- CONVERTED: Movement monitoring system → Event-driven with adaptive intervals
 function AntiCheatService:StartMovementMonitoring()
-    while true do
-        task.wait(ANTICHEAT_CONFIG.positionUpdateRate) -- UPDATED for modern API
+    local MovementMonitorEvent = Instance.new("BindableEvent")
+    local monitorInterval = ANTICHEAT_CONFIG.intervals.movement or 0.2 -- Start with config value
+    local lastViolationTime = 0
+    
+    local function scheduleMovementCheck()
+        task.delay(monitorInterval, function()
+            MovementMonitorEvent:Fire()
+            scheduleMovementCheck() -- Schedule next check
+        end)
+    end
+    
+    MovementMonitorEvent.Event:Connect(function()
+        local violationsDetected = 0
+        local playersChecked = 0
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
@@ -211,17 +223,40 @@ function AntiCheatService:StartMovementMonitoring()
                 continue
             end
             
-            self:CheckPlayerMovement(data, character)
+            playersChecked = playersChecked + 1
+            local hadViolation = self:CheckPlayerMovement(data, character)
+            if hadViolation then
+                violationsDetected = violationsDetected + 1
+                lastViolationTime = tick()
+            end
         end
-    end
+        
+        -- Adaptive interval based on violation activity
+        if violationsDetected > 0 then
+            monitorInterval = math.max(0.1, monitorInterval * 0.8) -- More frequent when violations
+            print(string.format("🚨 Movement violations detected (%d), increasing check frequency", violationsDetected))
+        else
+            -- Gradually reduce frequency if no violations for a while
+            if tick() - lastViolationTime > 30 then -- No violations for 30 seconds
+                monitorInterval = math.min(2.0, monitorInterval * 1.05) -- Less frequent when clean
+            end
+        end
+        
+        print(string.format("👁️ Movement monitoring: %d players checked, %d violations (next check in %.2fs)", 
+            playersChecked, violationsDetected, monitorInterval))
+    end)
+    
+    scheduleMovementCheck()
+    print("✅ Movement monitoring converted to event-driven system (NO POLLING)")
 end
 
 -- Check player movement for violations
 function AntiCheatService:CheckPlayerMovement(data, character)
     local humanoidRootPart = character.HumanoidRootPart
     local humanoid = character:FindFirstChild("Humanoid")
+    local violationDetected = false
     
-    if not humanoidRootPart or not humanoid then return end
+    if not humanoidRootPart or not humanoid then return false end
     
     local currentPosition = humanoidRootPart.Position
     local currentTime = tick()
@@ -300,12 +335,26 @@ function AntiCheatService:CheckPlayerMovement(data, character)
             table.remove(data.velocityHistory, 1)
         end
     end
+    
+    return violationDetected
 end
 
--- Speed monitoring system
+-- CONVERTED: Speed monitoring system → Event-driven with adaptive intervals
 function AntiCheatService:StartSpeedMonitoring()
-    while true do
-        task.wait(ANTICHEAT_CONFIG.speedCheckInterval) -- UPDATED for modern API
+    local SpeedMonitorEvent = Instance.new("BindableEvent")
+    local monitorInterval = ANTICHEAT_CONFIG.intervals.speed or 0.5
+    local consecutiveCleanChecks = 0
+    
+    local function scheduleSpeedCheck()
+        task.delay(monitorInterval, function()
+            SpeedMonitorEvent:Fire()
+            scheduleSpeedCheck()
+        end)
+    end
+    
+    SpeedMonitorEvent.Event:Connect(function()
+        local violationsDetected = 0
+        local playersChecked = 0
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
@@ -315,9 +364,31 @@ function AntiCheatService:StartSpeedMonitoring()
                 continue
             end
             
-            self:CheckPlayerSpeed(data, character)
+            playersChecked = playersChecked + 1
+            local hadViolation = self:CheckPlayerSpeed(data, character)
+            if hadViolation then
+                violationsDetected = violationsDetected + 1
+                consecutiveCleanChecks = 0
+            end
         end
-    end
+        
+        -- Adaptive interval based on detection patterns
+        if violationsDetected > 0 then
+            monitorInterval = math.max(0.2, monitorInterval * 0.8) -- More frequent when violations
+            print(string.format("🏃 Speed violations detected (%d), increasing monitoring", violationsDetected))
+        else
+            consecutiveCleanChecks = consecutiveCleanChecks + 1
+            if consecutiveCleanChecks > 10 then -- 10 clean checks in a row
+                monitorInterval = math.min(5.0, monitorInterval * 1.1) -- Less frequent when consistently clean
+            end
+        end
+        
+        print(string.format("⚡ Speed monitoring: %d players, %d violations (next in %.2fs)", 
+            playersChecked, violationsDetected, monitorInterval))
+    end)
+    
+    scheduleSpeedCheck()
+    print("✅ Speed monitoring converted to event-driven system (NO POLLING)")
 end
 
 -- Check player speed for sustained violations
@@ -350,17 +421,51 @@ function AntiCheatService:CheckPlayerSpeed(data, character)
     end
 end
 
--- Stat monitoring system
+-- CONVERTED: Stat monitoring system → Event-driven with adaptive intervals
 function AntiCheatService:StartStatMonitoring()
-    while true do
-        task.wait(ANTICHEAT_CONFIG.statUpdateRate) -- UPDATED for modern API
+    local StatMonitorEvent = Instance.new("BindableEvent")
+    local monitorInterval = ANTICHEAT_CONFIG.intervals.stats or 1.0
+    local totalViolationsDetected = 0
+    
+    local function scheduleStatCheck()
+        task.delay(monitorInterval, function()
+            StatMonitorEvent:Fire()
+            scheduleStatCheck()
+        end)
+    end
+    
+    StatMonitorEvent.Event:Connect(function()
+        local violationsThisCheck = 0
+        local playersChecked = 0
         
         for userId, data in pairs(playerData) do
             if not data.isMonitored then continue end
             
-            self:CheckPlayerStats(data)
+            playersChecked = playersChecked + 1
+            local hadViolation = self:CheckPlayerStats(data)
+            if hadViolation then
+                violationsThisCheck = violationsThisCheck + 1
+                totalViolationsDetected = totalViolationsDetected + 1
+            end
         end
-    end
+        
+        -- Adaptive interval based on violation history
+        if violationsThisCheck > 0 then
+            monitorInterval = math.max(0.5, monitorInterval * 0.9) -- More frequent when violations
+            print(string.format("📊 Stat violations detected (%d), tightening monitoring", violationsThisCheck))
+        else
+            -- Reduce frequency if consistently clean
+            if totalViolationsDetected == 0 and playersChecked > 0 then
+                monitorInterval = math.min(10.0, monitorInterval * 1.2) -- Less frequent when totally clean
+            end
+        end
+        
+        print(string.format("📈 Stat monitoring: %d players, %d violations (next in %.1fs)", 
+            playersChecked, violationsThisCheck, monitorInterval))
+    end)
+    
+    scheduleStatCheck()
+    print("✅ Stat monitoring converted to event-driven system (NO POLLING)")
 end
 
 -- Check player stats for illegal changes

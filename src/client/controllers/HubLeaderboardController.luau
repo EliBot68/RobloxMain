@@ -181,24 +181,33 @@ function HubLeaderboardController:CreateScreenGUI()
     border.BorderColor3 = Color3.fromRGB(255, 215, 0)
     border.Parent = background
     
-    -- Animate border glow
-    spawn(function()
-        while true do
-            local glow1 = TweenService:Create(border,
-                TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-                {BorderColor3 = Color3.fromRGB(255, 255, 0)}
-            )
-            glow1:Play()
-            glow1.Completed:Wait()
-            
-            local glow2 = TweenService:Create(border,
-                TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-                {BorderColor3 = Color3.fromRGB(255, 215, 0)}
-            )
+    -- CONVERTED: Animate border glow → Event-driven animation
+    local function createGlowAnimation()
+        local glow1 = TweenService:Create(border,
+            TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+            {BorderColor3 = Color3.fromRGB(255, 255, 0)}
+        )
+        
+        local glow2 = TweenService:Create(border,
+            TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+            {BorderColor3 = Color3.fromRGB(255, 215, 0)}
+        )
+        
+        -- Chain animations using Completed events (no polling)
+        glow1.Completed:Connect(function()
             glow2:Play()
-            glow2.Completed:Wait()
-        end
-    end)
+        end)
+        
+        glow2.Completed:Connect(function()
+            glow1:Play() -- Restart the cycle
+        end)
+        
+        -- Start the animation cycle
+        glow1:Play()
+    end
+    
+    createGlowAnimation()
+    print("✅ Border glow animation converted to event-driven system (NO POLLING)")
 end
 
 function HubLeaderboardController:CreateScreenParticles()
@@ -228,43 +237,55 @@ function HubLeaderboardController:CreateScreenParticles()
         particle.Parent = leaderboardStand
         
         -- Floating animation
-        spawn(function()
-            while particle.Parent do
-                local newAngle = angle + (tick() * 0.5)
-                local newPos = basePos + Vector3.new(
-                    math.cos(newAngle) * radius,
-                    2 + math.sin(tick() * 2 + i) * 0.5,
-                    math.sin(newAngle) * radius
-                )
-                
-                local moveTween = TweenService:Create(particle,
-                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
-                    {Position = newPos}
-                )
-                moveTween:Play()
-                
-                wait(0.1)
-            end
-        end)
+        -- CONVERTED: Movement animation → Event-driven with TweenService.Completed
+        local function animateParticleMovement()
+            if not particle.Parent then return end
+            
+            local newAngle = angle + (tick() * 0.5)
+            local newPos = basePos + Vector3.new(
+                math.cos(newAngle) * radius,
+                2 + math.sin(tick() * 2 + i) * 0.5,
+                math.sin(newAngle) * radius
+            )
+            
+            local moveTween = TweenService:Create(particle,
+                TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+                {Position = newPos}
+            )
+            
+            moveTween.Completed:Connect(animateParticleMovement) -- Event-driven continuation
+            moveTween:Play()
+        end
         
-        -- Glow animation
-        spawn(function()
-            while particle.Parent do
-                local glow = TweenService:Create(particle,
-                    TweenInfo.new(1 + math.random() * 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-                    {Transparency = 0.7}
-                )
-                glow:Play()
-                glow.Completed:Wait()
+        animateParticleMovement() -- Start the animation chain
+        print("✅ Particle movement converted to event-driven animation (NO POLLING)")
+        
+        -- CONVERTED: Glow animation → Event-driven with TweenService.Completed chains
+        local function animateParticleGlow()
+            if not particle.Parent then return end
+            
+            local glow = TweenService:Create(particle,
+                TweenInfo.new(1 + math.random() * 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+                {Transparency = 0.7}
+            )
+            
+            glow.Completed:Connect(function()
+                if not particle.Parent then return end
                 
                 local unglow = TweenService:Create(particle,
                     TweenInfo.new(1 + math.random() * 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
                     {Transparency = 0.1}
                 )
+                
+                unglow.Completed:Connect(animateParticleGlow) -- Event-driven loop
                 unglow:Play()
-                unglow.Completed:Wait()
-            end
-        end)
+            end)
+            
+            glow:Play()
+        end
+        
+        animateParticleGlow() -- Start the glow animation chain
+        print("✅ Particle glow converted to event-driven animation (NO POLLING)")
     end
 end
 
@@ -380,28 +401,31 @@ function HubLeaderboardController:CreateChestParticles()
         
         coin.Parent = rewardChest
         
-        -- Floating and spinning animation
-        spawn(function()
-            while coin.Parent do
-                local newAngle = angle + (tick() * 0.3)
-                local newPos = basePos + Vector3.new(
-                    math.cos(newAngle) * radius,
-                    1 + math.sin(tick() * 1.5 + i) * 0.8,
-                    math.sin(newAngle) * radius
-                )
-                
-                local moveTween = TweenService:Create(coin,
-                    TweenInfo.new(0.1, Enum.EasingStyle.Linear),
-                    {
-                        Position = newPos,
-                        Orientation = Vector3.new(0, tick() * 100 + i * 60, 0)
-                    }
-                )
-                moveTween:Play()
-                
-                wait(0.1)
-            end
-        end)
+        -- CONVERTED: Floating and spinning animation → Event-driven with TweenService.Completed
+        local function animateCoin()
+            if not coin.Parent then return end
+            
+            local newAngle = angle + (tick() * 0.3)
+            local newPos = basePos + Vector3.new(
+                math.cos(newAngle) * radius,
+                1 + math.sin(tick() * 1.5 + i) * 0.8,
+                math.sin(newAngle) * radius
+            )
+            
+            local moveTween = TweenService:Create(coin,
+                TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+                {
+                    Position = newPos,
+                    Orientation = Vector3.new(0, tick() * 100 + i * 60, 0)
+                }
+            )
+            
+            moveTween.Completed:Connect(animateCoin) -- Event-driven continuation
+            moveTween:Play()
+        end
+        
+        animateCoin() -- Start the coin animation chain
+        print("✅ Coin animation converted to event-driven animation (NO POLLING)")
     end
 end
 

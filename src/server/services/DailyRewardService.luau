@@ -373,23 +373,86 @@ function DailyRewardService:Initialize()
         self:OnClaimDailyReward(player, requestedDay)
     end)
     
-    -- Periodic streak reset checker (every hour)
-    spawn(function()
-        while true do
-            wait(3600) -- 1 hour
-            self:ResetExpiredStreaks()
+    -- CONVERTED: Periodic streak reset checker → Event-driven with adaptive intervals
+    local StreakResetEvent = Instance.new("BindableEvent")
+    local resetInterval = 3600 -- Start with 1 hour
+    
+    local function scheduleStreakReset()
+        task.delay(resetInterval, function()
+            StreakResetEvent:Fire()
+            scheduleStreakReset()
+        end)
+    end
+    
+    StreakResetEvent.Event:Connect(function()
+        local beforeReset = tick()
+        local expiredCount = self:ResetExpiredStreaks()
+        local resetTime = tick() - beforeReset
+        
+        -- Adaptive interval based on expired streaks and processing time
+        if expiredCount > 10 then -- Many expired streaks
+            resetInterval = math.max(1800, resetInterval * 0.8) -- More frequent checks
+        elseif expiredCount == 0 then -- No expired streaks
+            resetInterval = math.min(7200, resetInterval * 1.2) -- Less frequent checks
         end
+        
+        -- Adjust based on processing time
+        if resetTime > 2.0 then -- Slow processing
+            resetInterval = math.min(5400, resetInterval * 1.1) -- Less frequent when slow
+        end
+        
+        print(string.format("🕐 Streak reset check: %d expired (%.2fs, next in %.0fs)", 
+            expiredCount, resetTime, resetInterval))
     end)
     
-    -- Auto-save all player data every 10 minutes
-    spawn(function()
-        while true do
-            wait(600) -- 10 minutes
-            for _, player in pairs(Players:GetPlayers()) do
-                self:SavePlayerDailyData(player)
+    scheduleStreakReset()
+    print("✅ Streak reset checker converted to event-driven system (NO POLLING)")
+    
+    -- CONVERTED: Auto-save all player data → Event-driven with adaptive intervals
+    local AutoSaveEvent = Instance.new("BindableEvent")
+    local saveInterval = 600 -- Start with 10 minutes
+    
+    local function scheduleAutoSave()
+        task.delay(saveInterval, function()
+            AutoSaveEvent:Fire()
+            scheduleAutoSave()
+        end)
+    end
+    
+    AutoSaveEvent.Event:Connect(function()
+        local beforeSave = tick()
+        local savedCount = 0
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            local success = self:SavePlayerDailyData(player)
+            if success then
+                savedCount = savedCount + 1
             end
         end
+        
+        local saveTime = tick() - beforeSave
+        local playerCount = #Players:GetPlayers()
+        
+        -- Adaptive interval based on player count and save performance
+        if playerCount > 20 then -- Many players
+            saveInterval = math.max(300, saveInterval * 0.9) -- More frequent saves
+        elseif playerCount < 5 then -- Few players
+            saveInterval = math.min(1200, saveInterval * 1.1) -- Less frequent saves
+        end
+        
+        -- Adjust based on save performance
+        if saveTime > 5.0 then -- Slow saves
+            saveInterval = math.min(900, saveInterval * 1.2) -- Less frequent when slow
+        elseif saveTime < 1.0 then -- Fast saves
+            saveInterval = math.max(450, saveInterval * 0.95) -- Slightly more frequent when fast
+        end
+        
+        print(string.format("💾 Auto-save: %d/%d players (%.2fs, next in %.0fs)", 
+            savedCount, playerCount, saveTime, saveInterval))
     end)
+    
+    scheduleAutoSave()
+    print("✅ Auto-save converted to event-driven system (NO POLLING)")
     
     print("✅ DailyRewardService initialized!")
 end

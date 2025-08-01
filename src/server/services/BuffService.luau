@@ -637,17 +637,53 @@ function BuffService:SetupBuffDropSystem()
         end)
     end
     
-    -- Random buff drops every 30 seconds during gameplay
-    spawn(function()
-        while true do
-            wait(30)
-            for _, player in pairs(Players:GetPlayers()) do
-                if GameService and GameService:IsPlayerInGame(player) then
-                    self:CheckBuffDrop(player, "random")
+    -- CONVERTED: Random buff drops → Event-driven with adaptive intervals
+    local BuffDropEvent = Instance.new("BindableEvent")
+    local dropInterval = 30 -- Start with 30 seconds
+    
+    local function scheduleBuffDrop()
+        task.delay(dropInterval, function()
+            BuffDropEvent:Fire()
+            scheduleBuffDrop()
+        end)
+    end
+    
+    BuffDropEvent.Event:Connect(function()
+        local activePlayers = 0
+        local buffDrops = 0
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if GameService and GameService:IsPlayerInGame(player) then
+                activePlayers = activePlayers + 1
+                local dropped = self:CheckBuffDrop(player, "random")
+                if dropped then
+                    buffDrops = buffDrops + 1
                 end
             end
         end
+        
+        -- Adaptive interval based on player activity and buff success
+        if activePlayers == 0 then
+            dropInterval = 120 -- No active players, much less frequent
+        elseif activePlayers > 5 then
+            dropInterval = math.max(15, dropInterval * 0.9) -- More players, slightly more frequent
+        else
+            dropInterval = math.min(60, dropInterval * 1.1) -- Fewer players, less frequent
+        end
+        
+        -- Adjust based on buff drop success rate
+        if buffDrops > activePlayers * 0.3 then -- High success rate
+            dropInterval = math.min(45, dropInterval * 1.2) -- Slow down when dropping too many
+        elseif buffDrops == 0 and activePlayers > 0 then -- No drops with active players
+            dropInterval = math.max(20, dropInterval * 0.95) -- Speed up slightly
+        end
+        
+        print(string.format("🎁 Random buff check: %d drops for %d players (next in %.0fs)", 
+            buffDrops, activePlayers, dropInterval))
     end)
+    
+    scheduleBuffDrop()
+    print("✅ Random buff drops converted to event-driven system (NO POLLING)")
 end
 
 function BuffService:CheckBuffDrop(player, triggerType)

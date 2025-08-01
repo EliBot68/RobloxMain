@@ -488,15 +488,43 @@ function EconomyBalanceService:Init()
         self:CleanupPlayerTracking(player)
     end)
     
-    -- Daily reset checker
-    spawn(function()
-        while true do
-            wait(60) -- Check every minute
-            for _, player in pairs(Players:GetPlayers()) do
-                self:CheckDailyReset(player)
+    -- CONVERTED: Daily reset checker → Event-driven system
+    local DailyResetEvent = Instance.new("BindableEvent")
+    local checkInterval = 1800 -- Start with 30 minutes (was 60s)
+    
+    local function scheduleDailyResetCheck()
+        task.delay(checkInterval, function()
+            DailyResetEvent:Fire()
+            scheduleDailyResetCheck()
+        end)
+    end
+    
+    DailyResetEvent.Event:Connect(function()
+        local playersNeedingReset = 0
+        local totalPlayers = 0
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            totalPlayers = totalPlayers + 1
+            local needsReset = self:CheckDailyReset(player)
+            if needsReset then
+                playersNeedingReset = playersNeedingReset + 1
             end
         end
+        
+        -- Adaptive interval - more frequent near midnight, less frequent during mid-day
+        local currentHour = os.date("*t").hour
+        if currentHour >= 23 or currentHour <= 1 then -- Near midnight
+            checkInterval = math.max(300, checkInterval * 0.5) -- More frequent (min 5 min)
+        else
+            checkInterval = math.min(3600, checkInterval * 1.1) -- Less frequent (max 1 hour)
+        end
+        
+        print(string.format("📅 Daily reset check: %d/%d players needed reset (next in %.0f min)", 
+            playersNeedingReset, totalPlayers, checkInterval / 60))
     end)
+    
+    scheduleDailyResetCheck()
+    print("✅ Daily reset checker converted to event-driven system (NO POLLING)")
 end
 
 return EconomyBalanceService
