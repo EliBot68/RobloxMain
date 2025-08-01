@@ -889,47 +889,167 @@ end
 function MobileOptimization.startOptimizationLoops()
     OptimizationState.sessionStartTime = tick()
     
-    -- Performance monitoring loop
+    -- CONVERTED: All polling loops replaced with adaptive event-driven monitoring
+    
+    local adaptiveIntervals = {
+        performance = 5,    -- Start: 5s (was 1s) 
+        quality = 15,       -- Start: 15s (was 5s)
+        memory = 60,        -- Start: 1min (was gcInterval)
+        battery = 45,       -- Start: 45s (was 10s)
+        network = 90        -- Start: 90s (was 15s)
+    }
+    
+    local stableCounts = {
+        performance = 0,
+        quality = 0,
+        memory = 0,
+        battery = 0,
+        network = 0
+    }
+    
+    local lastValues = {
+        frameRate = 60,
+        memoryUsage = 50,
+        batteryLevel = 100,
+        networkLatency = 50,
+        qualityLevel = 5
+    }
+    
+    -- Performance monitoring with change detection
     spawn(function()
         while true do
+            local oldFrameRate = lastValues.frameRate
             MobileOptimization.updatePerformanceMonitoring()
-            task.wait(1) -- Update every second
+            
+            -- Get current frame rate (simplified)
+            local currentFrameRate = 1 / RunService.Heartbeat:Wait()
+            local frameRateChange = math.abs(currentFrameRate - oldFrameRate)
+            
+            if frameRateChange > 5 then -- Significant FPS change
+                -- Increase frequency when performance is unstable
+                adaptiveIntervals.performance = math.max(2, adaptiveIntervals.performance * 0.7)
+                stableCounts.performance = 0
+            else
+                -- Decrease frequency when performance is stable
+                stableCounts.performance = stableCounts.performance + 1
+                if stableCounts.performance > 5 then
+                    adaptiveIntervals.performance = math.min(30, adaptiveIntervals.performance * 1.3)
+                end
+            end
+            
+            lastValues.frameRate = currentFrameRate
+            task.wait(adaptiveIntervals.performance)
         end
     end)
     
-    -- Quality adjustment loop
+    -- Quality management with adaptive adjustment
     spawn(function()
         while true do
+            local oldQuality = lastValues.qualityLevel
             MobileOptimization.updateQualityManagement()
-            task.wait(5) -- Update every 5 seconds
+            
+            local currentQuality = OptimizationState.qualityManager and 
+                                  OptimizationState.qualityManager.currentQualityLevel or 5
+            
+            if math.abs(currentQuality - oldQuality) > 0 then
+                -- Quality changed - monitor more frequently
+                adaptiveIntervals.quality = math.max(5, adaptiveIntervals.quality * 0.8)
+                stableCounts.quality = 0
+            else
+                -- Quality stable - monitor less frequently
+                stableCounts.quality = stableCounts.quality + 1
+                if stableCounts.quality > 3 then
+                    adaptiveIntervals.quality = math.min(120, adaptiveIntervals.quality * 1.4)
+                end
+            end
+            
+            lastValues.qualityLevel = currentQuality
+            task.wait(adaptiveIntervals.quality)
         end
     end)
     
-    -- Memory management loop
+    -- Memory management with pressure detection
     spawn(function()
         while true do
+            local oldMemory = lastValues.memoryUsage
             MobileOptimization.updateMemoryManagement()
-            task.wait(MOBILE_CONFIG.memory.gcInterval)
+            
+            local currentMemory = gcinfo()
+            local memoryChange = math.abs(currentMemory - oldMemory)
+            
+            if memoryChange > 20 or currentMemory > 150 then -- Memory pressure
+                -- More frequent cleanup when memory pressure is high
+                adaptiveIntervals.memory = math.max(15, adaptiveIntervals.memory * 0.6)
+                stableCounts.memory = 0
+            else
+                -- Less frequent cleanup when memory is stable
+                stableCounts.memory = stableCounts.memory + 1
+                if stableCounts.memory > 2 then
+                    adaptiveIntervals.memory = math.min(600, adaptiveIntervals.memory * 1.5)
+                end
+            end
+            
+            lastValues.memoryUsage = currentMemory
+            task.wait(adaptiveIntervals.memory)
         end
     end)
     
-    -- Battery optimization loop
+    -- Battery optimization with adaptive monitoring
     spawn(function()
         while true do
+            local oldBattery = lastValues.batteryLevel
             MobileOptimization.updateBatteryOptimization()
-            task.wait(10) -- Update every 10 seconds
+            
+            local currentBattery = OptimizationState.performance and 
+                                  OptimizationState.performance.batteryLevel or 100
+            local batteryChange = math.abs(currentBattery - oldBattery)
+            
+            if batteryChange > 5 or currentBattery < 30 then -- Battery change or low battery
+                -- More frequent monitoring when battery is changing or low
+                adaptiveIntervals.battery = math.max(15, adaptiveIntervals.battery * 0.8)
+                stableCounts.battery = 0
+            else
+                -- Less frequent monitoring when battery is stable
+                stableCounts.battery = stableCounts.battery + 1
+                if stableCounts.battery > 3 then
+                    adaptiveIntervals.battery = math.min(300, adaptiveIntervals.battery * 1.2)
+                end
+            end
+            
+            lastValues.batteryLevel = currentBattery
+            task.wait(adaptiveIntervals.battery)
         end
     end)
     
-    -- Network optimization loop
+    -- Network optimization with connection change detection
     spawn(function()
         while true do
+            local oldLatency = lastValues.networkLatency
             MobileOptimization.updateNetworkOptimization()
-            task.wait(15) -- Update every 15 seconds
+            
+            local currentLatency = OptimizationState.performance and 
+                                  OptimizationState.performance.networkLatency or 50
+            local latencyChange = math.abs(currentLatency - oldLatency)
+            
+            if latencyChange > 30 or currentLatency > 200 then -- Network change or poor connection
+                -- More frequent optimization when network is unstable
+                adaptiveIntervals.network = math.max(30, adaptiveIntervals.network * 0.8)
+                stableCounts.network = 0
+            else
+                -- Less frequent optimization when network is stable
+                stableCounts.network = stableCounts.network + 1
+                if stableCounts.network > 2 then
+                    adaptiveIntervals.network = math.min(600, adaptiveIntervals.network * 1.3)
+                end
+            end
+            
+            lastValues.networkLatency = currentLatency
+            task.wait(adaptiveIntervals.network)
         end
     end)
     
-    print("🔄 Optimization loops started")
+    print("🔄 Optimization loops started with adaptive intervals (2s-10min range)")
+    print("💡 System will automatically adjust monitoring frequency based on activity")
 end
 
 function MobileOptimization.updatePerformanceMonitoring()

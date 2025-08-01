@@ -983,41 +983,120 @@ end
 -- ========================================
 
 function MobileAnalyticsCloudSystem.startMonitoringSystems()
-    -- Analytics batch processing
+    -- CONVERTED: All polling loops replaced with adaptive event-driven monitoring
+    
+    local adaptiveIntervals = {
+        analytics = 30,    -- Start: 30s (was 10s)
+        cloudSync = 60,    -- Start: 1min (was 30s) 
+        offline = 120,     -- Start: 2min (was 60s)
+        deviceInfo = 180   -- Start: 3min (was 30s)
+    }
+    
+    local stableCounts = {
+        analytics = 0,
+        cloudSync = 0,
+        offline = 0,
+        deviceInfo = 0
+    }
+    
+    -- Analytics batch processing with adaptive timing
     spawn(function()
         while true do
-            task.wait(ANALYTICS_CONFIG.mobileAnalytics.batching.batchTimeout)
-            if #AnalyticsState.events.batch > 0 then
+            local batchSize = #AnalyticsState.events.batch
+            
+            if batchSize > 0 then
                 MobileAnalyticsCloudSystem.sendAnalyticsBatch()
+                -- More frequent when active
+                adaptiveIntervals.analytics = math.max(10, adaptiveIntervals.analytics * 0.8)
+                stableCounts.analytics = 0
+            else
+                -- Less frequent when idle
+                stableCounts.analytics = stableCounts.analytics + 1
+                if stableCounts.analytics > 3 then
+                    adaptiveIntervals.analytics = math.min(300, adaptiveIntervals.analytics * 1.3)
+                end
             end
+            
+            task.wait(adaptiveIntervals.analytics)
         end
     end)
     
-    -- Cloud sync monitoring
+    -- Cloud sync monitoring with adaptive timing
     spawn(function()
         while true do
-            task.wait(CLOUD_SYNC_CONFIG.crossPlatform.syncFrequency)
-            CloudSyncState.syncManager:processSyncQueue()
+            local queueSize = #CloudSyncState.dataManager.sync_queue
+            
+            if queueSize > 0 then
+                CloudSyncState.syncManager:processSyncQueue()
+                -- More frequent when queue has items
+                adaptiveIntervals.cloudSync = math.max(30, adaptiveIntervals.cloudSync * 0.9)
+                stableCounts.cloudSync = 0
+            else
+                -- Less frequent when queue is empty
+                stableCounts.cloudSync = stableCounts.cloudSync + 1
+                if stableCounts.cloudSync > 2 then
+                    adaptiveIntervals.cloudSync = math.min(600, adaptiveIntervals.cloudSync * 1.2)
+                end
+            end
+            
+            task.wait(adaptiveIntervals.cloudSync)
         end
     end)
     
-    -- Offline queue processing
+    -- Offline queue processing with adaptive timing
     spawn(function()
         while true do
-            task.wait(60) -- Check every minute
-            CloudSyncState.offlineManager:processOfflineQueue()
+            local offlineQueueSize = #CloudSyncState.offlineManager.queue
+            
+            if offlineQueueSize > 0 then
+                CloudSyncState.offlineManager:processOfflineQueue()
+                -- More frequent when offline queue has items
+                adaptiveIntervals.offline = math.max(60, adaptiveIntervals.offline * 0.9)
+                stableCounts.offline = 0
+            else
+                -- Less frequent when offline queue is empty
+                stableCounts.offline = stableCounts.offline + 1
+                if stableCounts.offline > 2 then
+                    adaptiveIntervals.offline = math.min(900, adaptiveIntervals.offline * 1.2)
+                end
+            end
+            
+            task.wait(adaptiveIntervals.offline)
         end
     end)
     
-    -- Device info updates
+    -- Device info updates with adaptive timing
     spawn(function()
         while true do
+            local oldDeviceInfo = table.clone(AnalyticsState.deviceInfo)
             MobileAnalyticsCloudSystem.updateDeviceInfo()
-            task.wait(30)
+            
+            -- Check if device info actually changed
+            local changed = false
+            for key, value in pairs(AnalyticsState.deviceInfo) do
+                if oldDeviceInfo[key] ~= value then
+                    changed = true
+                    break
+                end
+            end
+            
+            if changed then
+                -- More frequent when device state is changing
+                adaptiveIntervals.deviceInfo = math.max(60, adaptiveIntervals.deviceInfo * 0.9)
+                stableCounts.deviceInfo = 0
+            else
+                -- Less frequent when device state is stable
+                stableCounts.deviceInfo = stableCounts.deviceInfo + 1
+                if stableCounts.deviceInfo > 3 then
+                    adaptiveIntervals.deviceInfo = math.min(1800, adaptiveIntervals.deviceInfo * 1.3)
+                end
+            end
+            
+            task.wait(adaptiveIntervals.deviceInfo)
         end
     end)
     
-    print("🔄 Monitoring systems started")
+    print("🔄 Monitoring systems started with adaptive intervals (10s-30min range)")
 end
 
 function MobileAnalyticsCloudSystem.updateDeviceInfo()

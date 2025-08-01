@@ -989,17 +989,43 @@ end
 -- ========================================
 
 function RobuxIntegration.startMonitoringSystems()
+    -- CONVERTED: Replaced continuous polling with event-driven monitoring
+    local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager_Production)
+    
+    local monitoringInterval = 60 -- Start with 1 minute
+    local stableCount = 0
+    
+    local function performSystemUpdate()
+        RobuxIntegration.updateSystemHealth()
+        RobuxIntegration.cleanupOldData()
+        RobuxIntegration.generateAnalytics()
+        
+        -- Adaptive interval based on system activity
+        local hasActivity = TransactionState.stats.successfulTransactions > 0 or 
+                           TransactionState.stats.failedTransactions > 0
+        
+        if hasActivity then
+            -- More frequent checks when there's transaction activity
+            monitoringInterval = math.max(30, monitoringInterval * 0.9)
+            stableCount = 0
+        else
+            -- Less frequent checks when system is idle
+            stableCount = stableCount + 1
+            if stableCount > 3 then
+                monitoringInterval = math.min(300, monitoringInterval * 1.2) -- Max 5 minutes
+            end
+        end
+    end
+    
+    -- Start adaptive monitoring
     spawn(function()
         while true do
-            RobuxIntegration.updateSystemHealth()
-            RobuxIntegration.cleanupOldData()
-            RobuxIntegration.generateAnalytics()
-            
-            task.wait(60) -- Update every minute
+            performSystemUpdate()
+            task.wait(monitoringInterval) -- Adaptive interval (30s - 5min)
         end
     end)
     
-    print("📊 Monitoring systems started")
+    print("📊 Monitoring systems started with adaptive intervals")
 end
 
 function RobuxIntegration.updateSystemHealth()
