@@ -916,26 +916,48 @@ function PartyService:Init()
         self:LeaveParty(player)
     end)
     
-    -- Clean up expired invites periodically
-    task.spawn(function() -- UPDATED for modern API
-        while true do
-            task.wait(30) -- UPDATED for modern API - Check every 30 seconds
-            local currentTime = os.time()
-            
-            for userId, invites in pairs(partyInvites) do
-                for fromUserId, invite in pairs(invites) do
-                    if currentTime > invite.expires then
-                        invites[fromUserId] = nil
-                    end
-                end
-                
-                -- Clean up empty invite tables
-                if next(invites) == nil then
-                    partyInvites[userId] = nil
-                end
+    -- Event-driven invite cleanup with adaptive scheduling
+    local inviteCleanupEvent = Instance.new("BindableEvent")
+    
+    local function scheduleInviteCleanup()
+        local inviteCount = 0
+        for _, invites in pairs(partyInvites) do
+            for _ in pairs(invites) do
+                inviteCount = inviteCount + 1
             end
         end
+        
+        -- Adaptive interval: more frequent cleanup when there are many invites
+        local interval = inviteCount > 50 and 15 or 60 -- 15s vs 1 min
+        
+        task.spawn(function()
+            task.wait(interval)
+            inviteCleanupEvent:Fire()
+        end)
+    end
+    
+    inviteCleanupEvent.Event:Connect(function()
+        local currentTime = os.time()
+        
+        for userId, invites in pairs(partyInvites) do
+            for fromUserId, invite in pairs(invites) do
+                if currentTime > invite.expires then
+                    invites[fromUserId] = nil
+                end
+            end
+            
+            -- Clean up empty invite tables
+            if next(invites) == nil then
+                partyInvites[userId] = nil
+            end
+        end
+        
+        -- Schedule next cleanup
+        scheduleInviteCleanup()
     end)
+    
+    -- Start cleanup cycle
+    scheduleInviteCleanup()
     
     print("✅ Enhanced PartyService initialized with creative features!")
 end

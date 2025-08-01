@@ -570,18 +570,47 @@ function GhostService:Initialize()
         self:StartRaceAgainstGhost(player, ghostId)
     end)
     
-    -- Start position recording for active players
-    spawn(function()
-        while true do
-            for playerId, _ in pairs(activeRecordings) do
-                local player = Players:GetPlayerByUserId(playerId)
-                if player then
-                    self:RecordPosition(player)
-                end
+    -- Event-driven position recording with smart management
+    local recordingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextRecording()
+        local activeCount = 0
+        for _ in pairs(activeRecordings) do
+            activeCount = activeCount + 1
+        end
+        
+        -- Adaptive interval based on active recordings
+        local interval = GHOST_CONFIG.recordingInterval
+        if activeCount > 5 then
+            interval = interval * 1.5 -- Reduce frequency for many players
+        elseif activeCount == 0 then
+            interval = 5 -- Much longer wait when no one is recording
+        end
+        
+        task.spawn(function()
+            task.wait(interval)
+            recordingEvent:Fire()
+        end)
+    end
+    
+    recordingEvent.Event:Connect(function()
+        local recordedAny = false
+        for playerId, _ in pairs(activeRecordings) do
+            local player = Players:GetPlayerByUserId(playerId)
+            if player then
+                self:RecordPosition(player)
+                recordedAny = true
             end
-            wait(GHOST_CONFIG.recordingInterval)
+        end
+        
+        -- Only continue if there are active recordings
+        if recordedAny or next(activeRecordings) then
+            scheduleNextRecording()
         end
     end)
+    
+    -- Start recording cycle
+    scheduleNextRecording()
     
     print("✅ GhostService initialized successfully!")
 end

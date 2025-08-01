@@ -314,14 +314,34 @@ function AuditLogger:FlushBuffer()
 end
 
 function AuditLogger:StartAutoFlush()
-    task.spawn(function()
-        while true do
-            task.wait(AUDIT_CONFIG.flushInterval)
-            if #self.logBuffer > 0 then
-                self:FlushBuffer()
-            end
+    -- Event-driven auto-flush with adaptive intervals
+    local flushEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextFlush()
+        local bufferSize = #self.logBuffer
+        local interval = AUDIT_CONFIG.flushInterval
+        
+        -- Adaptive interval based on buffer size
+        if bufferSize > AUDIT_CONFIG.batchSize * 2 then
+            interval = interval * 0.5 -- Flush more frequently when buffer is large
+        elseif bufferSize == 0 then
+            interval = interval * 3 -- Flush less frequently when buffer is empty
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            flushEvent:Fire()
+        end)
+    end
+    
+    flushEvent.Event:Connect(function()
+        if #self.logBuffer > 0 then
+            self:FlushBuffer()
+        end
+        scheduleNextFlush()
     end)
+    
+    scheduleNextFlush()
     
     print("⏰ Auto-flush started (interval: " .. AUDIT_CONFIG.flushInterval .. "s)")
 end

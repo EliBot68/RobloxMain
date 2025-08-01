@@ -306,20 +306,41 @@ function CleanupService:PerformFullCleanup()
 end
 
 function CleanupService:StartPeriodicCleanup()
-    task.spawn(function() -- UPDATED for modern API
-        while true do
-            task.wait(OPTIMIZATION_CONFIG.cleanupInterval) -- UPDATED for modern API
-            
-            -- Perform regular cleanup
-            self:CleanupMemoryLeaks()
-            
-            -- Perform full cleanup every 10 cycles (50 minutes by default)
-            if tick() - lastFullCleanup > (OPTIMIZATION_CONFIG.cleanupInterval * 10) then
-                self:PerformFullCleanup()
-                lastFullCleanup = tick()
-            end
+    -- Event-driven cleanup with adaptive intervals
+    local cleanupEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextCleanup()
+        local interval = OPTIMIZATION_CONFIG.cleanupInterval
+        -- Adaptive scheduling based on memory usage
+        local memoryUsage = collectgarbage("count")
+        if memoryUsage > 200000 then -- High memory usage
+            interval = interval * 0.5 -- More frequent cleanup
+        elseif memoryUsage < 50000 then -- Low memory usage
+            interval = interval * 2 -- Less frequent cleanup
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            cleanupEvent:Fire()
+        end)
+    end
+    
+    cleanupEvent.Event:Connect(function()
+        -- Perform regular cleanup
+        self:CleanupMemoryLeaks()
+        
+        -- Perform full cleanup every 10 cycles (50 minutes by default)
+        if tick() - lastFullCleanup > (OPTIMIZATION_CONFIG.cleanupInterval * 10) then
+            self:PerformFullCleanup()
+            lastFullCleanup = tick()
+        end
+        
+        -- Schedule next cleanup
+        scheduleNextCleanup()
     end)
+    
+    -- Start the first cleanup cycle
+    scheduleNextCleanup()
     
     print("⏰ Enhanced periodic cleanup started (every " .. OPTIMIZATION_CONFIG.cleanupInterval .. " seconds)")
 end

@@ -650,16 +650,38 @@ end
 -- ========================================
 
 function AssetAnalyticsSystem.startAnalyticsProcessing()
-    spawn(function()
-        while true do
-            AssetAnalyticsSystem.processRealtimeAnalytics()
-            AssetAnalyticsSystem.processBatchAnalytics()
-            AssetAnalyticsSystem.processHistoricalAnalytics()
-            AssetAnalyticsSystem.updateInsights()
-            
-            task.wait(1)
+    -- Event-driven analytics processing with adaptive intervals
+    local processingEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextProcessing()
+        -- Adaptive interval based on workload
+        local eventBufferSize = #(AnalyticsState.events or {})
+        local interval = 1 -- Base interval
+        
+        if eventBufferSize > 1000 then
+            interval = 0.5 -- High activity - process more frequently
+        elseif eventBufferSize < 10 then
+            interval = 5 -- Low activity - process less frequently
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            processingEvent:Fire()
+        end)
+    end
+    
+    processingEvent.Event:Connect(function()
+        AssetAnalyticsSystem.processRealtimeAnalytics()
+        AssetAnalyticsSystem.processBatchAnalytics()
+        AssetAnalyticsSystem.processHistoricalAnalytics()
+        AssetAnalyticsSystem.updateInsights()
+        
+        -- Schedule next processing cycle
+        scheduleNextProcessing()
     end)
+    
+    -- Start processing
+    scheduleNextProcessing()
     
     print("🔄 Analytics processing started")
 end
@@ -881,16 +903,38 @@ function AssetAnalyticsSystem.setupReportingSystem()
 end
 
 function AssetAnalyticsSystem.startAutomaticReporting()
-    spawn(function()
-        while true do
-            -- Generate daily reports
-            if tick() % 86400 < 1 then -- Every 24 hours
-                AssetAnalyticsSystem.generateDailyReport()
-            end
-            
-            task.wait(3600) -- Check every hour
+    -- Event-driven reporting with smart scheduling
+    local reportingEvent = Instance.new("BindableEvent")
+    local lastDailyReport = 0
+    
+    local function scheduleNextReportCheck()
+        -- Check every hour but adapt based on activity
+        local currentTime = tick()
+        local timeSinceLastDaily = currentTime - lastDailyReport
+        
+        -- More frequent checks as we approach 24 hour mark
+        local interval = timeSinceLastDaily > 82800 and 600 or 3600 -- 10 min vs 1 hour
+        
+        task.spawn(function()
+            task.wait(interval)
+            reportingEvent:Fire()
+        end)
+    end
+    
+    reportingEvent.Event:Connect(function()
+        -- Generate daily reports
+        local currentTime = tick()
+        if currentTime - lastDailyReport >= 86400 then -- Every 24 hours
+            AssetAnalyticsSystem.generateDailyReport()
+            lastDailyReport = currentTime
         end
+        
+        -- Schedule next check
+        scheduleNextReportCheck()
     end)
+    
+    -- Start the reporting cycle
+    scheduleNextReportCheck()
 end
 
 function AssetAnalyticsSystem.generateDailyReport()
@@ -900,7 +944,7 @@ function AssetAnalyticsSystem.generateDailyReport()
         timestamp = tick(),
         period = {
             start = tick() - 86400,
-            end = tick()
+            endTime = tick()
         },
         summary = {},
         metrics = {},

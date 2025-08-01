@@ -816,12 +816,33 @@ function AssetPreloadingSystem.determineQualityLevel()
 end
 
 function AssetPreloadingSystem.startNetworkMonitoring()
-    spawn(function()
-        while true do
-            AssetPreloadingSystem.updateNetworkConditions()
-            task.wait(5) -- Update every 5 seconds
+    -- Event-driven network monitoring with adaptive intervals
+    local networkEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNetworkCheck()
+        -- Adaptive interval based on network stability
+        local conditions = PreloadingState.networkConditions
+        local interval = 5 -- Base interval
+        
+        if conditions and conditions.stability == "poor" then
+            interval = 2 -- Check more frequently on poor networks
+        elseif conditions and conditions.stability == "excellent" then
+            interval = 10 -- Check less frequently on stable networks
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            networkEvent:Fire()
+        end)
+    end
+    
+    networkEvent.Event:Connect(function()
+        AssetPreloadingSystem.updateNetworkConditions()
+        scheduleNetworkCheck()
     end)
+    
+    -- Start monitoring
+    scheduleNetworkCheck()
 end
 
 function AssetPreloadingSystem.updateNetworkConditions()
@@ -861,13 +882,34 @@ function AssetPreloadingSystem.initializePredictivePreloading()
 end
 
 function AssetPreloadingSystem.startBehaviorTracking()
-    spawn(function()
-        while true do
-            AssetPreloadingSystem.trackUserBehavior()
-            AssetPreloadingSystem.updatePredictions()
-            task.wait(10) -- Update every 10 seconds
+    -- Event-driven behavior tracking with adaptive intervals
+    local behaviorEvent = Instance.new("BindableEvent")
+    
+    local function scheduleBehaviorTracking()
+        -- Adaptive interval based on user activity
+        local recentActivity = PreloadingState.userBehavior and PreloadingState.userBehavior.recentActivity or 0
+        local interval = 10 -- Base interval
+        
+        if recentActivity > 50 then
+            interval = 5 -- High activity - track more frequently
+        elseif recentActivity < 10 then
+            interval = 30 -- Low activity - track less frequently
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            behaviorEvent:Fire()
+        end)
+    end
+    
+    behaviorEvent.Event:Connect(function()
+        AssetPreloadingSystem.trackUserBehavior()
+        AssetPreloadingSystem.updatePredictions()
+        scheduleBehaviorTracking()
     end)
+    
+    -- Start tracking
+    scheduleBehaviorTracking()
 end
 
 function AssetPreloadingSystem.trackUserBehavior()

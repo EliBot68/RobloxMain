@@ -339,22 +339,44 @@ function EnhancedQARunner.startContinuousMonitoring(interval)
     
     print(string.format("🔄 Starting continuous monitoring (every %d seconds)...", interval))
     
-    local function monitorLoop()
-        while true do
-            task.wait(interval)
-            
-            print("\n⏰ Scheduled Health Check")
-            local results = EnhancedQARunner.quickHealthCheck()
-            
-            -- Alert on critical issues
-            if results.status == "CRITICAL" then
-                print("🚨 CRITICAL ALERT: " .. table.concat(results.issues, ", "))
-                -- Could integrate with alerting system here
-            end
+    -- Event-driven monitoring with adaptive intervals
+    local monitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextCheck()
+        local adaptiveInterval = interval
+        
+        -- Get current system status to adapt interval
+        local quickCheck = EnhancedQARunner.quickHealthCheck()
+        if quickCheck.status == "CRITICAL" then
+            adaptiveInterval = interval * 0.5 -- Check more frequently for critical issues
+        elseif quickCheck.status == "HEALTHY" then
+            adaptiveInterval = interval * 2 -- Check less frequently when healthy
         end
+        
+        task.spawn(function()
+            task.wait(adaptiveInterval)
+            monitoringEvent:Fire()
+        end)
     end
     
-    return task.spawn(monitorLoop)
+    monitoringEvent.Event:Connect(function()
+        print("\n⏰ Scheduled Health Check")
+        local results = EnhancedQARunner.quickHealthCheck()
+        
+        -- Alert on critical issues
+        if results.status == "CRITICAL" then
+            print("🚨 CRITICAL ALERT: " .. table.concat(results.issues, ", "))
+            -- Could integrate with alerting system here
+        end
+        
+        -- Schedule next check
+        scheduleNextCheck()
+    end)
+    
+    -- Start monitoring
+    scheduleNextCheck()
+    
+    return monitoringEvent -- Return event for control
 end
 
 -- Export functions for backward compatibility with existing QA runner

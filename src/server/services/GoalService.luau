@@ -217,13 +217,35 @@ function GoalService:Init()
         end
     end)
     
-    -- Monitor goal progress every 5 seconds
-    spawn(function()
-        while true do
-            wait(5)
-            self:UpdateAllPlayerGoals()
+    -- Event-driven goal progress monitoring with adaptive intervals
+    local goalUpdateEvent = Instance.new("BindableEvent")
+    
+    local function scheduleGoalUpdate()
+        local activePlayerCount = 0
+        for _ in pairs(playerGoalProgress) do
+            activePlayerCount = activePlayerCount + 1
         end
+        
+        -- Adaptive interval based on active players
+        local interval = 5 -- Base 5 seconds
+        if activePlayerCount > 10 then
+            interval = 3 -- More frequent for many players
+        elseif activePlayerCount == 0 then
+            interval = 30 -- Much less frequent when no players
+        end
+        
+        task.spawn(function()
+            task.wait(interval)
+            goalUpdateEvent:Fire()
+        end)
+    end
+    
+    goalUpdateEvent.Event:Connect(function()
+        self:UpdateAllPlayerGoals()
+        scheduleGoalUpdate()
     end)
+    
+    scheduleGoalUpdate()
     
     print("🎯 GoalService initialized with " .. #PLAYER_GOALS .. " player goals")
 end

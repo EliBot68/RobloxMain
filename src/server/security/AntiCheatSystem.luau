@@ -479,20 +479,34 @@ function AntiCheatSystem:ProtectEnvironment()
         originalGlobals[k] = v
     end
     
-    spawn(function()
-        while true do
-            wait(1)
-            for k, v in pairs(_G) do
-                if originalGlobals[k] ~= v then
-                    self:LogBypassAttempt("environment_pollution", {
-                        key = k,
-                        originalValue = originalGlobals[k],
-                        newValue = v
-                    })
-                end
+    -- Event-driven global environment monitoring
+    local globalCheckEvent = Instance.new("BindableEvent")
+    
+    local function scheduleGlobalCheck()
+        local violationCount = #(self.violations or {})
+        -- More frequent checks if violations detected
+        local interval = violationCount > 5 and 0.5 or 5
+        
+        task.spawn(function()
+            task.wait(interval)
+            globalCheckEvent:Fire()
+        end)
+    end
+    
+    globalCheckEvent.Event:Connect(function()
+        for k, v in pairs(_G) do
+            if originalGlobals[k] ~= v then
+                self:LogBypassAttempt("environment_pollution", {
+                    key = k,
+                    originalValue = originalGlobals[k],
+                    newValue = v
+                })
             end
         end
+        scheduleGlobalCheck()
     end)
+    
+    scheduleGlobalCheck()
 end
 
 function AntiCheatSystem:ProtectSignals()
@@ -518,29 +532,76 @@ end
 -- ========================================
 
 function AntiCheatSystem:StartMonitoring()
-    -- Continuous monitoring loop
-    spawn(function()
-        while true do
-            wait(ANTICHEAT_CONFIG.continuousMonitoringInterval)
-            self:RunContinuousChecks()
+    -- Event-driven continuous monitoring
+    local continuousEvent = Instance.new("BindableEvent")
+    local deepScanEvent = Instance.new("BindableEvent")
+    local statisticsEvent = Instance.new("BindableEvent")
+    
+    local function scheduleContinuousCheck()
+        local playerCount = #Players:GetPlayers()
+        local violationCount = #(self.violations or {})
+        
+        -- Adaptive interval based on activity and violations
+        local interval = ANTICHEAT_CONFIG.continuousMonitoringInterval
+        if violationCount > 10 then
+            interval = interval * 0.5 -- More frequent if violations detected
+        elseif playerCount == 0 then
+            interval = interval * 5 -- Much less frequent if no players
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            continuousEvent:Fire()
+        end)
+    end
+    
+    local function scheduleDeepScan()
+        local suspiciousPlayers = 0
+        for _, player in pairs(Players:GetPlayers()) do
+            if self.playerSuspicionLevels and self.playerSuspicionLevels[player.UserId] and 
+               self.playerSuspicionLevels[player.UserId] > 5 then
+                suspiciousPlayers = suspiciousPlayers + 1
+            end
+        end
+        
+        local interval = ANTICHEAT_CONFIG.deepScanInterval
+        if suspiciousPlayers > 0 then
+            interval = interval * 0.7 -- More frequent deep scans for suspicious players
+        end
+        
+        task.spawn(function()
+            task.wait(interval)
+            deepScanEvent:Fire()
+        end)
+    end
+    
+    local function scheduleStatisticsUpdate()
+        task.spawn(function()
+            task.wait(ANTICHEAT_CONFIG.statisticsUpdateInterval)
+            statisticsEvent:Fire()
+        end)
+    end
+    
+    -- Connect event handlers
+    continuousEvent.Event:Connect(function()
+        self:RunContinuousChecks()
+        scheduleContinuousCheck()
     end)
     
-    -- Deep scan loop
-    spawn(function()
-        while true do
-            wait(ANTICHEAT_CONFIG.deepScanInterval)
-            self:RunDeepScan()
-        end
+    deepScanEvent.Event:Connect(function()
+        self:RunDeepScan()
+        scheduleDeepScan()
     end)
     
-    -- Statistics update loop
-    spawn(function()
-        while true do
-            wait(ANTICHEAT_CONFIG.statisticsUpdateInterval)
-            self:UpdateStatistics()
-        end
+    statisticsEvent.Event:Connect(function()
+        self:UpdateStatistics()
+        scheduleStatisticsUpdate()
     end)
+    
+    -- Start all monitoring cycles
+    scheduleContinuousCheck()
+    scheduleDeepScan()
+    scheduleStatisticsUpdate()
 end
 
 function AntiCheatSystem:RunContinuousChecks()

@@ -146,7 +146,7 @@ local LICENSING_CONFIG = {
     legal = {
         enableRiskAssessment = true,
         enableCopyrightProtection = true,
-        enableTrademark Protection = true,
+        enableTrademarkProtection = true,
         enablePatentChecking = false,
         riskCategories = {"low", "medium", "high", "critical"}
     }
@@ -1007,16 +1007,47 @@ end
 -- ========================================
 
 function AssetLicensingSystem.startComplianceMonitoring()
-    spawn(function()
-        while true do
-            if LICENSING_CONFIG.compliance.enableAutomaticChecks then
-                AssetLicensingSystem.performComplianceChecks()
-                AssetLicensingSystem.updateComplianceStatistics()
-            end
-            
-            task.wait(LICENSING_CONFIG.compliance.auditInterval)
+    -- Event-driven compliance monitoring with adaptive intervals
+    local complianceEvent = Instance.new("BindableEvent")
+    
+    local function scheduleComplianceCheck()
+        if not LICENSING_CONFIG.compliance.enableAutomaticChecks then
+            -- Much longer wait when disabled
+            task.spawn(function()
+                task.wait(LICENSING_CONFIG.compliance.auditInterval * 10)
+                complianceEvent:Fire()
+            end)
+            return
         end
+        
+        -- Adaptive interval based on compliance violations
+        local violationCount = #(LicensingState.violations or {})
+        local interval = LICENSING_CONFIG.compliance.auditInterval
+        
+        if violationCount > 5 then
+            interval = interval * 0.5 -- More frequent checks if violations found
+        elseif violationCount == 0 then
+            interval = interval * 2 -- Less frequent if no violations
+        end
+        
+        task.spawn(function()
+            task.wait(interval)
+            complianceEvent:Fire()
+        end)
+    end
+    
+    complianceEvent.Event:Connect(function()
+        if LICENSING_CONFIG.compliance.enableAutomaticChecks then
+            AssetLicensingSystem.performComplianceChecks()
+            AssetLicensingSystem.updateComplianceStatistics()
+        end
+        
+        -- Schedule next check
+        scheduleComplianceCheck()
     end)
+    
+    -- Start monitoring
+    scheduleComplianceCheck()
     
     print("👁️ Compliance monitoring started")
 end

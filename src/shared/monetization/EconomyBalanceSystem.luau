@@ -1004,15 +1004,42 @@ end
 -- ========================================
 
 function EconomyBalanceSystem.startBalanceMonitoring()
-    spawn(function()
-        while true do
-            EconomyBalanceSystem.performBalanceCheck()
-            EconomyBalanceSystem.updateBalanceMetrics()
-            EconomyBalanceSystem.checkEmergencyConditions()
-            
-            task.wait(BALANCE_CONFIG.autoBalance.checkFrequency)
+    -- Event-driven balance monitoring with emergency response
+    local balanceEvent = Instance.new("BindableEvent")
+    
+    local function scheduleBalanceCheck()
+        local inflationRate = BalanceState.metrics.inflationRate or 0
+        local deflatmentRate = BalanceState.metrics.deflationRate or 0
+        local emergencyLevel = math.max(inflationRate, deflatmentRate)
+        
+        local interval = BALANCE_CONFIG.autoBalance.checkFrequency
+        
+        -- Adaptive monitoring based on economic conditions
+        if emergencyLevel > 0.8 then -- Critical economic conditions
+            interval = interval * 0.2 -- Check every 20% of normal interval
+        elseif emergencyLevel > 0.5 then -- High volatility
+            interval = interval * 0.5 -- Check twice as frequently
+        elseif emergencyLevel < 0.1 then -- Stable economy
+            interval = interval * 2 -- Check less frequently
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            balanceEvent:Fire()
+        end)
+    end
+    
+    balanceEvent.Event:Connect(function()
+        EconomyBalanceSystem.performBalanceCheck()
+        EconomyBalanceSystem.updateBalanceMetrics()
+        EconomyBalanceSystem.checkEmergencyConditions()
+        
+        -- Schedule next check
+        scheduleBalanceCheck()
     end)
+    
+    -- Start monitoring
+    scheduleBalanceCheck()
     
     print("🔄 Balance monitoring started")
 end

@@ -893,22 +893,46 @@ end
 
 -- Start error monitoring loop
 function ErrorHandler:StartErrorMonitoring()
-    task.spawn(function()
-        while true do
-            task.wait(config:Get("errorHandling.MONITORING.INTERVAL") or 60)
-            
-            -- Check for error rate spikes
-            self:CheckErrorRateSpikes()
-            
-            -- Clean up old errors
-            self:CleanupOldErrors()
-            
-            -- Generate periodic reports
-            if config:Get("errorHandling.MONITORING.ENABLE_PERIODIC_REPORTS") then
-                self:PrintErrorReport()
-            end
+    -- Event-driven error monitoring with adaptive intervals
+    local monitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleNextMonitoring()
+        local errorCount = #self.recentErrors
+        local interval = config:Get("errorHandling.MONITORING.INTERVAL") or 60
+        
+        -- Adaptive monitoring based on error activity
+        if errorCount > 20 then
+            interval = interval * 0.3 -- Much more frequent monitoring during error spikes
+        elseif errorCount > 5 then
+            interval = interval * 0.7 -- More frequent monitoring with some errors
+        elseif errorCount == 0 then
+            interval = interval * 2 -- Less frequent when no errors
         end
+        
+        task.spawn(function()
+            task.wait(interval)
+            monitoringEvent:Fire()
+        end)
+    end
+    
+    monitoringEvent.Event:Connect(function()
+        -- Check for error rate spikes
+        self:CheckErrorRateSpikes()
+        
+        -- Clean up old errors
+        self:CleanupOldErrors()
+        
+        -- Generate periodic reports
+        if config:Get("errorHandling.MONITORING.ENABLE_PERIODIC_REPORTS") then
+            self:PrintErrorReport()
+        end
+        
+        -- Schedule next monitoring cycle
+        scheduleNextMonitoring()
     end)
+    
+    -- Start monitoring
+    scheduleNextMonitoring()
 end
 
 -- Check for error rate spikes
