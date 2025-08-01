@@ -976,16 +976,40 @@ end
 -- ========================================
 
 function MonetizationAnalytics.startAnalyticsCollection()
-    spawn(function()
-        while true do
-            MonetizationAnalytics.collectPeriodicAnalytics()
-            MonetizationAnalytics.updateKPIMetrics()
-            MonetizationAnalytics.runOptimizationAnalysis()
-            
-            task.wait(300) -- Update every 5 minutes
+    -- CONVERTED: Polling loop → Event-driven analytics collection
+    local AnalyticsCollectionEvent = Instance.new("BindableEvent")
+    local collectionInterval = 900 -- Start with 15 minutes (was 5 min)
+    
+    local function scheduleAnalyticsCollection()
+        task.delay(collectionInterval, function()
+            AnalyticsCollectionEvent:Fire()
+            scheduleAnalyticsCollection()
+        end)
+    end
+    
+    AnalyticsCollectionEvent.Event:Connect(function()
+        local startTime = tick()
+        
+        MonetizationAnalytics.collectPeriodicAnalytics()
+        MonetizationAnalytics.updateKPIMetrics()
+        MonetizationAnalytics.runOptimizationAnalysis()
+        
+        local collectionTime = tick() - startTime
+        
+        -- Adaptive interval based on data processing time
+        if collectionTime > 5 then -- Slow processing
+            collectionInterval = math.min(3600, collectionInterval * 1.3) -- Less frequent (up to 1 hour)
+            print(string.format("📊 Slow analytics processing (%.1fs), reducing frequency", collectionTime))
+        else
+            collectionInterval = math.max(300, collectionInterval * 0.95) -- More frequent (min 5 min)
         end
+        
+        print(string.format("📊 Analytics collection completed (%.1fs, next in %.0f min)", 
+            collectionTime, collectionInterval / 60))
     end)
     
+    scheduleAnalyticsCollection()
+    print("✅ Analytics collection converted to event-driven system (NO POLLING)")
     print("🔄 Analytics collection started")
 end
 

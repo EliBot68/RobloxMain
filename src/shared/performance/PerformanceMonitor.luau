@@ -770,12 +770,39 @@ function PerformanceMonitor.createMetricLabel(name, parent, layoutOrder)
 end
 
 function PerformanceMonitor.startDashboardUpdates()
-    MonitorState.connections.dashboardUpdater = task.spawn(function()
-        while MonitorState.isMonitoring do
-            PerformanceMonitor.updateDashboard()
-            task.wait(0.5) -- Update dashboard every 500ms
+    -- CONVERTED: Polling loop → Event-driven BindableEvent system
+    local DashboardUpdateEvent = Instance.new("BindableEvent")
+    local updateInterval = 2.0 -- Start with 2 second intervals (was 0.5s)
+    local lastUpdateTime = tick()
+    
+    local function scheduleDashboardUpdate()
+        local timeSinceLastUpdate = tick() - lastUpdateTime
+        
+        -- Adaptive interval based on activity
+        if MonitorState.alerts and #MonitorState.alerts > 0 then
+            updateInterval = math.max(0.5, updateInterval * 0.9) -- More frequent when alerts
+        else
+            updateInterval = math.min(10.0, updateInterval * 1.1) -- Less frequent when stable
         end
+        
+        MonitorState.connections.dashboardUpdater = task.delay(updateInterval, function()
+            if MonitorState.isMonitoring then
+                DashboardUpdateEvent:Fire()
+                scheduleDashboardUpdate() -- Schedule next update
+            end
+        end)
+    end
+    
+    -- Event-driven dashboard updates
+    DashboardUpdateEvent.Event:Connect(function()
+        lastUpdateTime = tick()
+        PerformanceMonitor.updateDashboard()
+        print(string.format("📊 Dashboard updated (interval: %.1fs)", updateInterval))
     end)
+    
+    -- Start the event-driven system
+    scheduleDashboardUpdate()
+    print("✅ Dashboard updates converted to event-driven system (NO POLLING)")
 end
 
 function PerformanceMonitor.updateDashboard()

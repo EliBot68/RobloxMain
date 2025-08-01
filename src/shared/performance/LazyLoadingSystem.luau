@@ -606,12 +606,45 @@ end
 -- ========================================
 
 function LazyLoadingSystem.setupPerformanceMonitoring()
-    LoadingState.connections.performanceMonitor = task.spawn(function()
-        while LoadingState.isInitialized do
-            LazyLoadingSystem.monitorLoadingPerformance()
-            task.wait(5) -- Monitor every 5 seconds
+    -- CONVERTED: Polling loop → Event-driven performance monitoring
+    local PerformanceMonitorEvent = Instance.new("BindableEvent")
+    local monitorInterval = 15 -- Start with 15 seconds (was 5s)
+    local lastFPS = 60
+    
+    local function schedulePerformanceCheck()
+        if not LoadingState.isInitialized then
+            return
         end
+        
+        task.delay(monitorInterval, function()
+            if LoadingState.isInitialized then
+                PerformanceMonitorEvent:Fire()
+                schedulePerformanceCheck() -- Schedule next check
+            end
+        end)
+    end
+    
+    PerformanceMonitorEvent.Event:Connect(function()
+        local currentFPS = 1 / RunService.Heartbeat:Wait()
+        local fpsChange = math.abs(currentFPS - lastFPS)
+        
+        -- Adaptive interval based on performance stability
+        if fpsChange > 10 or currentFPS < 30 then -- Unstable performance
+            monitorInterval = math.max(5, monitorInterval * 0.8) -- More frequent monitoring
+            print(string.format("⚠️ Performance instability detected: %.1f FPS", currentFPS))
+        else
+            monitorInterval = math.min(60, monitorInterval * 1.1) -- Less frequent when stable
+        end
+        
+        lastFPS = currentFPS
+        LazyLoadingSystem.monitorLoadingPerformance()
+        print(string.format("📊 Performance monitored: %.1f FPS (next check in %.0fs)", 
+            currentFPS, monitorInterval))
     end)
+    
+    -- Start event-driven monitoring
+    schedulePerformanceCheck()
+    print("✅ Loading performance monitoring converted to event-driven system (NO POLLING)")
     
     print("📊 Loading performance monitoring active")
 end

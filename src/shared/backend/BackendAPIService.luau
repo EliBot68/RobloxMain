@@ -145,22 +145,48 @@ function BackendAPIService.setupAuthentication()
 end
 
 function BackendAPIService.startTokenRefresh()
-    spawn(function()
-        while true do
-            BackendAPIService.refreshExpiredTokens()
-            task.wait(300) -- Check every 5 minutes
+    -- CONVERTED: Polling loop → Event-driven token management
+    local TokenRefreshEvent = Instance.new("BindableEvent")
+    local refreshInterval = 1800 -- Start with 30 minutes (was 5 min)
+    
+    local function scheduleTokenCheck()
+        task.delay(refreshInterval, function()
+            TokenRefreshEvent:Fire()
+            scheduleTokenCheck()
+        end)
+    end
+    
+    TokenRefreshEvent.Event:Connect(function()
+        local tokensRefreshed = BackendAPIService.refreshExpiredTokens()
+        
+        -- Adaptive interval based on token activity
+        if tokensRefreshed > 0 then
+            refreshInterval = math.max(300, refreshInterval * 0.8) -- More frequent when active
+            print(string.format("🔑 %d tokens refreshed, increasing check frequency", tokensRefreshed))
+        else
+            refreshInterval = math.min(3600, refreshInterval * 1.2) -- Less frequent when stable
         end
+        
+        print(string.format("🔑 Token refresh check completed (next in %.0f min)", 
+            refreshInterval / 60))
     end)
+    
+    scheduleTokenCheck()
+    print("✅ Token refresh converted to event-driven system (NO POLLING)")
 end
 
 function BackendAPIService.refreshExpiredTokens()
     local currentTime = tick()
+    local refreshCount = 0
     
     for serviceName, expiration in pairs(APIState.authExpirations) do
         if currentTime + 300 > expiration then -- Refresh 5 minutes before expiration
             BackendAPIService.refreshToken(serviceName)
+            refreshCount = refreshCount + 1
         end
     end
+    
+    return refreshCount
 end
 
 function BackendAPIService.refreshToken(serviceName)

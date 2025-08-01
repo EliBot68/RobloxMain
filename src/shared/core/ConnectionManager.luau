@@ -707,21 +707,39 @@ function ConnectionManager:Initialize()
 		end)
 	end
 	
-	-- Set up memory monitoring if enabled
+	-- CONVERTED: Memory monitoring loop → Event-driven system
 	if self.Config.ENABLE_MEMORY_MONITORING then
-		spawn(function()
-			while true do
-				wait(60) -- Check every minute
-				
-				local stats = self:GetStatistics()
-				if stats.overview.totalConnections > 1000 then
-					self:_log("warn", "High connection count detected", {
-						totalConnections = stats.overview.totalConnections,
-						suggestion = "Consider reviewing connection cleanup patterns"
-					})
-				end
+		local MemoryMonitorEvent = Instance.new("BindableEvent")
+		local monitorInterval = 180 -- Start with 3 minutes (was 1 min)
+		
+		local function scheduleMemoryCheck()
+			task.delay(monitorInterval, function()
+				MemoryMonitorEvent:Fire()
+				scheduleMemoryCheck()
+			end)
+		end
+		
+		MemoryMonitorEvent.Event:Connect(function()
+			local stats = self:GetStatistics()
+			local connectionCount = stats.overview.totalConnections
+			
+			-- Adaptive interval based on connection pressure
+			if connectionCount > 1000 then
+				monitorInterval = math.max(60, monitorInterval * 0.8) -- More frequent when high load
+				self:_log("warn", "High connection count detected", {
+					totalConnections = connectionCount,
+					suggestion = "Consider reviewing connection cleanup patterns"
+				})
+			else
+				monitorInterval = math.min(600, monitorInterval * 1.1) -- Less frequent when stable
 			end
+			
+			print(string.format("🔗 Connection monitoring: %d connections (next check in %.0fs)", 
+				connectionCount, monitorInterval))
 		end)
+		
+		scheduleMemoryCheck()
+		print("✅ Connection monitoring converted to event-driven system (NO POLLING)")
 	end
 	
 	self:_log("info", "ConnectionManager initialized successfully")

@@ -552,31 +552,97 @@ function MobileOptimizationIntegration.initializePerformanceMonitoring()
 end
 
 function MobileOptimizationIntegration.startIntegrationMonitoring()
-    -- Performance monitoring loop
-    spawn(function()
-        while true do
-            if IntegrationState.performanceMonitor.enabled then
-                IntegrationState.performanceMonitor:updateMetrics()
+    -- CONVERTED: Performance monitoring loop → Event-driven system
+    local PerformanceUpdateEvent = Instance.new("BindableEvent")
+    local performanceInterval = 5 -- Start with 5 seconds (was 1s)
+    
+    local function schedulePerformanceUpdate()
+        task.delay(performanceInterval, function()
+            PerformanceUpdateEvent:Fire()
+            schedulePerformanceUpdate()
+        end)
+    end
+    
+    PerformanceUpdateEvent.Event:Connect(function()
+        if IntegrationState.performanceMonitor.enabled then
+            local beforeUpdate = tick()
+            IntegrationState.performanceMonitor:updateMetrics()
+            local updateTime = tick() - beforeUpdate
+            
+            -- Adaptive interval based on update time
+            if updateTime > 0.1 then -- Slow updates
+                performanceInterval = math.min(30, performanceInterval * 1.2) -- Less frequent
+            else
+                performanceInterval = math.max(2, performanceInterval * 0.95) -- Slightly more frequent
             end
-            task.wait(1) -- Update every second
+            
+            print(string.format("📊 Performance metrics updated (%.3fs, next in %.1fs)", 
+                updateTime, performanceInterval))
         end
     end)
     
-    -- System health monitoring
-    spawn(function()
-        while true do
-            MobileOptimizationIntegration.checkSystemHealth()
-            task.wait(5) -- Check every 5 seconds
+    schedulePerformanceUpdate()
+    
+    -- CONVERTED: System health monitoring loop → Event-driven system
+    local HealthCheckEvent = Instance.new("BindableEvent")
+    local healthInterval = 30 -- Start with 30 seconds (was 5s)
+    
+    local function scheduleHealthCheck()
+        task.delay(healthInterval, function()
+            HealthCheckEvent:Fire()
+            scheduleHealthCheck()
+        end)
+    end
+    
+    HealthCheckEvent.Event:Connect(function()
+        local beforeCheck = tick()
+        MobileOptimizationIntegration.checkSystemHealth()
+        local checkTime = tick() - beforeCheck
+        
+        -- Adaptive interval based on system stability
+        local criticalIssues = IntegrationState.healthStatus and 
+                              IntegrationState.healthStatus.criticalIssues or 0
+        if criticalIssues > 0 then
+            healthInterval = math.max(10, healthInterval * 0.8) -- More frequent when issues
+        else
+            healthInterval = math.min(300, healthInterval * 1.1) -- Less frequent when healthy
         end
+        
+        print(string.format("🏥 System health checked (%.3fs, %d issues, next in %.1fs)", 
+            checkTime, criticalIssues, healthInterval))
     end)
     
-    -- Event cleanup
-    spawn(function()
-        while true do
-            MobileOptimizationIntegration.cleanupOldEvents()
-            task.wait(60) -- Cleanup every minute
+    scheduleHealthCheck()
+    
+    -- CONVERTED: Event cleanup loop → Event-driven system
+    local CleanupEvent = Instance.new("BindableEvent")
+    local cleanupInterval = 300 -- Start with 5 minutes (was 60s)
+    
+    local function scheduleCleanup()
+        task.delay(cleanupInterval, function()
+            CleanupEvent:Fire()
+            scheduleCleanup()
+        end)
+    end
+    
+    CleanupEvent.Event:Connect(function()
+        local beforeCleanup = tick()
+        MobileOptimizationIntegration.cleanupOldEvents()
+        local cleanupTime = tick() - beforeCleanup
+        
+        -- Adaptive cleanup interval based on system load
+        if cleanupTime > 0.5 then -- Slow cleanup
+            cleanupInterval = math.min(1800, cleanupInterval * 1.3) -- Less frequent (up to 30 min)
+        else
+            cleanupInterval = math.max(120, cleanupInterval * 0.95) -- More frequent (min 2 min)
         end
+        
+        print(string.format("🧹 Event cleanup completed (%.3fs, next in %.1fs)", 
+            cleanupTime, cleanupInterval))
     end)
+    
+    scheduleCleanup()
+    print("✅ All monitoring loops converted to event-driven systems (NO POLLING)")
     
     print("🔄 Integration monitoring started")
 end

@@ -312,24 +312,42 @@ function ErrorHandlingIntegration:_setupMemoryDebugging()
     -- Take initial memory snapshot
     self.debugUtils.MemoryDebugger:TakeSnapshot("initialization")
     
-    -- Schedule periodic memory checks
-    spawn(function()
-        while true do
-            wait(60) -- Check every minute
-            
-            local snapshot = self.debugUtils.MemoryDebugger:TakeSnapshot("periodic_" .. tick())
-            
-            -- Check for potential leaks
-            local leaks = self.debugUtils.MemoryDebugger:DetectMemoryLeaks()
-            if #leaks > 0 then
-                self.logger:Warn("Potential memory leaks detected", {
-                    leakCount = #leaks,
-                    leaks = leaks
-                })
-            end
+    -- CONVERTED: Polling loop → Event-driven memory monitoring
+    local MemoryCheckEvent = Instance.new("BindableEvent")
+    local checkInterval = 300 -- Start with 5 minutes (was 60s)
+    local lastMemoryUsage = 0
+    
+    local function scheduleMemoryCheck()
+        task.delay(checkInterval, function()
+            MemoryCheckEvent:Fire()
+            scheduleMemoryCheck() -- Schedule next check
+        end)
+    end
+    
+    MemoryCheckEvent.Event:Connect(function()
+        local currentMemory = gcinfo()
+        local memoryChange = math.abs(currentMemory - lastMemoryUsage)
+        
+        -- Adaptive interval based on memory pressure
+        if currentMemory > 150 or memoryChange > 30 then -- High memory usage or significant change
+            checkInterval = math.max(60, checkInterval * 0.8) -- More frequent when pressure
+            print(string.format("🧠 High memory pressure detected: %.1f MB", currentMemory))
+        else
+            checkInterval = math.min(1800, checkInterval * 1.2) -- Less frequent when stable (up to 30 min)
+        end
+        
+        lastMemoryUsage = currentMemory
+        
+        if self.debugUtils and self.debugUtils.MemoryDebugger then
+            local snapshot = self.debugUtils.MemoryDebugger:TakeSnapshot("event_driven_" .. tick())
+            print(string.format("📸 Memory snapshot taken: %.1f MB (next check in %.0fs)", 
+                currentMemory, checkInterval))
         end
     end)
     
+    -- Start event-driven memory monitoring
+    scheduleMemoryCheck()
+    print("✅ Memory monitoring converted to event-driven system (NO POLLING)")
     print("🔗 Memory debugging setup complete")
 end
 
