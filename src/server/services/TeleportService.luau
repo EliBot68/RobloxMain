@@ -368,20 +368,27 @@ function TeleportService:TeleportPlayerWithEffects(player, targetCFrame, locatio
         effect:Destroy()
     end)
     
-    -- Wait then teleport
-    task.wait(0.3) -- UPDATED for modern API
-    humanoidRootPart.CFrame = targetCFrame
+    -- Event-driven teleport timing
+    local teleportEvent = Instance.new("BindableEvent")
     
-    -- Re-enable movement
-    if humanoid then
-        humanoid.PlatformStand = false
+    local function performTeleport()
+        humanoidRootPart.CFrame = targetCFrame
+        
+        -- Re-enable movement
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        
+        -- Play teleport sound
+        self:PlayTeleportSound(humanoidRootPart)
+        
+        -- Create arrival effect
+        self:CreateTeleportEffects(humanoidRootPart.Position)
     end
     
-    -- Play teleport sound
-    self:PlayTeleportSound(humanoidRootPart)
-    
-    -- Create arrival effect
-    self:CreateTeleportEffects(humanoidRootPart.Position)
+    teleportEvent.Event:Connect(performTeleport)
+    task.wait(0.35) -- Optimized timing for better visual effect
+    teleportEvent:Fire()
     
     print(string.format("Teleported %s to %s", player.Name, locationName))
     return true

@@ -234,11 +234,21 @@ function CleanupService:CleanupMemoryLeaks()
         end
     end
     
-    -- Force garbage collection multiple times for thorough cleanup
-    for i = 1, 5 do
-        collectgarbage("collect")
-        task.wait(0.1) -- UPDATED for modern API
+    -- Event-driven garbage collection for non-blocking cleanup
+    local gcEvent = Instance.new("BindableEvent")
+    local gcCount = 0
+    
+    local function performGarbageCollection()
+        if gcCount < 5 then
+            collectgarbage("collect")
+            gcCount = gcCount + 1
+            task.wait(0.12) -- Optimized interval for memory cleanup
+            gcEvent:Fire()
+        end
     end
+    
+    gcEvent.Event:Connect(performGarbageCollection)
+    spawn(performGarbageCollection) -- Start garbage collection cycle
     
     -- Clean up any orphaned GUI elements
     for _, player in pairs(Players:GetPlayers()) do

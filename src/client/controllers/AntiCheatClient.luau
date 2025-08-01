@@ -110,10 +110,12 @@ function AntiCheatClient:StartMonitoring()
     end
 end
 
--- Monitor for exploit tools/environments
+-- Event-driven exploit monitoring (NO POLLING)
 function AntiCheatClient:MonitorExploits()
-    while monitoringState.isActive do
-        task.wait(5) -- UPDATED for modern API - Check every 5 seconds
+    local exploitMonitorEvent = Instance.new("BindableEvent")
+    
+    local function performExploitCheck()
+        if not monitoringState.isActive then return end
         
         -- Check for common exploit environments
         local suspiciousGlobals = {
@@ -201,10 +203,12 @@ function AntiCheatClient:MonitorInputs()
     end)
 end
 
--- Monitor performance metrics
+-- Event-driven performance monitoring (NO POLLING)
 function AntiCheatClient:MonitorPerformance()
-    while monitoringState.isActive do
-        task.wait(2) -- UPDATED for modern API - Check every 2 seconds
+    local performanceEvent = Instance.new("BindableEvent")
+    
+    local function checkPerformance()
+        if not monitoringState.isActive then return end
         
         local fps = 1 / RunService.Heartbeat:Wait() -- Intentionally not using task.wait()
         

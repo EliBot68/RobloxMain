@@ -863,16 +863,24 @@ end
 -- ========================================
 
 function ObstacleSpawnerService:StartServiceErrorMonitoring()
-    -- Monitor this service's health and error rates
-    local monitoringConnection = task.spawn(function()
-        while self.IsRunning do
-            task.wait(30) -- Check every 30 seconds
-            
-            pcall(function()
-                self:CheckServiceHealth()
-            end)
-        end
+    -- Event-driven service health monitoring
+    local serviceMonitoringEvent = Instance.new("BindableEvent")
+    
+    local function scheduleServiceMonitoring()
+        if not self.IsRunning then return end
+        
+        task.wait(30) -- Check every 30 seconds
+        serviceMonitoringEvent:Fire()
+    end
+    
+    serviceMonitoringEvent.Event:Connect(function()
+        pcall(function()
+            self:CheckServiceHealth()
+        end)
+        spawn(scheduleServiceMonitoring)
     end)
+    
+    local monitoringConnection = spawn(scheduleServiceMonitoring)
     
     self:AddConnection("errorMonitoring", monitoringConnection, "Thread")
 end
@@ -911,16 +919,31 @@ function ObstacleSpawnerService:PerformEmergencyCleanup()
     
     local cleanedCount = 0
     for userId, obstacles in pairs(self.activeObstacles) do
-        -- Keep only the most recent 10 obstacles per player
-        while #obstacles > 10 do
-            local obstacle = table.remove(obstacles, 1)
-            pcall(function()
-                if obstacle and obstacle.Parent then
-                    obstacle:Destroy()
-                    cleanedCount = cleanedCount + 1
-                end
-            end)
+        -- Batch cleanup with event-driven processing to avoid blocking
+        local cleanupEvent = Instance.new("BindableEvent")
+        
+        local function processCleanupBatch()
+            local batchSize = 0
+            while #obstacles > 10 and batchSize < 5 do -- Process in small batches
+                local obstacle = table.remove(obstacles, 1)
+                pcall(function()
+                    if obstacle and obstacle.Parent then
+                        obstacle:Destroy()
+                        cleanedCount = cleanedCount + 1
+                    end
+                end)
+                batchSize = batchSize + 1
+            end
+            
+            if #obstacles > 10 then
+                -- More batches needed, schedule next batch
+                task.wait(0.05) -- Small delay between batches
+                cleanupEvent:Fire()
+            end
         end
+        
+        cleanupEvent.Event:Connect(processCleanupBatch)
+        spawn(processCleanupBatch)
     end
     
     print("🧹 Emergency cleanup completed: " .. cleanedCount .. " obstacles removed")

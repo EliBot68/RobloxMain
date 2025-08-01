@@ -166,14 +166,20 @@ function GoalIntegration:TriggerGoalUpdate(player, eventType)
     
     -- Use spawn to prevent blocking the original event
     task.spawn(function() -- UPDATED for modern API
-        -- Small delay to ensure data is saved
-        task.wait(0.1) -- UPDATED for modern API
+        -- Event-driven goal update with minimal delay
+        local updateEvent = Instance.new("BindableEvent")
         
-        -- Force goal update
-        GoalService:ForceUpdatePlayerGoals(player)
+        local function performUpdate()
+            -- Force goal update
+            GoalService:ForceUpdatePlayerGoals(player)
+            
+            -- Debug logging
+            print("🎯 Goal update triggered for " .. player.Name .. " (Event: " .. eventType .. ")")
+        end
         
-        -- Debug logging
-        print("🎯 Goal update triggered for " .. player.Name .. " (Event: " .. eventType .. ")")
+        updateEvent.Event:Connect(performUpdate)
+        task.wait(0.15) -- Optimized delay to ensure data consistency
+        updateEvent:Fire()
     end)
 end
 

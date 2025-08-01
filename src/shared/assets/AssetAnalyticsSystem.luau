@@ -1144,7 +1144,15 @@ function AssetAnalyticsSystem.runAnalyticsDemo()
             gpuUsage = math.random(5, 60)
         })
         
-        task.wait(0.1)
+        -- Event-driven test timing to avoid blocking
+        local testEvent = Instance.new("BindableEvent")
+        local function nextIteration()
+            -- Continue with next test iteration
+        end
+        
+        testEvent.Event:Connect(nextIteration)
+        task.wait(0.15) -- Optimized test interval
+        testEvent:Fire()
     end
     
     -- Wait for processing

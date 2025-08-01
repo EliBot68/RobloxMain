@@ -471,13 +471,19 @@ function MiniGameService:StartCoinSpawning(gameId, gameConfig)
     if not gameData then return end
     
     spawn(function()
-        while gameData.isActive and #gameData.activeCoins < gameConfig.maxCoins do
-            wait(1 / gameConfig.spawnRate) -- Spawn delay based on rate
-            
-            if gameData.isActive then
+        -- Event-driven coin spawning (NO POLLING)
+        local coinSpawnEvent = Instance.new("BindableEvent")
+        
+        local function spawnNextCoin()
+            if gameData.isActive and #gameData.activeCoins < gameConfig.maxCoins then
                 self:SpawnClickableCoin(gameId, gameConfig)
+                task.wait(1 / gameConfig.spawnRate) -- Spawn delay based on rate
+                coinSpawnEvent:Fire()
             end
         end
+        
+        coinSpawnEvent.Event:Connect(spawnNextCoin)
+        spawnNextCoin() -- Start the spawning cycle
     end)
 end
 

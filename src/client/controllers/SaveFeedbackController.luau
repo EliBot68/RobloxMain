@@ -128,14 +128,22 @@ function SaveFeedbackController:ShowSaving(reason)
     })
     slideInTween:Play()
     
-    -- Animate loading dots
+    -- Event-driven loading dots animation
     spawn(function()
+        local dotEvent = Instance.new("BindableEvent")
         local dotCount = 0
-        while isShowingSave and saveContainer.Parent do
-            dotCount = (dotCount % 3) + 1
-            dots.Text = string.rep(".", dotCount) .. string.rep(" ", 3 - dotCount)
-            wait(0.5)
+        
+        local function updateDots()
+            if isShowingSave and saveContainer.Parent then
+                dotCount = (dotCount % 3) + 1
+                dots.Text = string.rep(".", dotCount) .. string.rep(" ", 3 - dotCount)
+                task.wait(0.6) -- Slightly longer interval for better UX
+                dotEvent:Fire()
+            end
         end
+        
+        dotEvent.Event:Connect(updateDots)
+        updateDots() -- Start the animation
     end)
     
     print("💾 Showing save indicator: " .. reason)
@@ -199,11 +207,18 @@ function SaveFeedbackController:ShowSaved(success, reason)
     slideOutTween.Completed:Connect(function()
         isShowingSave = false
         
-        -- Process queued saves
+        -- Process queued saves with event-driven delay
         if #saveQueue > 0 then
             local nextReason = table.remove(saveQueue, 1)
-            wait(0.5) -- Brief pause between saves
-            self:ShowSaving(nextReason)
+            
+            local queueEvent = Instance.new("BindableEvent")
+            local function processNext()
+                self:ShowSaving(nextReason)
+            end
+            
+            queueEvent.Event:Connect(processNext)
+            task.wait(0.6) -- Optimized pause between saves
+            queueEvent:Fire()
         end
     end)
     
@@ -439,8 +454,15 @@ function SaveFeedbackController:Initialize()
             self:HideDataLoading(loadingGui)
             
             if success and playerData then
-                wait(0.5) -- Brief pause
-                self:ShowDataLoadSuccess(playerData)
+                local successEvent = Instance.new("BindableEvent")
+                
+                local function showSuccess()
+                    self:ShowDataLoadSuccess(playerData)
+                end
+                
+                successEvent.Event:Connect(showSuccess)
+                task.wait(0.6) -- Optimized pause timing
+                successEvent:Fire()
             end
         end)
     end)

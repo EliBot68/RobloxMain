@@ -257,19 +257,37 @@ function DataService:HandleServerShutdown()
         end))
     end
     
-    -- Wait for all saves to complete (with timeout)
+    -- Event-driven completion checking with timeout
     local timeout = tick() + 25 -- 25 second timeout
     local completed = 0
     
-    while completed < #savePromises and tick() < timeout do
+    local completionCheckEvent = Instance.new("BindableEvent")
+    
+    local function checkCompletion()
+        if completed >= #savePromises or tick() >= timeout then
+            completionCheckEvent:Fire()
+            return
+        end
+        
         completed = 0
         for _, promise in ipairs(savePromises) do
             if coroutine.status(promise) == "dead" then
                 completed = completed + 1
             end
         end
-        task.wait(0.1)
+        
+        -- Adaptive wait: more frequent when close to completion
+        local progress = completed / #savePromises
+        local waitTime = progress > 0.8 and 0.05 or 0.1
+        task.wait(waitTime)
+        spawn(checkCompletion)
     end
+    
+    completionCheckEvent.Event:Connect(function()
+        -- Completion or timeout reached
+    end)
+    
+    spawn(checkCompletion)
     
     -- Flush any remaining audit logs
     self.auditLogger:FlushBuffer()

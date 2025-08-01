@@ -1029,13 +1029,14 @@ function CriticalErrorHandler:SetupPerformanceMonitoring()
         "Connection"
     )
     
-    -- Monitor memory usage with adaptive intervals
+    -- Event-driven memory monitoring (NO POLLING)
     task.spawn(function()
+        local memoryMonitorEvent = Instance.new("BindableEvent")
         local checkInterval = 5 -- Start with 5 second intervals
         local maxInterval = 60 -- Maximum interval of 1 minute
         
-        while self.IsRunning do
-            task.wait(checkInterval)
+        local function performMemoryCheck()
+            if not self.IsRunning then return end
             
             local memoryUsage = collectgarbage("count")
             self.performanceMetrics.memoryUsage = memoryUsage

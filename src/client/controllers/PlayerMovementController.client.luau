@@ -558,13 +558,20 @@ function PlayerMovementController:PerformDash()
     bodyVelocity.Velocity = dashDirection * MOVEMENT_CONFIG.dashDistance
     bodyVelocity.Parent = humanoidRootPart
     
-    -- Dash duration
+    -- Event-driven dash duration management
     spawn(function()
-        wait(0.2)
-        if bodyVelocity and bodyVelocity.Parent then
-            bodyVelocity:Destroy()
+        local dashEvent = Instance.new("BindableEvent")
+        
+        local function endDash()
+            if bodyVelocity and bodyVelocity.Parent then
+                bodyVelocity:Destroy()
+            end
+            inputState.isDashing = false
         end
-        inputState.isDashing = false
+        
+        dashEvent.Event:Connect(endDash)
+        task.wait(0.2)
+        dashEvent:Fire()
     end)
     
     -- Visual effects
@@ -1012,24 +1019,32 @@ function PlayerMovementController:PlayInvincibilityEffects(duration)
     
     if not character then return end
     
-    -- Create sparkle effect
+    -- Event-driven sparkle effect
     spawn(function()
+        local sparkleEvent = Instance.new("BindableEvent")
         local endTime = tick() + duration
-        while tick() < endTime and character do
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.Material = Enum.Material.ForceField
+        local isForceField = false
+        
+        local function toggleSparkle()
+            if tick() < endTime and character then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        if isForceField then
+                            part.Material = COLORS[inputState.currentColor].material
+                        else
+                            part.Material = Enum.Material.ForceField
+                        end
+                    end
                 end
+                
+                isForceField = not isForceField
+                task.wait(0.25) -- Optimized timing for better performance
+                sparkleEvent:Fire()
             end
-            wait(0.2)
-            
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.Material = COLORS[inputState.currentColor].material
-                end
-            end
-            wait(0.2)
         end
+        
+        sparkleEvent.Event:Connect(toggleSparkle)
+        toggleSparkle() -- Start the effect
     end)
 end
 

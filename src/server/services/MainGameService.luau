@@ -978,25 +978,37 @@ function MainGameService:PerformHealthCheck()
 end
 
 function MainGameService:SetupGameStateTracking()
-    -- Track game state changes for analytics
+    -- Track game state changes for analytics - FULLY EVENT-DRIVEN (NO POLLING)
     local previousState = self.State
     
-    task.spawn(function() -- UPDATED for modern API
-        while isStarted do
-            task.wait(1) -- UPDATED for modern API
-            
-            if self.State ~= previousState then
-                if self.Services.AnalyticsService then
-                    self.Services.AnalyticsService:TrackEvent(nil, "internal_state_change", {
-                        from = previousState,
-                        to = self.State,
-                        timestamp = tick()
-                    })
-                end
-                previousState = self.State
-            end
+    -- Create state change signal that only fires when state actually changes
+    local stateChangeSignal = Instance.new("BindableEvent")
+    
+    -- Override SetGameState to trigger analytics immediately on state changes
+    local originalSetGameState = self.SetGameState
+    self.SetGameState = function(self, newState, data)
+        local oldState = self.State
+        originalSetGameState(self, newState, data)
+        
+        -- Fire state change event only when state actually changes
+        if oldState ~= newState then
+            stateChangeSignal:Fire(oldState, newState)
         end
+    end
+    
+    -- Event-driven analytics tracking (only when states change)
+    stateChangeSignal.Event:Connect(function(fromState, toState)
+        if self.Services.AnalyticsService then
+            self.Services.AnalyticsService:TrackEvent(nil, "internal_state_change", {
+                from = fromState,
+                to = toState,
+                timestamp = tick()
+            })
+        end
+        previousState = toState
     end)
+    
+    print("✅ Game state tracking converted to 100% event-driven (NO POLLING LOOPS)")
 end
 
 -- ========================================

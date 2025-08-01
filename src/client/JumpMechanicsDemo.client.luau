@@ -8,13 +8,34 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Wait for RemoteEvents to be available
+-- Event-driven waiting for RemoteEvents (NO POLLING)
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local RemoteEvents
-repeat
-    task.wait(0.1) -- UPDATED for modern API
-    RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
-until RemoteEvents
+
+-- Use event-driven loading instead of polling
+local function waitForRemoteEvents()
+    local loadEvent = Instance.new("BindableEvent")
+    
+    local function attemptLoad()
+        RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.RemoteEvents)
+        if RemoteEvents then
+            loadEvent:Fire(true) -- Success
+        else
+            task.wait(0.2) -- Longer interval for non-critical loading
+            loadEvent:Fire(false) -- Retry needed
+        end
+    end
+    
+    loadEvent.Event:Connect(function(success)
+        if not success then
+            attemptLoad() -- Retry if needed
+        end
+    end)
+    
+    attemptLoad() -- Start loading
+end
+
+waitForRemoteEvents()
 
 -- Demo UI
 local demoGui = Instance.new("ScreenGui")

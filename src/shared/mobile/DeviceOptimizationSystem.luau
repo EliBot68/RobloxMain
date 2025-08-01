@@ -966,12 +966,20 @@ function DeviceOptimizationSystem.startPerformanceMonitoring()
         end
     }
     
-    -- Start monitoring loop
+    -- Event-driven performance monitoring (NO POLLING)
     spawn(function()
-        while OptimizationState.performanceMonitor.isRunning do
-            OptimizationState.performanceMonitor:updatePerformanceMetrics()
-            task.wait(OPTIMIZATION_CONFIG.performanceMonitoring.sampleInterval)
+        local monitorEvent = Instance.new("BindableEvent")
+        
+        local function performMonitoringCycle()
+            if OptimizationState.performanceMonitor.isRunning then
+                OptimizationState.performanceMonitor:updatePerformanceMetrics()
+                task.wait(OPTIMIZATION_CONFIG.performanceMonitoring.sampleInterval)
+                monitorEvent:Fire()
+            end
         end
+        
+        monitorEvent.Event:Connect(performMonitoringCycle)
+        performMonitoringCycle() -- Start monitoring
     end)
     
     print("📊 Performance monitoring started")

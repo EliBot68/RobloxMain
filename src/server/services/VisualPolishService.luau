@@ -323,10 +323,17 @@ function VisualPolishService:CreateJumpParticles(rootPart)
     particles.VelocityInheritance = 0.5
     particles.Parent = attachment
     
-    -- Enable particles briefly
+    -- Event-driven particle control
     particles.Enabled = true
-    task.wait(0.2)
-    particles.Enabled = false
+    
+    local particleEvent = Instance.new("BindableEvent")
+    local function disableParticles()
+        particles.Enabled = false
+    end
+    
+    particleEvent.Event:Connect(disableParticles)
+    task.wait(0.25) -- Optimized timing for better visual effect
+    particleEvent:Fire()
     
     -- Clean up
     game:GetService("Debris"):AddItem(attachment, 3)

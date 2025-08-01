@@ -85,54 +85,87 @@ function VIPStatusController:CreateVIPCrown(targetPlayer)
     vipText.TextStrokeColor3 = Color3.new(0, 0, 0)
     vipText.Parent = billboardGui
     
-    -- Floating animation
+    -- Event-driven floating animation
     spawn(function()
-        while billboardGui.Parent and head.Parent do
-            -- Float up and down
-            for i = 1, 20 do
-                if not billboardGui.Parent then break end
+        local floatEvent = Instance.new("BindableEvent")
+        local frameCount = 0
+        
+        local function updateFloat()
+            if billboardGui.Parent and head.Parent then
+                frameCount = frameCount + 1
                 billboardGui.StudsOffset = Vector3.new(0, 2.5 + math.sin(tick() * 2) * 0.3, 0)
-                wait(0.1)
+                
+                if frameCount < 20 then
+                    task.wait(0.16) -- Reduced frequency for performance
+                    floatEvent:Fire()
+                else
+                    frameCount = 0
+                    task.wait(0.2) -- Longer pause between cycles
+                    floatEvent:Fire()
+                end
             end
         end
+        
+        floatEvent.Event:Connect(updateFloat)
+        updateFloat() -- Start the animation
     end)
     
-    -- Sparkle effect
+    -- Event-driven sparkle effect
     spawn(function()
-        while billboardGui.Parent and head.Parent do
-            -- Create sparkle
-            local sparkle = Instance.new("Frame")
-            sparkle.Name = "Sparkle"
-            sparkle.Size = UDim2.new(0, 4, 0, 4)
-            sparkle.Position = UDim2.new(
-                math.random(0, 100) / 100, 
-                math.random(-20, 20), 
-                math.random(0, 100) / 100, 
-                math.random(-10, 10)
-            )
-            sparkle.BackgroundColor3 = Color3.fromRGB(255, 255, 100)
-            sparkle.BorderSizePixel = 0
-            sparkle.Parent = billboardGui
-            
-            local sparkleCorner = Instance.new("UICorner")
-            sparkleCorner.CornerRadius = UDim.new(0.5, 0)
-            sparkleCorner.Parent = sparkle
-            
-            -- Animate sparkle
-            spawn(function()
-                for alpha = 1, 0, -0.05 do
-                    if not sparkle.Parent then break end
-                    sparkle.BackgroundTransparency = 1 - alpha
-                    sparkle.Size = UDim2.new(0, 4 * alpha, 0, 4 * alpha)
-                    wait(0.05)
-                end
-                if sparkle.Parent then
-                    sparkle:Destroy()
-                end
-            end)
-            
-            wait(math.random(2, 5))
+        local sparkleEvent = Instance.new("BindableEvent")
+        
+        local function createSparkle()
+            if billboardGui.Parent and head.Parent then
+                -- Create sparkle
+                local sparkle = Instance.new("Frame")
+                sparkle.Name = "Sparkle"
+                sparkle.Size = UDim2.new(0, 4, 0, 4)
+                sparkle.Position = UDim2.new(
+                    math.random(0, 100) / 100, 
+                    math.random(-20, 20), 
+                    math.random(0, 100) / 100, 
+                    math.random(-10, 10)
+                )
+                sparkle.BackgroundColor3 = Color3.fromRGB(255, 255, 100)
+                sparkle.BorderSizePixel = 0
+                sparkle.Parent = billboardGui
+                
+                local sparkleCorner = Instance.new("UICorner")
+                sparkleCorner.CornerRadius = UDim.new(0.5, 0)
+                sparkleCorner.Parent = sparkle
+                
+                -- Event-driven sparkle animation
+                spawn(function()
+                    local fadeEvent = Instance.new("BindableEvent")
+                    local alpha = 1
+                    
+                    local function fadeStep()
+                        if sparkle.Parent and alpha > 0 then
+                            sparkle.BackgroundTransparency = 1 - alpha
+                            sparkle.Size = UDim2.new(0, 4 * alpha, 0, 4 * alpha)
+                            alpha = alpha - 0.05
+                            
+                            task.wait(0.08) -- Increased interval for better performance
+                            fadeEvent:Fire()
+                        else
+                            if sparkle.Parent then
+                                sparkle:Destroy()
+                            end
+                        end
+                    end
+                    
+                    fadeEvent.Event:Connect(fadeStep)
+                    fadeStep()
+                end)
+                
+                -- Schedule next sparkle
+                task.wait(math.random(2, 5))
+                sparkleEvent:Fire()
+            end
         end
+        
+        sparkleEvent.Event:Connect(createSparkle)
+        createSparkle() -- Start the sparkle effect
     end)
     
     vipGuis[targetPlayer.UserId] = billboardGui

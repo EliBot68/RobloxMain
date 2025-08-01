@@ -242,12 +242,19 @@ function PolishController:CreateLandingParticles(humanoidRootPart)
     -- Burst effect
     landingParticles:Emit(30)
     
-    -- Auto cleanup
+    -- Event-driven auto cleanup
     spawn(function()
-        wait(0.5)
-        if attachment then
-            attachment:Destroy()
+        local cleanupEvent = Instance.new("BindableEvent")
+        
+        local function performCleanup()
+            if attachment then
+                attachment:Destroy()
+            end
         end
+        
+        cleanupEvent.Event:Connect(performCleanup)
+        task.wait(0.5)
+        cleanupEvent:Fire()
     end)
 end
 
@@ -450,11 +457,18 @@ function PolishController:SetupPolishEventHandlers()
             -- Create colored sparkles
             self:CreateColoredSparkles(character, currentColor, success)
             
-            -- Trigger jump animation on successful barrier pass
+            -- Event-driven jump animation trigger
             if success then
                 spawn(function()
-                    wait(0.1) -- Small delay for timing
-                    self:CreateJumpAnimation(character)
+                    local animationEvent = Instance.new("BindableEvent")
+                    
+                    local function triggerAnimation()
+                        self:CreateJumpAnimation(character)
+                    end
+                    
+                    animationEvent.Event:Connect(triggerAnimation)
+                    task.wait(0.15) -- Slightly longer delay for better visual timing
+                    animationEvent:Fire()
                 end)
             end
         end
@@ -469,11 +483,18 @@ function PolishController:SetupPolishEventHandlers()
         if character then
             self:CreateColoredSparkles(character, "YELLOW", true)
             
-            -- Extra satisfying sound for milestone coins
+            -- Event-driven milestone sound
             if totalCoins > 0 and totalCoins % 50 == 0 then
                 spawn(function()
-                    wait(0.1)
-                    self:PlaySpecialCoinSound()
+                    local soundEvent = Instance.new("BindableEvent")
+                    
+                    local function playMilestoneSound()
+                        self:PlaySpecialCoinSound()
+                    end
+                    
+                    soundEvent.Event:Connect(playMilestoneSound)
+                    task.wait(0.12) -- Optimized timing
+                    soundEvent:Fire()
                 end)
             end
         end
@@ -482,17 +503,31 @@ function PolishController:SetupPolishEventHandlers()
     -- Handle bonus coins from upgrades
     if RemoteEvents.BonusCoinsEarned then
         RemoteEvents.BonusCoinsEarned.OnClientEvent:Connect(function(bonusAmount)
-            -- Extra coin pickup sound for bonus
+            -- Event-driven bonus coin sound
             spawn(function()
-                wait(0.2)
-                self:PlayCoinPickupSound()
+                local bonusSoundEvent = Instance.new("BindableEvent")
+                
+                local function playBonusSound()
+                    self:PlayCoinPickupSound()
+                end
+                
+                bonusSoundEvent.Event:Connect(playBonusSound)
+                task.wait(0.25) -- Optimized timing
+                bonusSoundEvent:Fire()
             end)
             
             local character = player.Character
             if character then
                 spawn(function()
-                    wait(0.3)
-                    self:CreateColoredSparkles(character, "YELLOW", true)
+                    local bonusSparkleEvent = Instance.new("BindableEvent")
+                    
+                    local function createBonusSparkle()
+                        self:CreateColoredSparkles(character, "YELLOW", true)
+                    end
+                    
+                    bonusSparkleEvent.Event:Connect(createBonusSparkle)
+                    task.wait(0.35) -- Optimized timing
+                    bonusSparkleEvent:Fire()
                 end)
             end
         end)
