@@ -338,16 +338,30 @@ function SafeRequire.requireBatch(moduleList, fallbackMap, options)
         -- Process modules with concurrency limit
         local moduleQueue = {table.unpack(moduleList)}
         local function startNext()
-            while #moduleQueue > 0 and activeCount < maxConcurrent do
-                local modulePath = table.remove(moduleQueue, 1)
-                activeCount = activeCount + 1
-                task.spawn(function()
-                    processModule(modulePath)
-                    if #moduleQueue > 0 then
-                        startNext()
+            -- Event-driven module processing (NO POLLING)
+            local processEvent = Instance.new("BindableEvent")
+            
+            local function processNextBatch()
+                if #moduleQueue > 0 and activeCount < maxConcurrent then
+                    local modulePath = table.remove(moduleQueue, 1)
+                    activeCount = activeCount + 1
+                    task.spawn(function()
+                        processModule(modulePath)
+                        if #moduleQueue > 0 then
+                            processEvent:Fire()
+                        end
+                    end)
+                    
+                    -- Process more modules if capacity allows
+                    if #moduleQueue > 0 and activeCount < maxConcurrent then
+                        processEvent:Fire()
                     end
-                end)
+                end
             end
+            
+            processEvent.Event:Connect(processNextBatch)
+            processNextBatch() -- Start processing
+        end
         end
         
         startNext()

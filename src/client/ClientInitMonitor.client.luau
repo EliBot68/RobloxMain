@@ -287,13 +287,26 @@ function ClientInitMonitor:StartMonitoring()
     
     self:CreateProgressUI()
     
-    -- Monitoring loop
+    -- Event-driven monitoring (ZERO POLLING)
     spawn(function()
+        local monitorEvent = Instance.new("BindableEvent")
         local elapsedTime = 0
         local lastStatusUpdate = 0
         
-        while monitoringActive and elapsedTime < MONITOR_CONFIG.MaxWaitTime do
-            wait(MONITOR_CONFIG.CheckInterval)
+        local function performMonitorCheck()
+            if not monitoringActive or elapsedTime >= MONITOR_CONFIG.MaxWaitTime then 
+                -- Check if we should activate fallback
+                if not initializationDetected and MONITOR_CONFIG.EnableFallback then
+                    self:ActivateFallback()
+                elseif not initializationDetected then
+                    warn("[ClientInitMonitor] Initialization timeout - no fallback available")
+                    self:UpdateProgress("Initialization timeout", 1.0, elapsedTime)
+                end
+                
+                monitoringActive = false
+                return 
+            end
+            
             elapsedTime = tick() - startTime
             
             -- Check initialization status
@@ -304,9 +317,10 @@ function ClientInitMonitor:StartMonitoring()
                 self:UpdateProgress("Initialization successful!", 1.0, elapsedTime)
                 print("[ClientInitMonitor] ✓ Initialization detected as successful")
                 
-                wait(1)
+                task.wait(1)
                 self:HideProgressUI()
-                break
+                monitoringActive = false
+                return
             else
                 -- Update progress based on elapsed time and detected systems
                 local timeProgress = math.min(elapsedTime / MONITOR_CONFIG.MaxWaitTime, 0.9)
@@ -318,18 +332,15 @@ function ClientInitMonitor:StartMonitoring()
                     local currentStatus = statusMessages[math.random(1, #statusMessages)]
                     self:UpdateProgress(currentStatus, combinedProgress, elapsedTime)
                 end
+                
+                -- Schedule next check
+                task.wait(MONITOR_CONFIG.CheckInterval)
+                monitorEvent:Fire()
             end
         end
         
-        -- Check if we should activate fallback
-        if not initializationDetected and MONITOR_CONFIG.EnableFallback then
-            self:ActivateFallback()
-        elseif not initializationDetected then
-            warn("[ClientInitMonitor] Initialization timeout - no fallback available")
-            self:UpdateProgress("Initialization timeout", 1.0, elapsedTime)
-        end
-        
-        monitoringActive = false
+        monitorEvent.Event:Connect(performMonitorCheck)
+        performMonitorCheck() -- Start monitoring
     end)
 end
 

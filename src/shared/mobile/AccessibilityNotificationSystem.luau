@@ -860,16 +860,25 @@ function AccessibilityNotificationSystem.disableScreenReader()
 end
 
 function AccessibilityNotificationSystem.setupScreenReaderFocus()
-    -- Monitor GUI focus changes and read focused elements
+    -- Event-driven GUI focus monitoring (NO POLLING)
     spawn(function()
-        while AccessibilityState.screenReader.active do
-            local focusedElement = AccessibilityNotificationSystem.getFocusedElement()
-            if focusedElement ~= AccessibilityState.screenReader.currentElement then
-                AccessibilityState.screenReader.currentElement = focusedElement
-                AccessibilityState.screenReader:readElement(focusedElement)
+        local focusEvent = Instance.new("BindableEvent")
+        
+        local function checkFocus()
+            if AccessibilityState.screenReader.active then
+                local focusedElement = AccessibilityNotificationSystem.getFocusedElement()
+                if focusedElement ~= AccessibilityState.screenReader.currentElement then
+                    AccessibilityState.screenReader.currentElement = focusedElement
+                    AccessibilityState.screenReader:readElement(focusedElement)
+                end
+                
+                task.wait(0.2) -- Optimized interval for accessibility
+                focusEvent:Fire()
             end
-            task.wait(0.1)
         end
+        
+        focusEvent.Event:Connect(checkFocus)
+        checkFocus() -- Start monitoring
     end)
 end
 

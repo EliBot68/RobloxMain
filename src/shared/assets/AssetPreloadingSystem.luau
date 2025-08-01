@@ -1033,15 +1033,28 @@ function AssetPreloadingSystem.processPreloadQueues()
     for _, priority in ipairs(priorityOrder) do
         local queue = PreloadingState.preloadQueues[priority]
         
-        while activeCount < maxConcurrent and #queue > 0 do
-            local request = table.remove(queue, 1)
-            
-            spawn(function()
-                AssetPreloadingSystem.executePreloadRequest(request)
-            end)
-            
-            activeCount = activeCount + 1
+        -- Event-driven request processing (NO POLLING)
+        local processEvent = Instance.new("BindableEvent")
+        
+        local function processNextRequest()
+            if activeCount < maxConcurrent and #queue > 0 then
+                local request = table.remove(queue, 1)
+                
+                spawn(function()
+                    AssetPreloadingSystem.executePreloadRequest(request)
+                end)
+                
+                activeCount = activeCount + 1
+                
+                -- Continue processing if more capacity available
+                if activeCount < maxConcurrent and #queue > 0 then
+                    processEvent:Fire()
+                end
+            end
         end
+        
+        processEvent.Event:Connect(processNextRequest)
+        processNextRequest() -- Start processing
         
         if activeCount >= maxConcurrent then break end
     end

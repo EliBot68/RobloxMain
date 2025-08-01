@@ -213,12 +213,20 @@ function EventDrivenSystemManager:createAdaptiveFrameRateMonitor(config)
         monitor.lastFPS = currentFPS
     end
     
-    local connection = task.spawn(function()
-        while ActiveMonitors[monitor.id] do
+    -- Event-driven frame rate monitoring (NO POLLING)
+    local frameRateEvent = Instance.new("BindableEvent")
+    
+    local function performFrameRateCheck()
+        if ActiveMonitors[monitor.id] then
             checkFrameRate()
             task.wait(monitor.currentInterval)
+            frameRateEvent:Fire()
         end
-    end)
+    end
+    
+    frameRateEvent.Event:Connect(performFrameRateCheck)
+    
+    local connection = task.spawn(performFrameRateCheck)
     
     ActiveMonitors[monitor.id] = {
         monitor = monitor,
@@ -265,12 +273,20 @@ function EventDrivenSystemManager:createAdaptiveMemoryMonitor(config)
         monitor.lastMemory = currentMemory
     end
     
-    local connection = task.spawn(function()
-        while ActiveMonitors[monitor.id] do
+    -- Event-driven memory monitoring (NO POLLING)
+    local memoryEvent = Instance.new("BindableEvent")
+    
+    local function performMemoryCheck()
+        if ActiveMonitors[monitor.id] then
             checkMemory()
             task.wait(monitor.currentInterval)
+            memoryEvent:Fire()
         end
-    end)
+    end
+    
+    memoryEvent.Event:Connect(performMemoryCheck)
+    
+    local connection = task.spawn(performMemoryCheck)
     
     ActiveMonitors[monitor.id] = {
         monitor = monitor,
@@ -322,12 +338,20 @@ function EventDrivenSystemManager:createAdaptiveNetworkMonitor(config)
         monitor.lastLatency = currentLatency
     end
     
-    local connection = task.spawn(function()
-        while ActiveMonitors[monitor.id] do
+    -- Event-driven network monitoring (NO POLLING)
+    local networkEvent = Instance.new("BindableEvent")
+    
+    local function performNetworkCheck()
+        if ActiveMonitors[monitor.id] then
             checkNetwork()
             task.wait(monitor.currentInterval)
+            networkEvent:Fire()
         end
-    end)
+    end
+    
+    networkEvent.Event:Connect(performNetworkCheck)
+    
+    local connection = task.spawn(performNetworkCheck)
     
     ActiveMonitors[monitor.id] = {
         monitor = monitor,
