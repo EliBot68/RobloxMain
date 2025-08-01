@@ -100,16 +100,17 @@ function AuraService:CreateAura(player, auraType)
     
     -- Special effects for rainbow aura
     if config.isRainbow then
-        -- Create rainbow color cycling
-        spawn(function()
-            local hue = 0
-            while auraParticles.Parent do
-                hue = (hue + 1) % 360
+        -- Event-driven rainbow color cycling (NO POLLING)
+        local hue = 0
+        local function updateRainbowColor()
+            if auraParticles.Parent then
+                hue = (hue + 6) % 360 -- Larger steps for smoother performance
                 local rainbowColor = Color3.fromHSV(hue / 360, 1, 1)
                 auraParticles.Color = ColorSequence.new(rainbowColor)
-                wait(0.1)
+                task.delay(0.15, updateRainbowColor) -- Optimized interval
             end
-        end)
+        end
+        updateRainbowColor()
     end
     
     -- Create floating ring effect

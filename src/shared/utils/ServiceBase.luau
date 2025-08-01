@@ -258,8 +258,11 @@ function ServiceBase:Restart()
     end
     
     if wasRunning then
-        wait(0.1) -- Brief pause
-        return self:Start()
+        -- Event-driven restart delay (NO POLLING)
+        task.delay(0.05, function()
+            self:Start()
+        end)
+        return true
     end
     
     return true

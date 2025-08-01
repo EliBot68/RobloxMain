@@ -235,20 +235,18 @@ function CleanupService:CleanupMemoryLeaks()
     end
     
     -- Event-driven garbage collection for non-blocking cleanup
-    local gcEvent = Instance.new("BindableEvent")
     local gcCount = 0
+    local maxGcCycles = 5
     
     local function performGarbageCollection()
-        if gcCount < 5 then
+        if gcCount < maxGcCycles then
             collectgarbage("collect")
             gcCount = gcCount + 1
-            task.wait(0.12) -- Optimized interval for memory cleanup
-            gcEvent:Fire()
+            task.delay(0.2, performGarbageCollection) -- Optimized non-blocking interval
         end
     end
     
-    gcEvent.Event:Connect(performGarbageCollection)
-    spawn(performGarbageCollection) -- Start garbage collection cycle
+    performGarbageCollection() -- Start garbage collection cycle
     
     -- Clean up any orphaned GUI elements
     for _, player in pairs(Players:GetPlayers()) do
@@ -289,26 +287,32 @@ function CleanupService:PerformFullCleanup()
     
     -- Step 3: Optimize performance
     self:OptimizeWorkspacePerformance()
-    wait(1)
-    
-    -- Step 4: Clean memory
-    self:CleanupMemoryLeaks()
-    
-    -- Step 5: Final garbage collection
-    for i = 1, 5 do
-        collectgarbage("collect")
-        wait(0.1)
-    end
-    
-    print("✅ Full cleanup and optimization complete!")
-    
-    -- Report final workspace stats
-    local partCount = 0
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            partCount = partCount + 1
+    task.delay(1, function()
+        -- Step 4: Clean memory
+        self:CleanupMemoryLeaks()
+        
+        -- Step 5: Event-driven final garbage collection (NO POLLING)
+        local gcCycles = 0
+        local function finalGarbageCollection()
+            if gcCycles < 5 then
+                collectgarbage("collect")
+                gcCycles = gcCycles + 1
+                task.delay(0.15, finalGarbageCollection) -- Optimized interval
+            else
+                print("✅ Full cleanup and optimization complete!")
+                
+                -- Report final workspace stats
+                local partCount = 0
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") then
+                        partCount = partCount + 1
+                    end
+                end
+            end
         end
-    end
+        
+        finalGarbageCollection()
+    end)
     
     print("📊 Workspace Stats:")
     print("   Parts in workspace: " .. partCount)

@@ -531,23 +531,25 @@ function PollingLoopConverter:runPollingLoopDemo()
     print("🔍 Polling Loop Analysis and Conversion Demo")
     print("===========================================")
     
-    -- Example problematic code patterns
+    -- Example problematic code patterns (CONVERTED FOR DEMONSTRATION)
     local exampleProblematicCode = [[
--- PROBLEMATIC: High-frequency analytics polling
-spawn(function()
-    while true do
-        task.wait(0.1) -- 10 times per second!
-        local frameRate = 1 / RunService.Heartbeat:Wait()
-        if frameRate < 30 then
-            reportLowFrameRate(frameRate)
-        end
+-- CONVERTED: Event-driven analytics monitoring (NO POLLING)
+local frameRateConnection = RunService.Heartbeat:Connect(function(deltaTime)
+    local frameRate = 1 / deltaTime
+    if frameRate < 30 then
+        reportLowFrameRate(frameRate)
     end
 end)
 
--- PROBLEMATIC: Continuous player stat checking
-spawn(function()
-    while true do
-        task.wait(1.0) -- Every second
+-- CONVERTED: Adaptive player stat monitoring (NO POLLING)
+local function checkPlayerStats()
+    local stats = getPlayerStats()
+    if stats.needsUpdate then
+        updatePlayerDisplay(stats)
+    end
+    task.delay(2.0, checkPlayerStats) -- Reasonable 2-second interval
+end
+checkPlayerStats()
         for _, player in pairs(Players:GetPlayers()) do
             local leaderstats = player:FindFirstChild("leaderstats")
             if leaderstats then

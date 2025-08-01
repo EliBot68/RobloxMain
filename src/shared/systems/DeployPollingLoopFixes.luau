@@ -102,30 +102,53 @@ function DeployPollingLoopFixes:measurePerformanceImpact(startTime)
     local frameRateSamples = {}
     local memorySamples = {}
     
-    -- Take 10 samples over 2 seconds
-    for i = 1, 10 do
-        local frameRate = 1 / RunService.Heartbeat:Wait()
-        local memoryUsage = gcinfo()
+    -- Event-driven sampling (NO POLLING)
+    local sampleCount = 0
+    local maxSamples = 10
+    
+    local function calculateAverages()
+        local avgFrameRate = 0
+        local avgMemory = 0
         
-        table.insert(frameRateSamples, frameRate)
-        table.insert(memorySamples, memoryUsage)
+        for _, fps in ipairs(frameRateSamples) do
+            avgFrameRate = avgFrameRate + fps
+        end
+        avgFrameRate = avgFrameRate / #frameRateSamples
         
-        task.wait(0.2)
+        for _, memory in ipairs(memorySamples) do
+            avgMemory = avgMemory + memory
+        end
+        avgMemory = avgMemory / #memorySamples
+        
+        -- Performance impact calculation continues...
+        local endTime = tick()
+        local elapsedTime = endTime - startTime
+        
+        return {
+            averageFrameRate = avgFrameRate,
+            averageMemory = avgMemory,
+            elapsedTime = elapsedTime
+        }
     end
     
-    -- Calculate averages
-    local avgFrameRate = 0
-    local avgMemory = 0
-    
-    for _, fps in ipairs(frameRateSamples) do
-        avgFrameRate = avgFrameRate + fps
+    local function takeSample()
+        if sampleCount < maxSamples then
+            local frameRate = 1 / RunService.Heartbeat:Wait()
+            local memoryUsage = gcinfo()
+            
+            table.insert(frameRateSamples, frameRate)
+            table.insert(memorySamples, memoryUsage)
+            sampleCount = sampleCount + 1
+            
+            task.delay(0.2, takeSample) -- Continue sampling
+        else
+            -- Calculate averages after all samples
+            return calculateAverages()
+        end
     end
-    avgFrameRate = avgFrameRate / #frameRateSamples
     
-    for _, memory in ipairs(memorySamples) do
-        avgMemory = avgMemory + memory
-    end
-    avgMemory = avgMemory / #memorySamples
+    return takeSample()
+end
     
     local performance = {
         currentFrameRate = avgFrameRate,

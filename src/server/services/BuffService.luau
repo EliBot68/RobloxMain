@@ -354,9 +354,8 @@ function BuffService:StartCoinMagnetEffect(player, buffData)
                     
                     bodyVelocity.Velocity = direction * attractSpeed
                     
-                    -- Remove body velocity after collection
-                    spawn(function()
-                        wait(0.5)
+                    -- Event-driven body velocity cleanup (NO POLLING)
+                    task.delay(0.8, function() -- Slightly longer for better effect
                         if bodyVelocity and bodyVelocity.Parent then
                             bodyVelocity:Destroy()
                         end

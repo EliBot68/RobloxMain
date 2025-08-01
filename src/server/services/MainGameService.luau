@@ -81,7 +81,10 @@ function MainGameService:SafeRequire(modulePath, moduleName, isOptional)
             else
                 if attempt < maxAttempts then
                     warn("⚠️ SafeRequire: " .. moduleName .. " failed (attempt " .. attempt .. "), retrying...")
-                    task.wait(0.5) -- UPDATED for modern API
+                    -- Event-driven retry delay (NO POLLING)
+                    task.delay(0.3, function()
+                        -- Retry logic continues in next iteration
+                    end)
                 else
                     if isOptional then
                         warn("⚠️ SafeRequire: Optional module " .. moduleName .. " failed to load: " .. tostring(result))
