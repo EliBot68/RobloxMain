@@ -549,9 +549,8 @@ function EnhancedGameplayController:HandleColorGate(gate)
         self:PlayFailSound()
     end
     
-    -- Reset color after flash
-    spawn(function()
-        wait(0.2)
+    -- Reset color after flash with event-driven delay (NO POLLING)
+    task.delay(0.25, function() -- Slightly longer for better visual effect
         gate.Color = COLORS[requiredColor].color
     end)
     
@@ -605,8 +604,8 @@ function EnhancedGameplayController:UpdateCurrentColor(newColor)
     )
     tween:Play()
     
-    spawn(function()
-        wait(0.2)
+    -- Event-driven return tween (NO POLLING)
+    tween.Completed:Connect(function()
         local returnTween = TweenService:Create(
             colorFrame,
             TweenInfo.new(0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
@@ -818,19 +817,25 @@ function EnhancedGameplayController:ScreenShake()
     local originalCFrame = camera.CFrame
     
     -- More dramatic shake for visual polish
-    spawn(function()
-        for i = 1, 15 do
-            local intensity = (16 - i) * 0.8
+    -- Event-driven camera shake (NO POLLING)
+    local function performCameraShake(shakeIndex)
+        if shakeIndex <= 15 then
+            local intensity = (16 - shakeIndex) * 0.8
             local randomOffset = Vector3.new(
                 math.random(-intensity, intensity),
                 math.random(-intensity, intensity),
                 math.random(-intensity, intensity)
             )
             camera.CFrame = originalCFrame + randomOffset
-            wait(0.02)
+            task.delay(0.03, function() -- Slightly longer for smoother shake
+                performCameraShake(shakeIndex + 1)
+            end)
+        else
+            camera.CFrame = originalCFrame
         end
-        camera.CFrame = originalCFrame
-    end)
+    end
+    
+    performCameraShake(1)
 end
 
 function EnhancedGameplayController:CreateCoinCollectionEffect(position)

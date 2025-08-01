@@ -396,13 +396,16 @@ end
 function hideInteractionPrompt()
 	if not interactionPrompt or not interactionPrompt.Visible then return end
 	
-	TweenService:Create(interactionPrompt, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+	local hideTween = TweenService:Create(interactionPrompt, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
 		Position = UDim2.new(0.5, -175, 1, 0)
-	}):Play()
+	})
+	hideTween:Play()
 	
-	wait(0.3)
-	interactionPrompt.Visible = false
-	HubNavigationController.currentInteraction = nil
+	-- Event-driven visibility change (NO POLLING)
+	hideTween.Completed:Connect(function()
+		interactionPrompt.Visible = false
+		HubNavigationController.currentInteraction = nil
+	end)
 end
 
 -- Handle building interaction

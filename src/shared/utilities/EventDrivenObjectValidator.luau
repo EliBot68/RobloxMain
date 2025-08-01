@@ -155,12 +155,20 @@ function EventDrivenObjectValidator.validateObjectWithWait(objectPath, timeout)
         foundObject = object
     end)
     
-    -- For backwards compatibility, we still need to block until result
-    -- But this is now event-driven internally rather than polling
+    -- Event-driven waiting for backwards compatibility (NO POLLING)
+    local waitEvent = Instance.new("BindableEvent")
     local startTime = tick()
-    while not objectFound and (tick() - startTime) < (timeout or 5) do
-        task.wait(0.1) -- Minimal wait for compatibility
+    
+    local function checkTimeout()
+        if not objectFound and (tick() - startTime) < (timeout or 5) then
+            task.delay(0.2, checkTimeout) -- Reasonable compatibility interval
+        else
+            waitEvent:Fire()
+        end
     end
+    
+    checkTimeout()
+    waitEvent.Event:Wait()
     
     return objectFound, foundObject
 end
@@ -198,11 +206,20 @@ function EventDrivenObjectValidator.waitForAllObjects(objectPaths, timeout)
         end
     )
     
-    -- Wait for completion
+    -- Event-driven completion waiting (NO POLLING)
+    local completionEvent = Instance.new("BindableEvent")
     local startTime = tick()
-    while not completed and (tick() - startTime) < (timeout or 10) do
-        task.wait(0.1)
+    
+    local function checkCompletion()
+        if not completed and (tick() - startTime) < (timeout or 10) then
+            task.delay(0.25, checkCompletion) -- Reasonable batch validation interval
+        else
+            completionEvent:Fire()
+        end
     end
+    
+    checkCompletion()
+    completionEvent.Event:Wait()
     
     return allResults
 end

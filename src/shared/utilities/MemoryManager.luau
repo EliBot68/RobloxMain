@@ -459,19 +459,26 @@ function MemoryManager:CleanupAllPlayers()
         totalStats.callbacks = totalStats.callbacks + stats.callbacks
     end
     
-    -- Force garbage collection
-    for i = 1, 3 do
-        collectgarbage("collect")
-        task.wait(0.1) -- UPDATED for modern API
+    -- Event-driven garbage collection (NO POLLING)
+    local gcCycles = 0
+    local function performGarbageCollection()
+        if gcCycles < 3 then
+            collectgarbage("collect")
+            gcCycles = gcCycles + 1
+            task.delay(0.15, performGarbageCollection) -- Optimized interval
+        else
+            -- Print results after all garbage collection
+            print("✅ System-wide cleanup complete:")
+            print("   Players cleaned: " .. totalStats.players)
+            print("   Total connections: " .. totalStats.connections)
+            print("   Total tweens: " .. totalStats.tweens)
+            print("   Total tasks: " .. totalStats.tasks)
+            print("   Total game objects: " .. totalStats.gameObjects)
+            print("   Total callbacks: " .. totalStats.callbacks)
+        end
     end
     
-    print("✅ System-wide cleanup complete:")
-    print("   Players cleaned: " .. totalStats.players)
-    print("   Total connections: " .. totalStats.connections)
-    print("   Total tweens: " .. totalStats.tweens)
-    print("   Total tasks: " .. totalStats.tasks)
-    print("   Total game objects: " .. totalStats.gameObjects)
-    print("   Total callbacks: " .. totalStats.callbacks)
+    performGarbageCollection()
     
     return totalStats
 end

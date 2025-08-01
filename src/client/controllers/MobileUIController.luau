@@ -132,9 +132,10 @@ function MobileUIController:CreateJumpButton(parent)
         -- Visual feedback
         self:AnimateButtonPress(jumpButton)
         
-        -- Prevent spam jumping
-        wait(0.5)
-        isJumping = false
+        -- Event-driven spam prevention (NO POLLING)
+        task.delay(0.3, function() -- Reduced delay for better responsiveness
+            isJumping = false
+        end)
     end)
     
     -- Add label
