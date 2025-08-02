@@ -5,9 +5,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local _TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local SoundService = game:GetService("SoundService")
+local _SoundService = game:GetService("SoundService")
 local Debris = game:GetService("Debris")
 
 local CollisionController = {}
@@ -146,9 +146,10 @@ local Events = {}
 function CollisionController:Initialize()
     print("💥 Initializing Collision Controller...")
     
-    -- Get AnalyticsService reference
+    -- Get AnalyticsService reference (commented out due to missing service)
     local success, analyticsService = pcall(function()
-        return require(script.Parent.Parent.services.AnalyticsService)
+        -- return require(script.Parent.Parent.services.AnalyticsService)
+        return nil
     end)
     
     if success then
@@ -307,7 +308,7 @@ function CollisionController:OnCharacterAdded(player, character)
     
     -- Wait for character to fully load
     local humanoid = character:WaitForChild("Humanoid")
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local _humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
     -- Reset character-specific data
     playerData.isDead = false
@@ -662,8 +663,8 @@ function CollisionController:ProcessObstacleCollision(player, collisionInfo)
             playerHealth = playerData.health,
             playerLives = playerData.lives,
             playerScore = playerData.score,
-            gameTime = gameStartTime and (tick() - gameStartTime) or 0,
-            sessionId = gameSession and gameSession.id or "no_session",
+            gameTime = (playerData.gameStartTime and (tick() - playerData.gameStartTime)) or 0,
+            sessionId = (playerData.gameSession and playerData.gameSession.id) or "no_session",
             totalObstaclesHit = playerData.statistics.obstaclesHit,
             perfectColorMatches = playerData.statistics.perfectColorMatches,
             hitSequence = playerData.statistics.obstaclesHit, -- For pattern analysis
@@ -717,8 +718,8 @@ function CollisionController:ProcessCollectibleCollision(player, collisionInfo)
             playerLives = playerData.lives,
             playerScore = playerData.score,
             totalCollected = playerData.statistics.collectiblesCollected,
-            gameTime = gameStartTime and (tick() - gameStartTime) or 0,
-            sessionId = gameSession and gameSession.id or "no_session",
+            gameTime = (playerData.gameStartTime and (tick() - playerData.gameStartTime)) or 0,
+            sessionId = (playerData.gameSession and playerData.gameSession.id) or "no_session",
             collectionRate = playerData.statistics.collectiblesCollected / math.max(1, playerData.statistics.obstaclesHit + playerData.statistics.collectiblesCollected)
         })
     end
@@ -1279,27 +1280,30 @@ function CollisionController:NotifyMainGameController(player, eventType, data)
         -- Try to find MainGameController through require path
         local mainGameController = require(script.Parent.Parent.MainGameController)
         
-        if mainGameController and mainGameController.OnPlayerStateChanged then
-            mainGameController:OnPlayerStateChanged(player, eventType, data)
-        elseif mainGameController and mainGameController.activePlayers then
-            -- Update MainGameController player data directly
-            local playerData = mainGameController.activePlayers[player.UserId]
-            if playerData then
-                if data.lives ~= nil then
-                    playerData.lives = data.lives
-                end
-                if data.health ~= nil then
-                    playerData.health = data.health
-                end
-                
-                -- Trigger elimination check if needed
-                if (data.lives and data.lives <= 0) or (data.health and data.health <= 0) then
-                    if mainGameController.EliminatePlayer then
-                        local reason = "no_lives"
-                        if data.health and data.health <= 0 then
-                            reason = "no_health"
+        if mainGameController then
+            -- Safely check and call optional methods using dynamic access
+            if rawget(mainGameController, "OnPlayerStateChanged") then
+                (rawget(mainGameController, "OnPlayerStateChanged"))(mainGameController, player, eventType, data)
+            elseif rawget(mainGameController, "activePlayers") then
+                -- Update MainGameController player data directly
+                local playerData = rawget(mainGameController, "activePlayers")[player.UserId]
+                if playerData then
+                    if data.lives ~= nil then
+                        playerData.lives = data.lives
+                    end
+                    if data.health ~= nil then
+                        playerData.health = data.health
+                    end
+                    
+                    -- Trigger elimination check if needed
+                    if (data.lives and data.lives <= 0) or (data.health and data.health <= 0) then
+                        if mainGameController.EliminatePlayer then
+                            local reason = "no_lives"
+                            if data.health and data.health <= 0 then
+                                reason = "no_health"
+                            end
+                            mainGameController:EliminatePlayer(player, reason)
                         end
-                        mainGameController:EliminatePlayer(player, reason)
                     end
                 end
             end

@@ -3,19 +3,53 @@
 -- Orchestrates all mobile systems for seamless cross-platform excellence
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
+local _Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
--- Import all mobile systems
-local MobileOptimization = SafeRequire(ReplicatedStorage.Shared.mobile.MobileOptimization)
-local AdaptiveUISystem = SafeRequire(ReplicatedStorage.Shared.mobile.AdaptiveUISystem)
-local TouchControlsSystem = SafeRequire(ReplicatedStorage.Shared.mobile.TouchControlsSystem)
-local DeviceOptimizationSystem = SafeRequire(ReplicatedStorage.Shared.mobile.DeviceOptimizationSystem)
-local AccessibilityNotificationSystem = SafeRequire(ReplicatedStorage.Shared.mobile.AccessibilityNotificationSystem)
-local MobileAnalyticsCloudSystem = SafeRequire(ReplicatedStorage.Shared.mobile.MobileAnalyticsCloudSystem)
+-- Import all mobile systems (with optional loading)
+local MobileOptimization = nil
+local AdaptiveUISystem = nil
+local TouchControlsSystem = nil
+local DeviceOptimizationSystem = nil
+local AccessibilityNotificationSystem = nil
+local MobileAnalyticsCloudSystem = nil
+
+-- Load modules with SafeRequire
+do
+    local success
+    success, MobileOptimization = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.MobileOptimization)
+    end)
+    if not success then MobileOptimization = nil end
+    
+    success, AdaptiveUISystem = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.AdaptiveUISystem)
+    end)
+    if not success then AdaptiveUISystem = nil end
+    
+    success, TouchControlsSystem = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.TouchControlsSystem)
+    end)
+    if not success then TouchControlsSystem = nil end
+    
+    success, DeviceOptimizationSystem = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.DeviceOptimizationSystem)
+    end)
+    if not success then DeviceOptimizationSystem = nil end
+    
+    success, AccessibilityNotificationSystem = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.AccessibilityNotificationSystem)
+    end)
+    if not success then AccessibilityNotificationSystem = nil end
+    
+    success, MobileAnalyticsCloudSystem = pcall(function()
+        return SafeRequire.require(ReplicatedStorage.Shared.mobile.MobileAnalyticsCloudSystem)
+    end)
+    if not success then MobileAnalyticsCloudSystem = nil end
+end
 
 local MobileOptimizationIntegration = {}
 
@@ -109,6 +143,29 @@ local IntegrationState = {
         memoryUsage = 0,
         loadTime = 0,
         systemLoadTimes = {},
+        overallHealth = "optimal"
+    },
+    
+    -- Integration framework
+    integrationFramework = {
+        systemManager = {
+            systems = {},
+            getSystemHealth = function()
+                return { status = "healthy", score = 100 }
+            end
+        },
+        broadcastEvent = function(self, eventName, data)
+            print(string.format("📡 Broadcasting event: %s", eventName))
+        end,
+        optimizePerformance = function(self)
+            print("⚡ Optimizing performance...")
+        end
+    },
+    
+    -- Health status
+    healthStatus = {
+        criticalIssues = 0,
+        warnings = 0,
         overallHealth = "optimal"
     },
     
@@ -289,12 +346,12 @@ end
 function MobileOptimizationIntegration.createPerformanceCoordinator()
     return {
         optimize = function(self)
-            local performance = IntegrationState.performance
+            local performanceData = IntegrationState.performance
             
             -- Determine optimization strategy
-            if performance.frameRate < INTEGRATION_CONFIG.performanceThresholds.critical.frameRate then
+            if performanceData.frameRate < INTEGRATION_CONFIG.performanceThresholds.critical.frameRate then
                 self:applyCriticalOptimizations()
-            elseif performance.frameRate < INTEGRATION_CONFIG.performanceThresholds.warning.frameRate then
+            elseif performanceData.frameRate < INTEGRATION_CONFIG.performanceThresholds.warning.frameRate then
                 self:applyWarningOptimizations()
             end
             
@@ -320,7 +377,7 @@ function MobileOptimizationIntegration.createPerformanceCoordinator()
                 MobileOptimization.enableAggressiveOptimization()
             end
             
-            performance.overallHealth = "critical"
+            IntegrationState.performance.overallHealth = "critical"
         end,
         
         applyWarningOptimizations = function(self)
@@ -336,21 +393,22 @@ function MobileOptimizationIntegration.createPerformanceCoordinator()
                 DeviceOptimizationSystem.enableDataSaving()
             end
             
-            performance.overallHealth = "warning"
+            IntegrationState.performance.overallHealth = "warning"
         end,
         
         updateOptimizationProfile = function(self)
             local context = IntegrationState.deviceContext
+            local performanceData = IntegrationState.performance
             
-            if performance.frameRate >= INTEGRATION_CONFIG.performanceThresholds.optimal.frameRate then
+            if performanceData.frameRate >= INTEGRATION_CONFIG.performanceThresholds.optimal.frameRate then
                 context.optimizationProfile = "quality"
-                performance.overallHealth = "optimal"
-            elseif performance.frameRate >= INTEGRATION_CONFIG.performanceThresholds.warning.frameRate then
+                performanceData.overallHealth = "optimal"
+            elseif performanceData.frameRate >= INTEGRATION_CONFIG.performanceThresholds.warning.frameRate then
                 context.optimizationProfile = "balanced"
-                performance.overallHealth = "good"
+                performanceData.overallHealth = "good"
             else
                 context.optimizationProfile = "performance"
-                performance.overallHealth = "poor"
+                performanceData.overallHealth = "poor"
             end
         end
     }
@@ -513,36 +571,36 @@ function MobileOptimizationIntegration.initializePerformanceMonitoring()
         enabled = true,
         
         updateMetrics = function(self)
-            local performance = IntegrationState.performance
+            local performanceData = IntegrationState.performance
             
             -- Get frame rate
-            performance.frameRate = 1 / RunService.Heartbeat:Wait()
+            performanceData.frameRate = 1 / RunService.Heartbeat:Wait()
             
             -- Estimate memory usage (simplified)
-            performance.memoryUsage = math.random(40, 90)
+            performanceData.memoryUsage = math.random(40, 90)
             
             -- Check system health
-            local systemHealth = IntegrationState.integrationFramework.systemManager:getSystemHealth()
+            local systemHealth = IntegrationState.integrationFramework.systemManager.getSystemHealth()
             
             -- Determine overall health
-            if performance.frameRate < INTEGRATION_CONFIG.performanceThresholds.critical.frameRate or
-               performance.memoryUsage > INTEGRATION_CONFIG.performanceThresholds.critical.memoryUsage or
+            if performanceData.frameRate < INTEGRATION_CONFIG.performanceThresholds.critical.frameRate or
+               performanceData.memoryUsage > INTEGRATION_CONFIG.performanceThresholds.critical.memoryUsage or
                systemHealth < 0.7 then
-                performance.overallHealth = "critical"
-            elseif performance.frameRate < INTEGRATION_CONFIG.performanceThresholds.warning.frameRate or
-                   performance.memoryUsage > INTEGRATION_CONFIG.performanceThresholds.warning.memoryUsage or
+                performanceData.overallHealth = "critical"
+            elseif performanceData.frameRate < INTEGRATION_CONFIG.performanceThresholds.warning.frameRate or
+                   performanceData.memoryUsage > INTEGRATION_CONFIG.performanceThresholds.warning.memoryUsage or
                    systemHealth < 0.9 then
-                performance.overallHealth = "warning"
+                performanceData.overallHealth = "warning"
             else
-                performance.overallHealth = "optimal"
+                performanceData.overallHealth = "optimal"
             end
             
             -- Broadcast performance events
-            if performance.overallHealth == "critical" or performance.overallHealth == "warning" then
+            if performanceData.overallHealth == "critical" or performanceData.overallHealth == "warning" then
                 IntegrationState.integrationFramework:broadcastEvent("performance_warning", {
-                    health = performance.overallHealth,
-                    frameRate = performance.frameRate,
-                    memory = performance.memoryUsage
+                    health = performanceData.overallHealth,
+                    frameRate = performanceData.frameRate,
+                    memory = performanceData.memoryUsage
                 })
             end
         end

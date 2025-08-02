@@ -3,12 +3,12 @@
 -- Provides license management, attribution tracking, and legal compliance for asset usage
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local _RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local MarketplaceService = game:GetService("MarketplaceService")
+local _Players = game:GetService("Players")
+local _MarketplaceService = game:GetService("MarketplaceService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local AssetLicensingSystem = {}
 
@@ -162,6 +162,37 @@ local LicensingState = {
     licenseDatabase = {},
     attributionRecords = {},
     
+    -- License manager
+    licenseManager = {
+        database = {},
+        validators = {
+            format = nil,
+            permissions = nil,
+            compatibility = nil,
+            expiration = nil
+        },
+        parsers = {}
+    },
+    
+    -- Attribution system
+    attributionSystem = {
+        templates = {},
+        generators = {}
+    },
+    
+    -- Compliance tracker
+    complianceTracker = {
+        auditor = {
+            checks = {}
+        }
+    },
+    
+    -- Legal manager
+    legalManager = {
+        copyrightTracker = {},
+        riskAssessor = {}
+    },
+    
     -- Compliance tracking
     complianceResults = {},
     violations = {},
@@ -214,18 +245,14 @@ end
 -- ========================================
 
 function AssetLicensingSystem.setupLicenseManagement()
-    LicensingState.licenseManager = {
-        database = {},
-        validators = {},
-        parsers = {},
-        generators = {}
-    }
-    
     -- Initialize license database
     AssetLicensingSystem.initializeLicenseDatabase()
     
     -- Set up license validators
     AssetLicensingSystem.setupLicenseValidators()
+    
+    LicensingState.licenseManager.parsers = {}
+    LicensingState.licenseManager.generators = {}
     
     print("📜 License management initialized")
 end
@@ -686,12 +713,9 @@ end
 -- ========================================
 
 function AssetLicensingSystem.setupComplianceTracking()
-    LicensingState.complianceTracker = {
-        enabled = LICENSING_CONFIG.compliance.enableAutomaticChecks,
-        auditor = {},
-        monitor = {},
-        reporter = {}
-    }
+    LicensingState.complianceTracker.enabled = LICENSING_CONFIG.compliance.enableAutomaticChecks
+    LicensingState.complianceTracker.monitor = {}
+    LicensingState.complianceTracker.reporter = {}
     
     -- Initialize compliance auditor
     AssetLicensingSystem.initializeComplianceAuditor()

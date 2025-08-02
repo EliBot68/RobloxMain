@@ -3,12 +3,12 @@
 -- Provides comprehensive asset versioning, CDN management, and delivery optimization
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local _RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local ContentProvider = game:GetService("ContentProvider")
-local Players = game:GetService("Players")
+local _ContentProvider = game:GetService("ContentProvider")
+local _Players = game:GetService("Players")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local AssetVersioningSystem = {}
 
@@ -84,6 +84,7 @@ local VersioningState = {
     assetDistribution = {},
     cdnCache = {},
     distributionMetrics = {},
+    distributionQueue = {},
     
     -- Asset tracking
     assetManifest = {},

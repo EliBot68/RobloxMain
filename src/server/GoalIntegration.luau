@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local GoalService = SafeRequire.require(script.Parent.services.GoalService)
-local DataService = SafeRequire.require(script.Parent.services.DataService)
+local _DataService = SafeRequire.require(script.Parent.services.DataService)
 local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 
 local GoalIntegration = {}
@@ -63,11 +63,14 @@ function GoalIntegration:SetupPetIntegration()
     -- Track pet collection for "Collect 5 Pets" goal
     local PetService = require(script.Parent.services.PetService)
     
-    -- Hook into pet unlock events
+    -- Hook into pet unlock events (if available)
     if PetService.PetUnlocked then
         PetService.PetUnlocked:Connect(function(player, petId)
             self:TriggerGoalUpdate(player, "pet_collected")
         end)
+    else
+        -- Fallback: monitor via data changes
+        print("PetService.PetUnlocked not available, using fallback monitoring")
     end
     
     -- Also track when pets are added to player data
@@ -80,9 +83,10 @@ end
 
 function GoalIntegration:SetupGameplayIntegration()
     -- Track game completion for "Complete 100 Runs" goal
-    local GameService = require(script.Parent.services.GameService)
+    -- local GameService = require(script.Parent.services.GameService)
     
-    -- Hook into game completion events
+    -- Hook into game completion events (commented out due to missing GameService)
+    --[[
     if GameService.GameCompleted then
         GameService.GameCompleted:Connect(function(player, score, wasWin)
             self:TriggerGoalUpdate(player, "game_completed")
@@ -95,6 +99,7 @@ function GoalIntegration:SetupGameplayIntegration()
             self:TriggerGoalUpdate(player, "perfect_run")
         end)
     end
+    --]]
     
     -- Track games played counter
     RemoteEvents.PlayerDataChanged.OnServerEvent:Connect(function(player, dataType, newValue)
@@ -106,9 +111,10 @@ end
 
 function GoalIntegration:SetupQuestIntegration()
     -- Track quest completion for "Complete First Quest" goal
-    local QuestService = require(script.Parent.services.QuestService)
+    -- local QuestService = require(script.Parent.services.QuestService)
     
-    -- Hook into quest completion events
+    -- Hook into quest completion events (commented out due to QuestService module issues)
+    --[[
     if QuestService.QuestCompleted then
         QuestService.QuestCompleted:Connect(function(player, questId, reward)
             self:TriggerGoalUpdate(player, "quest_completed")
@@ -121,17 +127,21 @@ function GoalIntegration:SetupQuestIntegration()
             self:TriggerGoalUpdate(player, "quest_progress_change")
         end
     end)
+    --]]
 end
 
 function GoalIntegration:SetupStreakIntegration()
     -- Track daily login streaks for "Login 7 Days" goal
     local DailyStreakService = require(script.Parent.services.DailyStreakService)
     
-    -- Hook into streak events
+    -- Hook into streak events (conditional due to missing signal)
     if DailyStreakService.StreakUpdated then
         DailyStreakService.StreakUpdated:Connect(function(player, newStreak, oldStreak)
             self:TriggerGoalUpdate(player, "streak_updated")
         end)
+    else
+        -- Fallback: monitor via data changes only
+        print("DailyStreakService.StreakUpdated not available, using fallback monitoring")
     end
     
     -- Track daily streak changes

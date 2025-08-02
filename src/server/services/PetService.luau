@@ -15,6 +15,9 @@ local RemoteEvents = SafeRequire.require(ReplicatedStorage.Shared.modules.Remote
 
 local PetService = {}
 
+-- Event signals
+PetService.PetUnlocked = nil -- Placeholder for optional signal
+
 -- DataStore for pet ownership
 local petDataStore = DataStoreService:GetDataStore("PlayerPets")
 

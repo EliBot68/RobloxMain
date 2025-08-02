@@ -2,7 +2,7 @@
 -- Complete modern UI system replacing all placeholder elements
 -- Mobile-friendly, scalable, and following Roblox best practices
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local _ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
@@ -281,16 +281,6 @@ local BACKGROUND_STYLES = {
         shadowEnabled = false
     },
     
-    modal = {
-        name = "ModalBackground",
-        description = "Modal dialog background",
-        backgroundColor = UI_DESIGN.colors.backgroundMedium,
-        backgroundTransparency = 0.1,
-        overlayColor = UI_DESIGN.colors.black,
-        overlayTransparency = 0.5,
-        borderColor = UI_DESIGN.colors.primary
-    },
-    
     card = {
         name = "CardBackground",
         description = "Card/panel background",
@@ -298,8 +288,7 @@ local BACKGROUND_STYLES = {
         backgroundTransparency = 0.05,
         borderColor = UI_DESIGN.colors.light,
         shadowEnabled = true
-    }
-}
+    },
     
     modal = {
         name = "ModalBackground",
@@ -308,15 +297,6 @@ local BACKGROUND_STYLES = {
         backgroundTransparency = 0.1,
         overlayColor = UI_DESIGN.colors.black,
         overlayTransparency = 0.5
-    },
-    
-    card = {
-        name = "CardBackground",
-        description = "Card/panel background",
-        backgroundColor = UI_DESIGN.colors.white,
-        backgroundTransparency = 0.05,
-        borderColor = UI_DESIGN.colors.light,
-        shadowEnabled = true
     }
 }
 
@@ -372,7 +352,7 @@ local ANIMATION_PRESETS = {
 }
 
 -- Mobile Optimization Settings
-local MOBILE_CONFIG = {
+local _MOBILE_CONFIG = {
     -- Touch-friendly minimum sizes
     minButtonSize = {
         width = 48,

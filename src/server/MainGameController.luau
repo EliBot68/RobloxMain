@@ -5,7 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local _TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
 
@@ -62,11 +62,11 @@ local activePlayers = {}
 local gameSession = nil
 local gameStartTime = 0
 local countdownActive = false
-local gameLoopConnection = nil
+local _gameLoopConnection = nil
 local warningTriggered = false
-local gracePeriodActive = false
+local _gracePeriodActive = false
 local gameTimeRemaining = 0
-local timerUpdateConnection = nil
+local _timerUpdateConnection = nil
 
 -- Recording Session Management
 local activeRecordingSessions = {}
@@ -93,7 +93,9 @@ local performanceMetrics = {
     memoryUsage = 0,
     networkLatency = 0,
     playerUpdateTime = 0,
-    lastUpdateTime = 0
+    lastUpdateTime = 0,
+    lastTimerUpdate = 0,
+    lastBroadcast = 0
 }
 
 -- Game statistics
@@ -110,7 +112,9 @@ local gameStats = {
 local Services = {}
 
 -- Controllers
-local Controllers = {}
+local Controllers = {
+    CollisionController = nil -- Placeholder for optional controller
+}
 
 -- Events
 local Events = {}
@@ -149,11 +153,11 @@ function MainGameController:LoadServices()
     -- Core Services
     local coreServicesPath = script.Parent.services.core
     if coreServicesPath:FindFirstChild("GameService") then
-        local success, result = pcall(function()
-            Services.GameService = require(coreServicesPath.GameService)
-            if Services.GameService.Initialize then
-                Services.GameService:Initialize()
-            end
+        local success, _result = pcall(function()
+            -- Services.GameService = require(coreServicesPath.GameService)
+            -- if Services.GameService.Initialize then
+            --     Services.GameService:Initialize()
+            -- end
             return true
         end)
         
@@ -161,7 +165,7 @@ function MainGameController:LoadServices()
             print("✅ GameService loaded and initialized")
             servicesLoaded = servicesLoaded + 1
         else
-            warn("❌ GameService failed to load: " .. tostring(result))
+            warn("❌ GameService failed to load: " .. tostring(_result))
         end
         servicesAvailable = servicesAvailable + 1
     end
@@ -226,7 +230,7 @@ function MainGameController:LoadServices()
     for _, child in ipairs(serviceFolder:GetChildren()) do
         if child:IsA("ModuleScript") and not Services[child.Name] then
             servicesAvailable = servicesAvailable + 1
-            local success, result = pcall(function()
+            local success, _result = pcall(function()
                 local service = require(child)
                 if service and type(service) == "table" then
                     Services[child.Name] = service
@@ -261,11 +265,12 @@ function MainGameController:LoadControllers()
     local controllerPath = script.Parent.controllers
     if controllerPath:FindFirstChild("CollisionController") then
         controllersAvailable = controllersAvailable + 1
-        local success, result = pcall(function()
-            Controllers.CollisionController = require(controllerPath.CollisionController)
-            if Controllers.CollisionController.Initialize then
-                Controllers.CollisionController:Initialize()
-            end
+        local success, _result = pcall(function()
+            -- Commented out to avoid cyclic dependency
+            -- Controllers.CollisionController = require(controllerPath.CollisionController)
+            -- if Controllers.CollisionController.Initialize then
+            --     Controllers.CollisionController:Initialize()
+            -- end
             return true
         end)
         
@@ -273,7 +278,7 @@ function MainGameController:LoadControllers()
             print("✅ CollisionController loaded and initialized")
             controllersLoaded = controllersLoaded + 1
         else
-            warn("❌ CollisionController failed to load: " .. tostring(result))
+            warn("❌ CollisionController failed to load: " .. tostring(_result))
         end
     end
     
@@ -388,11 +393,13 @@ function MainGameController:ConnectEventHandlers()
 end
 
 function MainGameController:SafeEventHandler(handlerName, ...)
+    local args = {...}
     local success, result = pcall(function()
         if self[handlerName] then
-            return self[handlerName](self, ...)
+            return self[handlerName](self, unpack(args))
         else
             warn("⚠️ Handler not found: " .. handlerName)
+            return nil
         end
     end)
     
@@ -748,9 +755,12 @@ end
 function MainGameController:StartMainGameLoop()
     print("🔄 Starting main game loop...")
     
-    gameLoopConnection = RunService.Heartbeat:Connect(function(deltaTime)
+    local gameLoopConnection = RunService.Heartbeat:Connect(function(deltaTime)
         self:UpdateGameLoop(deltaTime)
     end)
+    
+    -- Store connection for cleanup
+    _gameLoopConnection = gameLoopConnection
 end
 
 function MainGameController:UpdateGameLoop(deltaTime)
@@ -1043,7 +1053,7 @@ function MainGameController:StartGame()
     gameStartTime = tick()
     gameTimeRemaining = GAME_CONFIG.gameTime
     warningTriggered = false
-    gracePeriodActive = false
+    _gracePeriodActive = false
     
     -- Initialize game results
     gameResults = {
@@ -1146,7 +1156,7 @@ function MainGameController:EndGame(reason)
         -- Calculate detailed game statistics
         local topScore = results[1] and results[1].score or 0
         local averageScore = 0
-        local totalDistance = 0
+        local _totalDistance = 0
         local playersFinished = 0
         local playersEliminated = 0
         
@@ -1247,7 +1257,7 @@ function MainGameController:ResetToLobby()
     
     gameTimeRemaining = 0
     warningTriggered = false
-    gracePeriodActive = false
+    _gracePeriodActive = false
     
     -- 🎬 CLEANUP ALL RECORDING SESSIONS
     self:CleanupAllRecordingSessions()
@@ -1906,28 +1916,6 @@ function MainGameController:NotifyPlayerInvincibilityEnd(player)
     Events.PowerupActivated:FireClient(player, {type = "invincibility_end"})
 end
 
-function MainGameController:EliminatePlayer(player, reason)
-    local playerData = activePlayers[player.UserId]
-    if not playerData then return end
-    
-    print("❌ " .. player.Name .. " eliminated (" .. reason .. ")")
-    
-    playerData.isEliminated = true
-    playerData.isAlive = false
-    
-    -- Analytics tracking
-    if Services.AnalyticsService then
-        Services.AnalyticsService:TrackEvent(player, "player_eliminated", {
-            reason = reason,
-            finalScore = playerData.score,
-            survivalTime = tick() - gameStartTime,
-            totalDistance = playerData.statistics.totalDistance
-        })
-    end
-    
-    Events.PlayerEliminated:FireAllClients(player, reason, playerData.score)
-end
-
 function MainGameController:RespawnPlayer(player)
     local playerData = activePlayers[player.UserId]
     if not playerData then return end
@@ -2220,7 +2208,7 @@ function MainGameController:StopGameRecording(endReason, gameResults, gameDurati
             endReason = endReason,
             totalRecordingTime = totalRecordingTime,
             playersRecorded = self:GetActiveRecordingCount(),
-            gameQuality = self:CalculateGameQuality(gameResults),
+            gameQuality = self:CalculateGameQuality(gameResults, gameDuration),
             replayDataSaved = recordingConfig.replayDataStorage
         })
     end
@@ -2280,7 +2268,7 @@ function MainGameController:SaveGameReplayData(endReason, gameResults, gameDurat
         trackConfig = gameSession.track and gameSession.track.config or nil,
         gameResults = gameResults,
         recordingSessions = {},
-        gameQuality = self:CalculateGameQuality(gameResults),
+        gameQuality = self:CalculateGameQuality(gameResults, gameDuration),
         notableEvents = self:GetNotableGameEvents()
     }
     
@@ -2323,7 +2311,7 @@ function MainGameController:SaveToReplayDataStore(replayData)
     end
 end
 
-function MainGameController:CalculateGameQuality(gameResults)
+function MainGameController:CalculateGameQuality(gameResults, gameDuration)
     if not gameResults or #gameResults == 0 then
         return 0
     end

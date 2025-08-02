@@ -5,12 +5,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local ContentProvider = game:GetService("ContentProvider")
-local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
+local _ContentProvider = game:GetService("ContentProvider")
+local _UserInputService = game:GetService("UserInputService")
+local _GuiService = game:GetService("GuiService")
 local Stats = game:GetService("Stats")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local DynamicAssetLoadingSystem = {}
 
@@ -116,7 +116,19 @@ local DYNAMIC_LOADING_CONFIG = {
 
 local LoadingState = {
     -- Device profiling
-    deviceProfile = {},
+    deviceProfile = {
+        platform = "Unknown",
+        memory = {
+            total = 0,
+            used = 0,
+            available = 0
+        },
+        network = {
+            bandwidth = 10000000 -- Default 10 Mbps
+        },
+        performance = 0,
+        timestamp = 0
+    },
     deviceTier = "medium",
     capabilities = {},
     
@@ -125,15 +137,28 @@ local LoadingState = {
     loadedAssets = {},
     assetVariants = {},
     loadingQueue = {},
+    assetManager = {
+        registry = {}
+    },
     
     -- Performance monitoring
-    performanceMonitor = {},
+    performanceMonitor = {
+        frameRateMonitor = nil,
+        memoryMonitor = nil,
+        loadTimeMonitor = nil,
+        adaptiveMonitor = nil
+    },
     frameRateTracker = {},
     memoryTracker = {},
     loadTimeTracker = {},
     
     -- Adaptive systems
-    adaptiveEngine = {},
+    adaptiveEngine = {
+        qualityAdapter = nil,
+        loadBalancer = nil,
+        priorityManager = nil,
+        performanceOptimizer = nil
+    },
     qualityScaler = {},
     loadBalancer = {},
     
@@ -376,7 +401,7 @@ end
 
 function DynamicAssetLoadingSystem.classifyDeviceTier()
     local profile = LoadingState.deviceProfile
-    local tiers = DYNAMIC_LOADING_CONFIG.deviceTiers
+    local _tiers = DYNAMIC_LOADING_CONFIG.deviceTiers
     
     -- Score device based on capabilities
     local score = 0
@@ -1100,7 +1125,6 @@ function DynamicAssetLoadingSystem.startDynamicProcessing()
     
     -- Start the dynamic processing cycle
     spawn(scheduleDynamicProcessing)
-    end)
     
     print("🔄 Dynamic processing started")
 end
@@ -1131,33 +1155,6 @@ function DynamicAssetLoadingSystem.getNextPriorityAsset()
     return nil
 end
 
-function DynamicAssetLoadingSystem.performMaintenance()
-    -- Clean up old loaded assets
-    local maxCacheSize = 100
-    local assetCount = 0
-    
-    for _ in pairs(LoadingState.loadedAssets) do
-        assetCount = assetCount + 1
-    end
-    
-    if assetCount > maxCacheSize then
-        -- Remove oldest assets
-        local assets = {}
-        for id, asset in pairs(LoadingState.loadedAssets) do
-            table.insert(assets, {id = id, asset = asset})
-        end
-        
-        table.sort(assets, function(a, b)
-            return a.asset.loadTime < b.asset.loadTime
-        end)
-        
-        local toRemove = assetCount - maxCacheSize
-        for i = 1, toRemove do
-            LoadingState.loadedAssets[assets[i].id] = nil
-        end
-    end
-end
-
 function DynamicAssetLoadingSystem.updateLoadingStatistics(loadRequest)
     -- Update average load time
     local totalTime = LoadingState.stats.averageLoadTime * LoadingState.stats.loadedAssets
@@ -1165,7 +1162,48 @@ function DynamicAssetLoadingSystem.updateLoadingStatistics(loadRequest)
     LoadingState.stats.averageLoadTime = totalTime / (LoadingState.stats.loadedAssets + 1)
     
     -- Record in load time monitor
-    LoadingState.performanceMonitor.loadTimeMonitor:recordLoad(loadRequest.duration * 1000)
+    if LoadingState.performanceMonitor.loadTimeMonitor then
+        LoadingState.performanceMonitor.loadTimeMonitor:recordLoad(loadRequest.duration * 1000)
+    end
+end
+
+function DynamicAssetLoadingSystem.optimizePerformance()
+    -- Optimize based on current performance metrics
+    local frameRate = LoadingState.performanceMonitor.frameRateMonitor and 
+                     LoadingState.performanceMonitor.frameRateMonitor:getAverage() or 60
+    
+    if frameRate < 30 then
+        DynamicAssetLoadingSystem.adjustGlobalQuality("decrease")
+        return true
+    elseif frameRate > 50 then
+        DynamicAssetLoadingSystem.adjustGlobalQuality("increase")
+        return true
+    end
+    
+    return false
+end
+
+function DynamicAssetLoadingSystem.adjustGlobalQuality(direction)
+    local currentTier = LoadingState.deviceTier
+    local tiers = {"low", "medium", "high", "ultra"}
+    local currentIndex = 2 -- default to medium
+    
+    for i, tier in ipairs(tiers) do
+        if tier == currentTier then
+            currentIndex = i
+            break
+        end
+    end
+    
+    if direction == "decrease" and currentIndex > 1 then
+        LoadingState.deviceTier = tiers[currentIndex - 1]
+        LoadingState.stats.adaptiveAdjustments = LoadingState.stats.adaptiveAdjustments + 1
+        print("📉 Quality decreased to: " .. LoadingState.deviceTier)
+    elseif direction == "increase" and currentIndex < #tiers then
+        LoadingState.deviceTier = tiers[currentIndex + 1]
+        LoadingState.stats.adaptiveAdjustments = LoadingState.stats.adaptiveAdjustments + 1
+        print("📈 Quality increased to: " .. LoadingState.deviceTier)
+    end
 end
 
 -- ========================================
@@ -1252,11 +1290,11 @@ function DynamicAssetLoadingSystem.runDynamicLoadingDemo()
     
     -- Show performance metrics
     local frameMonitor = LoadingState.performanceMonitor.frameRateMonitor
-    local memoryMonitor = LoadingState.performanceMonitor.memoryMonitor
+    local _memoryMonitor = LoadingState.performanceMonitor.memoryMonitor
     
     print("  📊 Performance Metrics:")
     print(string.format("    Average FPS: %.1f (target: %.1f)", 
-        frameMonitor:getAverage(), frameMonitor.targetFPS))
+        frameMonitor and frameMonitor:getAverage() or 60, frameMonitor and frameMonitor.targetFPS or 60))
     print(string.format("    Memory usage: %.1fMB", 
         LoadingState.stats.memoryUsage / (1024*1024)))
     print(string.format("    Average load time: %.1fms", LoadingState.stats.averageLoadTime))
@@ -1304,11 +1342,33 @@ end
 
 function DynamicAssetLoadingSystem.getPerformanceMetrics()
     return {
-        frameRate = LoadingState.performanceMonitor.frameRateMonitor:getAverage(),
+        frameRate = LoadingState.performanceMonitor.frameRateMonitor and LoadingState.performanceMonitor.frameRateMonitor:getAverage() or 60,
         memoryUsage = LoadingState.stats.memoryUsage,
         averageLoadTime = LoadingState.stats.averageLoadTime,
         adaptiveAdjustments = LoadingState.stats.adaptiveAdjustments
     }
+end
+
+-- ========================================
+-- MISSING METHOD IMPLEMENTATIONS
+-- ========================================
+
+function DynamicAssetLoadingSystem.performMaintenance()
+    -- Clean up completed requests
+    local cleaned = 0
+    for assetId, asset in pairs(LoadingState.loadedAssets) do
+        if asset.lastAccessed and (tick() - asset.lastAccessed) > 300 then -- 5 minutes
+            LoadingState.loadedAssets[assetId] = nil
+            cleaned = cleaned + 1
+        end
+    end
+    
+    if cleaned > 0 then
+        print(string.format("🧹 Cleaned up %d unused assets", cleaned))
+    end
+    
+    -- Update device profile
+    DynamicAssetLoadingSystem.updateDeviceProfile()
 end
 
 -- Export API

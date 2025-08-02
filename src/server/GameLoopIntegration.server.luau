@@ -32,6 +32,15 @@ end
 
 local Services = waitForServices()
 
+-- Forward declare functions
+local startPlayerGameLoop
+local updatePlayerPosition
+local updateGameSpeed
+local handleObstacleSpawning
+local checkGameConditions
+local updateDifficultySystem
+local spawnObstacleForPlayer
+
 -- Game state management
 local gameStates = {}
 local gameLoopConnections = {}
@@ -167,7 +176,7 @@ local function stopGame(player, reason)
 end
 
 -- Main game loop for individual player
-local function startPlayerGameLoop(player)
+startPlayerGameLoop = function(player)
     local gameState = gameStates[player.UserId]
     
     gameLoopConnections[player.UserId] = RunService.Heartbeat:Connect(function(deltaTime)
@@ -193,7 +202,7 @@ local function startPlayerGameLoop(player)
 end
 
 -- Update player position and calculate distance traveled
-local function updatePlayerPosition(player, deltaTime)
+updatePlayerPosition = function(player, deltaTime)
     local gameState = gameStates[player.UserId]
     
     if not gameState.character or not gameState.humanoid then
@@ -217,7 +226,7 @@ local function updatePlayerPosition(player, deltaTime)
 end
 
 -- Update game speed based on current difficulty
-local function updateGameSpeed(player)
+updateGameSpeed = function(player)
     local gameState = gameStates[player.UserId]
     local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
     
@@ -233,7 +242,7 @@ local function updateGameSpeed(player)
 end
 
 -- Handle obstacle spawning based on difficulty spawn rate
-local function handleObstacleSpawning(player, deltaTime)
+handleObstacleSpawning = function(player, deltaTime)
     local gameState = gameStates[player.UserId]
     local difficulty = Services.DifficultyService:GetPlayerDifficulty(player)
     
@@ -253,7 +262,7 @@ local function handleObstacleSpawning(player, deltaTime)
 end
 
 -- Spawn obstacle based on current difficulty complexity
-local function spawnObstacleForPlayer(player, difficulty)
+spawnObstacleForPlayer = function(player, difficulty)
     if not Services.MovingObstacleService then
         return -- MovingObstacleService not available
     end
@@ -301,7 +310,7 @@ local function spawnObstacleForPlayer(player, difficulty)
 end
 
 -- Check win/lose conditions
-local function checkGameConditions(player)
+checkGameConditions = function(player)
     local gameState = gameStates[player.UserId]
     
     if not gameState.character or not gameState.humanoid then
@@ -330,7 +339,7 @@ local function checkGameConditions(player)
 end
 
 -- Update difficulty system with current progress
-local function updateDifficultySystem(player)
+updateDifficultySystem = function(player)
     local gameState = gameStates[player.UserId]
     local currentTime = tick()
     

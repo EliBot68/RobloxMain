@@ -16,6 +16,9 @@ local QuestService = nil
 
 local DailyStreakService = {}
 
+-- Event signals
+DailyStreakService.StreakUpdated = nil -- Placeholder for optional signal
+
 -- DataStore for tracking daily streaks
 local dailyStreakStore = DataStoreService:GetDataStore("DailyStreakProgress")
 

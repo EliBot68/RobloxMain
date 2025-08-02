@@ -3,8 +3,8 @@
 -- Provides enterprise-grade error management with graceful failure handling and comprehensive reporting
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local _RunService = game:GetService("RunService")
+local _Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
 local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
@@ -62,7 +62,7 @@ local errorStats = {
 }
 
 local errorHandlers = {} -- Custom error handlers by category
-local recoveryStrategies = {} -- Recovery strategies by error type
+local _recoveryStrategies = {} -- Recovery strategies by error type
 local errorCallbacks = {} -- Callbacks for error notifications
 
 -- Configuration
@@ -813,10 +813,10 @@ end
 function ErrorHandler:PrintErrorReport()
     local stats = self:GetErrorStats()
     
-    print("\n" .. "=".rep(60))
+    print("\n" .. string.rep("=", 60))
     print("📊 ERROR HANDLER REPORT")
     print("⏰ Generated: " .. os.date("%Y-%m-%d %H:%M:%S"))
-    print("=".rep(60))
+    print(string.rep("=", 60))
     
     print("📈 STATISTICS:")
     print("   Total Errors: " .. stats.total)
@@ -838,7 +838,7 @@ function ErrorHandler:PrintErrorReport()
         print("   " .. source .. ": " .. count)
     end
     
-    print("=".rep(60) .. "\n")
+    print(string.rep("=", 60) .. "\n")
 end
 
 -- ========================================
@@ -897,7 +897,7 @@ function ErrorHandler:StartErrorMonitoring()
     local monitoringEvent = Instance.new("BindableEvent")
     
     local function scheduleNextMonitoring()
-        local errorCount = #self.recentErrors
+        local errorCount = #errorStats.recentErrors
         local interval = config:Get("errorHandling.MONITORING.INTERVAL") or 60
         
         -- Adaptive monitoring based on error activity

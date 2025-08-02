@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 local ServiceBase = SafeRequire.require(ReplicatedStorage.Shared.utils.ServiceBase)
 local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
-local CriticalErrorHandler = require(ReplicatedStorage.Shared.core.CriticalErrorHandler)
+local _CriticalErrorHandler = require(ReplicatedStorage.Shared.core.CriticalErrorHandler)
 
 local AchievementService = ServiceBase.new("AchievementService", {
     enableDetailedLogging = true,
@@ -17,6 +17,10 @@ local AchievementService = ServiceBase.new("AchievementService", {
     validateOnStart = true,
     autoStart = false
 })
+
+-- Service references (set by dependency setters)
+local PlayerService = nil
+local AnalyticsService = nil
 
 -- Define dependencies
 AchievementService.Dependencies = {
@@ -347,17 +351,17 @@ function AchievementService:SetupRemoteEvents()
     end
 
     -- Request achievement data
-    self.RemoteEvents.RequestAchievementData.OnServerEvent:Connect(function(player)
+    self.self.RemoteEvents.RequestAchievementData.OnServerEvent:Connect(function(player)
         self:SendAchievementData(player)
     end)
     
     -- Claim achievement reward
-    self.RemoteEvents.ClaimAchievementReward.OnServerEvent:Connect(function(player, achievementId)
+    self.self.RemoteEvents.ClaimAchievementReward.OnServerEvent:Connect(function(player, achievementId)
         self:ClaimAchievementReward(player, achievementId)
     end)
     
     -- Request daily bonus
-    self.RemoteEvents.RequestDailyBonus.OnServerEvent:Connect(function(player)
+    self.self.RemoteEvents.RequestDailyBonus.OnServerEvent:Connect(function(player)
         self:ProcessDailyBonus(player)
     end)
     
@@ -373,24 +377,6 @@ function AchievementService:SetupConnections()
     
     self.Connections.PlayerRemoving = Players.PlayerRemoving:Connect(function(player)
         self:SavePlayerData(player)
-    end)
-end
-    -- Achievement events
-    RemoteEvents.RequestAchievementData.OnServerEvent:Connect(function(player)
-        self:SendAchievementData(player)
-    end)
-    
-    RemoteEvents.ClaimAchievementReward.OnServerEvent:Connect(function(player, achievementId)
-        self:ClaimAchievementReward(player, achievementId)
-    end)
-    
-    -- Daily bonus events
-    RemoteEvents.RequestDailyBonus.OnServerEvent:Connect(function(player)
-        self:ShowDailyBonus(player)
-    end)
-    
-    RemoteEvents.ClaimDailyBonus.OnServerEvent:Connect(function(player)
-        self:ClaimDailyBonus(player)
     end)
 end
 
@@ -523,7 +509,7 @@ function AchievementService:ShowDailyBonusPopup(player)
     local dayInCycle = ((data.currentStreak - 1) % 7) + 1
     local bonus = DAILY_BONUSES[dayInCycle] or DAILY_BONUSES[7]
     
-    RemoteEvents.ShowDailyBonusPopup:FireClient(player, {
+    self.self.RemoteEvents.ShowDailyBonusPopup:FireClient(player, {
         day = data.currentStreak,
         dayInCycle = dayInCycle,
         bonus = bonus,
@@ -537,7 +523,7 @@ function AchievementService:ClaimDailyBonus(player)
     local data = playerDailyBonus[userId]
     
     if not data or data.claimedToday then
-        RemoteEvents.DailyBonusResult:FireClient(player, {
+        self.self.RemoteEvents.DailyBonusResult:FireClient(player, {
             success = false,
             message = "Daily bonus already claimed today!"
         })
@@ -567,7 +553,7 @@ function AchievementService:ClaimDailyBonus(player)
     self:SaveDailyBonusData(player, data)
     
     -- Send success response
-    RemoteEvents.DailyBonusResult:FireClient(player, {
+    self.self.RemoteEvents.DailyBonusResult:FireClient(player, {
         success = true,
         bonus = bonus,
         streak = data.currentStreak,
@@ -641,7 +627,7 @@ function AchievementService:GetStatValue(playerData, statKey)
 end
 
 function AchievementService:ShowAchievementUnlocked(player, achievement)
-    RemoteEvents.AchievementUnlocked:FireClient(player, {
+    self.self.RemoteEvents.AchievementUnlocked:FireClient(player, {
         id = achievement.id,
         name = achievement.name,
         description = achievement.description,
@@ -662,7 +648,7 @@ function AchievementService:ClaimAchievementReward(player, achievementId)
     local achievementProgress = achievements.achievements[achievementId]
     
     if not achievementProgress.completed then
-        RemoteEvents.AchievementClaimResult:FireClient(player, {
+        self.RemoteEvents.AchievementClaimResult:FireClient(player, {
             success = false,
             message = "Achievement not completed yet!"
         })
@@ -670,7 +656,7 @@ function AchievementService:ClaimAchievementReward(player, achievementId)
     end
     
     if achievementProgress.claimed then
-        RemoteEvents.AchievementClaimResult:FireClient(player, {
+        self.RemoteEvents.AchievementClaimResult:FireClient(player, {
             success = false,
             message = "Reward already claimed!"
         })
@@ -697,7 +683,7 @@ function AchievementService:ClaimAchievementReward(player, achievementId)
         
         self:SavePlayerAchievements(player)
         
-        RemoteEvents.AchievementClaimResult:FireClient(player, {
+        self.RemoteEvents.AchievementClaimResult:FireClient(player, {
             success = true,
             achievement = achievement,
             reward = achievement.reward
@@ -705,7 +691,7 @@ function AchievementService:ClaimAchievementReward(player, achievementId)
         
         print("🎁 " .. player.Name .. " claimed achievement reward: " .. achievement.name)
     else
-        RemoteEvents.AchievementClaimResult:FireClient(player, {
+        self.RemoteEvents.AchievementClaimResult:FireClient(player, {
             success = false,
             message = "Failed to apply reward"
         })
@@ -768,7 +754,7 @@ function AchievementService:SendAchievementData(player)
         })
     end
     
-    RemoteEvents.AchievementDataUpdated:FireClient(player, achievementData)
+    self.RemoteEvents.AchievementDataUpdated:FireClient(player, achievementData)
 end
 
 function AchievementService:SavePlayerAchievements(player)

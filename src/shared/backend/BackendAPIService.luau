@@ -5,10 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local DataStoreService = game:GetService("DataStoreService")
+local _RunService = game:GetService("RunService")
+local _DataStoreService = game:GetService("DataStoreService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local BackendAPIService = {}
 
@@ -85,6 +85,9 @@ local APIState = {
     tokens = {},
     refreshTokens = {},
     authExpirations = {},
+    
+    -- Session management
+    sessionId = nil,
     
     -- Rate limiting
     rateLimitCounters = {},
@@ -377,11 +380,14 @@ function BackendAPIService.makeRequestWithRetry(requestId, method, url, data, he
     local attempt = 1
     local maxAttempts = API_CONFIG.retry.maxAttempts
     local delay = API_CONFIG.retry.baseDelay
+    local lastResponse = nil
     
     while attempt <= maxAttempts do
         local success, response = BackendAPIService.executeRequest(
             requestId, method, url, data, headers, timeout
         )
+        
+        lastResponse = response
         
         if success then
             return true, response
@@ -400,7 +406,7 @@ function BackendAPIService.makeRequestWithRetry(requestId, method, url, data, he
         end
     end
     
-    return false, response
+    return false, lastResponse
 end
 
 function BackendAPIService.executeRequest(requestId, method, url, data, headers, timeout)
@@ -759,11 +765,11 @@ function BackendAPIService.checkServiceHealth(serviceName, endpoint)
     local healthEndpoint = endpoint .. "/health"
     local startTime = tick()
     
-    local success, response = BackendAPIService.makeRequest(healthEndpoint, "GET")
+    local success, healthResponse = BackendAPIService.makeRequest(healthEndpoint, "GET")
     local responseTime = tick() - startTime
     
     local status = "unhealthy"
-    if success and response.status == 200 then
+    if success and healthResponse.status == 200 then
         status = responseTime < 2 and "healthy" or "degraded"
     end
     
@@ -920,7 +926,7 @@ function BackendAPIService.runAPIDemo()
     
     -- Test analytics tracking
     print("  📊 Testing analytics API...")
-    local success1, response1 = BackendAPIService.trackAnalyticsEvent("player_joined", {
+    local success1, _response1 = BackendAPIService.trackAnalyticsEvent("player_joined", {
         level = 1,
         experience = 0
     })
@@ -928,7 +934,7 @@ function BackendAPIService.runAPIDemo()
     
     -- Test player data
     print("  👤 Testing player data API...")
-    local success2, response2 = BackendAPIService.savePlayerData(12345, {
+    local success2, _response2 = BackendAPIService.savePlayerData(12345, {
         level = 5,
         coins = 1000,
         achievements = {"first_win", "coin_collector"}
@@ -937,7 +943,7 @@ function BackendAPIService.runAPIDemo()
     
     -- Test business metrics
     print("  💰 Testing business metrics API...")
-    local success3, response3 = BackendAPIService.trackBusinessMetrics({
+    local success3, _response3 = BackendAPIService.trackBusinessMetrics({
         revenue = 10.99,
         purchases = 1,
         currency = "USD"
@@ -946,12 +952,12 @@ function BackendAPIService.runAPIDemo()
     
     -- Test A/B testing
     print("  🧪 Testing experiments API...")
-    local success4, response4 = BackendAPIService.getPlayerExperiments(12345)
+    local success4, _response4 = BackendAPIService.getPlayerExperiments(12345)
     print(string.format("    Player experiments: %s", success4 and "✅ Success" or "❌ Failed"))
     
     -- Test privacy compliance
     print("  🔒 Testing privacy API...")
-    local success5, response5 = BackendAPIService.recordConsentChoice(12345, "analytics", true)
+    local success5, _response5 = BackendAPIService.recordConsentChoice(12345, "analytics", true)
     print(string.format("    Consent recording: %s", success5 and "✅ Success" or "❌ Failed"))
     
     -- Wait for requests to complete

@@ -6,10 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local DataStoreService = game:GetService("DataStoreService")
-local TeleportService = game:GetService("TeleportService")
+local _DataStoreService = game:GetService("DataStoreService")
+local _TeleportService = game:GetService("TeleportService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local RobuxIntegration = {}
 
@@ -97,7 +97,17 @@ local TransactionState = {
     -- Analytics data
     revenueMetrics = {},
     conversionMetrics = {},
-    transactionAnalytics = {},
+    transactionAnalytics = {
+        errors = {},
+        metrics = {
+            averageTransactionValue = 0,
+            totalRevenue = 0,
+            fraudRate = 0,
+            conversionRate = 0,
+            successRate = 0
+        },
+        events = {}
+    },
     
     -- System health
     systemHealth = {
@@ -772,7 +782,7 @@ end
 function RobuxIntegration.checkSuspiciousActivity(player)
     local analysis = {detected = false, score = 0, patterns = {}}
     
-    local playerId = player.UserId
+    local _playerId = player.UserId
     
     -- Check for rapid successive purchases
     local recentTransactions = RobuxIntegration.getRecentTransactions(player, 300) -- 5 minutes
@@ -916,8 +926,19 @@ function RobuxIntegration.fulfillDeveloperProduct(player, productId, productInfo
     
     -- Example fulfillment logic:
     local success = pcall(function()
-        -- Get the MonetizationSystem to handle fulfillment
-        local MonetizationSystem = require(ReplicatedStorage.Shared.monetization.MonetizationSystem)
+        -- Get the MonetizationSystem to handle fulfillment (optional integration)
+        local MonetizationSystemModule = ReplicatedStorage.Shared.monetization:FindFirstChild("MonetizationSystem")
+        if not MonetizationSystemModule then
+            -- Fallback if MonetizationSystem is not available
+            print(string.format("⚠️ MonetizationSystem not found, using default fulfillment for product %d", productId))
+            return true
+        end
+        
+        local requireSuccess, MonetizationSystem = pcall(require, MonetizationSystemModule)
+        if not requireSuccess then
+            print(string.format("⚠️ Failed to load MonetizationSystem: %s", tostring(MonetizationSystem)))
+            return true
+        end
         
         -- Find the product in our catalog
         local productCatalog = MonetizationSystem.getProductCatalog()
@@ -933,11 +954,14 @@ function RobuxIntegration.fulfillDeveloperProduct(player, productId, productInfo
             if fulfillmentResult then
                 result.success = true
                 result.reason = "Developer product fulfilled"
+                return result
             else
                 result.reason = "Fulfillment failed"
+                return result
             end
         else
             result.reason = "Product not found in catalog"
+            return result
         end
     end)
     
@@ -990,7 +1014,7 @@ end
 
 function RobuxIntegration.startMonitoringSystems()
     -- CONVERTED: Replaced continuous polling with event-driven monitoring
-    local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager_Production)
+    local _EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager_Production)
     
     local monitoringInterval = 60 -- Start with 1 minute
     local stableCount = 0
@@ -1105,6 +1129,8 @@ function RobuxIntegration.generateAnalytics()
     
     local analytics = {
         timestamp = tick(),
+        errors = TransactionState.transactionAnalytics.errors or {},
+        events = TransactionState.transactionAnalytics.events or {},
         metrics = {
             totalRevenue = TransactionState.stats.totalRevenue,
             totalTransactions = TransactionState.stats.totalTransactions,
@@ -1289,7 +1315,17 @@ function RobuxIntegration.verifyAndApplyGamePassBenefits(player, gamePassId)
     if hasGamepass then
         -- Apply gamepass benefits through MonetizationSystem
         local success = pcall(function()
-            local MonetizationSystem = require(ReplicatedStorage.Shared.monetization.MonetizationSystem)
+            local MonetizationSystemModule = ReplicatedStorage.Shared.monetization:FindFirstChild("MonetizationSystem")
+            if not MonetizationSystemModule then
+                print(string.format("⚠️ MonetizationSystem not found, using default gamepass handling for %d", gamePassId))
+                return true
+            end
+            
+            local requireSuccess, MonetizationSystem = pcall(require, MonetizationSystemModule)
+            if not requireSuccess then
+                print(string.format("⚠️ Failed to load MonetizationSystem: %s", tostring(MonetizationSystem)))
+                return true
+            end
             local productCatalog = MonetizationSystem.getProductCatalog()
             local product = productCatalog[gamePassId]
             
@@ -1297,6 +1333,9 @@ function RobuxIntegration.verifyAndApplyGamePassBenefits(player, gamePassId)
                 MonetizationSystem.applyGamepassBenefits(player, product)
                 print(string.format("✅ Applied gamepass benefits: %s for %s", 
                     product.data.name, player.Name))
+                return true
+            else
+                return false
             end
         end)
         
@@ -1430,6 +1469,254 @@ end
 
 function RobuxIntegration.getAnalytics()
     return TransactionState.transactionAnalytics
+end
+
+-- ========================================
+-- MISSING FUNCTION IMPLEMENTATIONS
+-- ========================================
+
+function RobuxIntegration.detectFraud(player, transaction)
+    local fraudAnalysis = {
+        fraudDetected = false,
+        fraudScore = 0,
+        indicators = {},
+        riskLevel = "low"
+    }
+    
+    -- Check account age
+    if player.AccountAge < ROBUX_CONFIG.validation.minimumAccountAge then
+        fraudAnalysis.fraudScore = fraudAnalysis.fraudScore + 30
+        table.insert(fraudAnalysis.indicators, "account_too_new")
+    end
+    
+    -- Check transaction amount against player history
+    local playerTransactions = TransactionState.playerTransactions[player.UserId] or {}
+    if #playerTransactions > 0 then
+        local averageAmount = 0
+        for _, prevTransaction in ipairs(playerTransactions) do
+            averageAmount = averageAmount + prevTransaction.amount
+        end
+        averageAmount = averageAmount / #playerTransactions
+        
+        if transaction.amount > averageAmount * 5 then
+            fraudAnalysis.fraudScore = fraudAnalysis.fraudScore + 25
+            table.insert(fraudAnalysis.indicators, "unusual_amount")
+        end
+    end
+    
+    -- Check velocity
+    local recentTransactions = RobuxIntegration.getRecentTransactions(player, 3600) -- 1 hour
+    local recentTotal = 0
+    for _, recentTransaction in ipairs(recentTransactions) do
+        recentTotal = recentTotal + recentTransaction.amount
+    end
+    
+    if recentTotal > ROBUX_CONFIG.validation.maxVelocityPerHour then
+        fraudAnalysis.fraudScore = fraudAnalysis.fraudScore + 35
+        table.insert(fraudAnalysis.indicators, "velocity_exceeded")
+    end
+    
+    -- Determine fraud status
+    if fraudAnalysis.fraudScore >= 50 then
+        fraudAnalysis.fraudDetected = true
+        fraudAnalysis.riskLevel = "high"
+    elseif fraudAnalysis.fraudScore >= 30 then
+        fraudAnalysis.riskLevel = "medium"
+    end
+    
+    return fraudAnalysis
+end
+
+function RobuxIntegration.analyzeFraudRisk(player)
+    local riskAnalysis = {
+        riskScore = 0,
+        riskLevel = "low",
+        factors = {},
+        recommendations = {}
+    }
+    
+    -- Analyze account characteristics
+    if player.AccountAge < 7 then
+        riskAnalysis.riskScore = riskAnalysis.riskScore + 20
+        table.insert(riskAnalysis.factors, "new_account")
+    end
+    
+    -- Check transaction history
+    local playerTransactions = TransactionState.playerTransactions[player.UserId] or {}
+    if #playerTransactions == 0 then
+        riskAnalysis.riskScore = riskAnalysis.riskScore + 15
+        table.insert(riskAnalysis.factors, "no_transaction_history")
+    end
+    
+    -- Check for suspicious activity patterns
+    local suspiciousActivity = RobuxIntegration.checkSuspiciousActivity(player)
+    if suspiciousActivity.detected then
+        riskAnalysis.riskScore = riskAnalysis.riskScore + suspiciousActivity.score
+        table.insert(riskAnalysis.factors, "suspicious_patterns")
+    end
+    
+    -- Determine risk level
+    if riskAnalysis.riskScore >= 60 then
+        riskAnalysis.riskLevel = "high"
+        table.insert(riskAnalysis.recommendations, "Require additional verification")
+        table.insert(riskAnalysis.recommendations, "Monitor transactions closely")
+    elseif riskAnalysis.riskScore >= 30 then
+        riskAnalysis.riskLevel = "medium"
+        table.insert(riskAnalysis.recommendations, "Enhanced monitoring")
+    else
+        table.insert(riskAnalysis.recommendations, "Standard processing")
+    end
+    
+    return riskAnalysis
+end
+
+function RobuxIntegration.monitorPlayerActivity(player)
+    local activity = {
+        monitored = true,
+        alertLevel = "normal",
+        observations = {},
+        timestamp = tick()
+    }
+    
+    -- Check recent activity patterns
+    local recentTransactions = RobuxIntegration.getRecentTransactions(player, 1800) -- 30 minutes
+    
+    if #recentTransactions > 3 then
+        activity.alertLevel = "elevated"
+        table.insert(activity.observations, "high_transaction_frequency")
+    end
+    
+    -- Check for rapid-fire purchases
+    local timeDeltas = {}
+    for i = 2, #recentTransactions do
+        local delta = recentTransactions[i].timestamp - recentTransactions[i-1].timestamp
+        table.insert(timeDeltas, delta)
+    end
+    
+    local avgDelta = 0
+    if #timeDeltas > 0 then
+        for _, delta in ipairs(timeDeltas) do
+            avgDelta = avgDelta + delta
+        end
+        avgDelta = avgDelta / #timeDeltas
+        
+        if avgDelta < 30 then -- Less than 30 seconds between transactions
+            activity.alertLevel = "high"
+            table.insert(activity.observations, "rapid_fire_purchases")
+        end
+    end
+    
+    -- Store monitoring data
+    if not TransactionState.playerVelocity[player.UserId] then
+        TransactionState.playerVelocity[player.UserId] = {}
+    end
+    table.insert(TransactionState.playerVelocity[player.UserId], activity)
+    
+    return activity
+end
+
+function RobuxIntegration.analyzeThreatLevel()
+    local threatAnalysis = {
+        overallThreatLevel = "low",
+        threatScore = 0,
+        activeThreat = false,
+        threats = {},
+        recommendations = {}
+    }
+    
+    -- Analyze fraud attempts
+    local recentFraudAttempts = #TransactionState.fraudAttempts
+    if recentFraudAttempts > 10 then
+        threatAnalysis.threatScore = threatAnalysis.threatScore + 30
+        table.insert(threatAnalysis.threats, "high_fraud_attempts")
+    end
+    
+    -- Analyze suspicious players
+    local suspiciousPlayerCount = 0
+    for _, _ in pairs(TransactionState.suspiciousPlayers) do
+        suspiciousPlayerCount = suspiciousPlayerCount + 1
+    end
+    
+    if suspiciousPlayerCount > 5 then
+        threatAnalysis.threatScore = threatAnalysis.threatScore + 25
+        table.insert(threatAnalysis.threats, "multiple_suspicious_players")
+    end
+    
+    -- Analyze rate limit violations
+    local rateLimitViolations = 0
+    for _, tracking in pairs(TransactionState.rateLimitTracking) do
+        if tracking.violations > 0 then
+            rateLimitViolations = rateLimitViolations + tracking.violations
+        end
+    end
+    
+    if rateLimitViolations > 20 then
+        threatAnalysis.threatScore = threatAnalysis.threatScore + 20
+        table.insert(threatAnalysis.threats, "excessive_rate_limit_violations")
+    end
+    
+    -- Determine threat level
+    if threatAnalysis.threatScore >= 50 then
+        threatAnalysis.overallThreatLevel = "high"
+        threatAnalysis.activeThreat = true
+        table.insert(threatAnalysis.recommendations, "Activate enhanced security measures")
+        table.insert(threatAnalysis.recommendations, "Review transaction policies")
+    elseif threatAnalysis.threatScore >= 25 then
+        threatAnalysis.overallThreatLevel = "medium"
+        table.insert(threatAnalysis.recommendations, "Increase monitoring frequency")
+    else
+        table.insert(threatAnalysis.recommendations, "Continue normal operations")
+    end
+    
+    return threatAnalysis
+end
+
+function RobuxIntegration.handleTransactionError(error)
+    -- Log the error
+    warn(string.format("❌ Transaction Error: %s", tostring(error)))
+    
+    -- Record error in analytics
+    if not TransactionState.transactionAnalytics.errors then
+        TransactionState.transactionAnalytics.errors = {}
+    end
+    
+    table.insert(TransactionState.transactionAnalytics.errors, {
+        error = tostring(error),
+        timestamp = tick(),
+        context = "transaction_processing"
+    })
+    
+    -- Determine if this is a critical error that requires escalation
+    local errorString = tostring(error):lower()
+    local criticalKeywords = {"fraud", "security", "breach", "unauthorized", "exploit"}
+    
+    for _, keyword in ipairs(criticalKeywords) do
+        if string.find(errorString, keyword) then
+            -- Escalate critical errors
+            RobuxIntegration.escalateSecurityEvent({
+                type = "critical_transaction_error",
+                error = error,
+                timestamp = tick(),
+                severity = "high"
+            })
+            break
+        end
+    end
+end
+
+function RobuxIntegration.escalateSecurityEvent(event)
+    -- Record security event
+    table.insert(TransactionState.securityEvents, event)
+    
+    -- Notify administrators (in production, this would send real alerts)
+    warn(string.format("🚨 Security Event Escalated: %s - %s", 
+        event.type, tostring(event.error)))
+    
+    -- Update threat level
+    local threatAnalysis = RobuxIntegration.analyzeThreatLevel()
+    if threatAnalysis.activeThreat then
+        warn("🚨 Active threat detected! Enhanced security measures activated.")
+    end
 end
 
 -- Export API

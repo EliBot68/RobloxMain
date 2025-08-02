@@ -34,7 +34,7 @@ ProfessionalLighting.SETTINGS = {
     fog = {
         color = Color3.fromRGB(192, 192, 196),
         start = 500,
-        end = 2000
+        endDistance = 2000
     },
     
     -- Professional light brightness limits
@@ -96,7 +96,7 @@ function ProfessionalLighting:ApplyToLighting()
     -- Fog settings
     Lighting.FogColor = settings.fog.color
     Lighting.FogStart = settings.fog.start
-    Lighting.FogEnd = settings.fog.end
+    Lighting.FogEnd = settings.fog.endDistance
     
     print("✨ Professional lighting applied successfully")
 end

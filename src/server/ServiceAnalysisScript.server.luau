@@ -2,9 +2,9 @@
 -- Comprehensive analysis of all services to identify duplicates and create consolidation plan
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
+local _ServerScriptService = game:GetService("ServerScriptService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 print("[ServiceAnalysis] Starting comprehensive service duplication analysis...")
 
@@ -42,20 +42,20 @@ local ANALYSIS_CONFIG = {
 }
 
 -- Service registry
-local discoveredServices = {}
-local serviceDuplicates = {}
-local serviceReferences = {}
-local consolidationPlan = {}
+local _discoveredServices = {}
+local _serviceDuplicates = {}
+local _serviceReferences = {}
+local _consolidationPlan = {}
 
 -- Scan for all service files
 function ServiceAnalyzer:ScanAllServices()
     print("[ServiceAnalysis] Scanning all service directories...")
     
-    local serviceFiles = {}
+    local _serviceFiles = {}
     
     -- Get all .luau files in service directories
-    local function scanDirectory(path)
-        local fullPath = "c:\\Users\\Administrator\\Desktop\\robloxmain2\\" .. path
+    local function _scanDirectory(path)
+        local _fullPath = "c:\\Users\\Administrator\\Desktop\\robloxmain2\\" .. path
         -- This would normally use file system operations
         -- For now, we'll use the known service list
     end
@@ -149,7 +149,7 @@ function ServiceAnalyzer:IdentifyDuplicates(serviceList)
     print("[ServiceAnalysis] Identifying service duplicates...")
     
     local baseServices = {}
-    local duplicates = {}
+    local _duplicates = {}
     
     for _, serviceName in ipairs(serviceList) do
         local baseName = serviceName

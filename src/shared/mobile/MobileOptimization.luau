@@ -4,15 +4,15 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
+local _GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local _Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
-local TweenService = game:GetService("TweenService")
+local _TweenService = game:GetService("TweenService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
 
 local MobileOptimization = {}
 
@@ -141,7 +141,7 @@ local OptimizationState = {
         platform = "Unknown",
         deviceType = "Unknown",
         screenSize = Vector2.new(0, 0),
-        orientation = Enum.DeviceOrientation.Portrait,
+        orientation = "Portrait",
         performanceTier = "midRange",
         supportedFeatures = {}
     },
@@ -157,6 +157,9 @@ local OptimizationState = {
         networkLatency = 0,
         loadTime = 0
     },
+    
+    -- Session tracking
+    sessionStartTime = tick(),
     
     -- Optimization settings
     currentSettings = {},
@@ -268,9 +271,9 @@ function MobileOptimization.detectDevice()
     -- Detect orientation
     local viewportSize = camera and camera.ViewportSize or Vector2.new(800, 600)
     if viewportSize.X > viewportSize.Y then
-        deviceInfo.orientation = Enum.DeviceOrientation.LandscapeLeft
+        deviceInfo.orientation = "LandscapeLeft"
     else
-        deviceInfo.orientation = Enum.DeviceOrientation.Portrait
+        deviceInfo.orientation = "Portrait"
     end
     
     -- Determine performance tier
@@ -580,7 +583,7 @@ function MobileOptimization.setupMemoryManagement()
             
             -- Garbage collection
             if MOBILE_CONFIG.memory.enableGarbageCollection then
-                collectgarbage("collect")
+                collectgarbage("count") -- Get memory usage and trigger GC
                 self.lastGCTime = currentTime
                 print("🗑️ Memory cleanup performed")
             end
@@ -627,7 +630,26 @@ function MobileOptimization.setupMemoryManagement()
 end
 
 function MobileOptimization.performMemoryCleanup()
-    OptimizationState.memoryManager:performCleanup()
+    -- Perform memory cleanup operations
+    local memManager = OptimizationState.memoryManager
+    
+    -- Clear texture pool
+    for i = #memManager.texturePool, 1, -1 do
+        table.remove(memManager.texturePool, i)
+    end
+    
+    -- Clear audio pool
+    for i = #memManager.audioPool, 1, -1 do
+        table.remove(memManager.audioPool, i)
+    end
+    
+    -- Force garbage collection
+    collectgarbage("count")
+    
+    -- Update memory stats
+    memManager.lastGCTime = tick()
+    
+    print("🗑️ Memory cleanup completed")
 end
 
 function MobileOptimization.enablePostProcessing()

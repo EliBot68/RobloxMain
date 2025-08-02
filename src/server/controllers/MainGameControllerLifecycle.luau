@@ -1,6 +1,8 @@
 -- Enhanced MainGameController lifecycle methods
 -- Add these methods to the existing MainGameController.luau file
 
+local MainGameController = {}
+
 -- ========================================
 -- LIFECYCLE MANAGEMENT METHODS
 -- ========================================
@@ -101,8 +103,6 @@ function MainGameController:SetupGameLoopMonitoring()
     
     -- Start the session monitoring cycle
     spawn(scheduleSessionMonitoring)
-        end
-    end)
 end
 
 function MainGameController:IsSessionHealthy(session)
@@ -445,16 +445,4 @@ function MainGameController:EndGameSession(player, results)
     end
 end
 
--- Export these methods to be added to MainGameController
-return {
-    InitializeForGameLoop = InitializeForGameLoop,
-    UpdateActiveGames = UpdateActiveGames,
-    CleanupFinishedGames = CleanupFinishedGames,
-    SetupGameLoopMonitoring = SetupGameLoopMonitoring,
-    ResetService = ResetService,
-    ClearAllGameData = ClearAllGameData,
-    PreparePlayerForGame = PreparePlayerForGame,
-    ResetPlayerGame = ResetPlayerGame,
-    ClearPlayerData = ClearPlayerData,
-    EndGameSession = EndGameSession
-}
+return MainGameController
