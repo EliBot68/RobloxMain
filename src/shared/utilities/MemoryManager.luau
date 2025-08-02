@@ -18,33 +18,96 @@ local playerCleanupCallbacks = {}
 -- Get configuration instance
 local config = ConfigurationManager.getInstance()
 
+-- Issue #3 fix: Cache configuration values to avoid critical path access
+local MEMORY_CONFIG = {
+    MAX_CONNECTIONS_PER_PLAYER = config:Get("memory.LIMITS.MAX_CONNECTIONS_PER_PLAYER"),
+    ENABLE_DETAILED_LOGGING = config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING")
+}
+
+-- Update config cache periodically (not in critical path)
+local function updateConfigCache()
+    MEMORY_CONFIG.MAX_CONNECTIONS_PER_PLAYER = config:Get("memory.LIMITS.MAX_CONNECTIONS_PER_PLAYER")
+    MEMORY_CONFIG.ENABLE_DETAILED_LOGGING = config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING")
+end
+
+-- Set up config cache refresh
+task.spawn(function()
+    while true do
+        task.wait(30) -- Refresh every 30 seconds
+        pcall(updateConfigCache)
+    end
+end)
+
+-- Helper function for player ID validation - Issue #1 fix
+local function validateAndNormalizePlayerId(playerId)
+    if playerId == nil then
+        return nil, "Player ID cannot be nil"
+    end
+    
+    if type(playerId) == "number" then
+        if playerId <= 0 or playerId ~= math.floor(playerId) then
+            return nil, "Invalid numeric player ID: " .. tostring(playerId)
+        end
+        return tostring(playerId), nil
+    elseif type(playerId) == "string" then
+        local numericId = tonumber(playerId)
+        if numericId and numericId > 0 and numericId == math.floor(numericId) then
+            return playerId, nil
+        else
+            return nil, "Invalid string player ID: " .. playerId
+        end
+    elseif typeof(playerId) == "Instance" and playerId:IsA("Player") then
+        return tostring(playerId.UserId), nil
+    else
+        return nil, "Player ID must be number, string, or Player instance"
+    end
+end
+
+-- Helper function for connection count - Issue #2 fix
+local function getConnectionCount(playerId)
+    if not activeConnections[playerId] then
+        return 0
+    end
+    
+    local count = 0
+    for _ in pairs(activeConnections[playerId]) do
+        count = count + 1
+    end
+    return count
+end
+
 -- ========================================
 -- CONNECTION MANAGEMENT
 -- ========================================
 
 -- Register a connection for automatic cleanup
 function MemoryManager:RegisterConnection(playerId, connectionName, connection)
-    playerId = tostring(playerId) -- ASSUMPTION: Player ID used as string key for consistency
-    
-    if not activeConnections[playerId] then
-        activeConnections[playerId] = {}
-    end
-    
-    -- Check connection limit per player to prevent memory issues
-    local maxConnections = config:Get("memory.LIMITS.MAX_CONNECTIONS_PER_PLAYER")
-    if #activeConnections[playerId] >= maxConnections then
-        warn("⚠️ Player " .. playerId .. " has reached max connections limit (" .. maxConnections .. ")")
+    -- Issue #1 fix: Validate player ID properly
+    local normalizedPlayerId, validationError = validateAndNormalizePlayerId(playerId)
+    if not normalizedPlayerId then
+        warn("❌ MemoryManager: " .. validationError)
         return false
     end
     
-    activeConnections[playerId][connectionName] = {
+    if not activeConnections[normalizedPlayerId] then
+        activeConnections[normalizedPlayerId] = {}
+    end
+    
+    -- Issue #2 fix: Use proper connection count calculation
+    local currentCount = getConnectionCount(normalizedPlayerId)
+    if currentCount >= MEMORY_CONFIG.MAX_CONNECTIONS_PER_PLAYER then
+        warn("⚠️ Player " .. normalizedPlayerId .. " has reached max connections limit (" .. MEMORY_CONFIG.MAX_CONNECTIONS_PER_PLAYER .. ")")
+        return false
+    end
+    
+    activeConnections[normalizedPlayerId][connectionName] = {
         connection = connection,
         timestamp = tick(),
         type = "RBXScriptConnection"
     }
     
-    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
-        print("🔗 Registered connection: " .. connectionName .. " for player " .. playerId)
+    if MEMORY_CONFIG.ENABLE_DETAILED_LOGGING then
+        print("🔗 Registered connection: " .. connectionName .. " for player " .. normalizedPlayerId)
     end
     
     return true
@@ -52,19 +115,33 @@ end
 
 -- Disconnect a specific connection
 function MemoryManager:DisconnectConnection(playerId, connectionName)
-    playerId = tostring(playerId)
+    -- Issue #1 fix: Validate player ID properly
+    local normalizedPlayerId, validationError = validateAndNormalizePlayerId(playerId)
+    if not normalizedPlayerId then
+        warn("❌ MemoryManager DisconnectConnection: " .. validationError)
+        return false
+    end
     
-    if activeConnections[playerId] and activeConnections[playerId][connectionName] then
-        local connectionData = activeConnections[playerId][connectionName]
+    if activeConnections[normalizedPlayerId] and activeConnections[normalizedPlayerId][connectionName] then
+        local connectionData = activeConnections[normalizedPlayerId][connectionName]
         
-        if connectionData.connection and typeof(connectionData.connection) == "RBXScriptConnection" then
-            connectionData.connection:Disconnect()
+        -- Issue #4 fix: Enhanced type checking with proper validation
+        if connectionData.connection then
+            local connectionType = typeof(connectionData.connection)
+            local hasDisconnectMethod = connectionData.connection.Disconnect and type(connectionData.connection.Disconnect) == "function"
+            
+            if connectionType == "RBXScriptConnection" and hasDisconnectMethod then
+                connectionData.connection:Disconnect()
+            else
+                warn("❌ Invalid connection type or missing Disconnect method for " .. connectionName)
+                return false
+            end
         end
         
-        activeConnections[playerId][connectionName] = nil
+        activeConnections[normalizedPlayerId][connectionName] = nil
         
-        if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
-            print("🔌 Disconnected connection: " .. connectionName .. " for player " .. playerId)
+        if MEMORY_CONFIG.ENABLE_DETAILED_LOGGING then
+            print("🔌 Disconnected connection: " .. connectionName .. " for player " .. normalizedPlayerId)
         end
         
         return true
@@ -75,25 +152,59 @@ end
 
 -- Disconnect all connections for a player
 function MemoryManager:DisconnectAllPlayerConnections(playerId)
-    playerId = tostring(playerId)
+    -- Issue #1 fix: Validate player ID properly
+    local normalizedPlayerId, validationError = validateAndNormalizePlayerId(playerId)
+    if not normalizedPlayerId then
+        warn("❌ MemoryManager DisconnectAllPlayerConnections: " .. validationError)
+        return 0
+    end
     
-    if not activeConnections[playerId] then
+    if not activeConnections[normalizedPlayerId] then
         return 0
     end
     
     local disconnectedCount = 0
     
-    for connectionName, connectionData in pairs(activeConnections[playerId]) do
-        if connectionData.connection and typeof(connectionData.connection) == "RBXScriptConnection" then
-            connectionData.connection:Disconnect()
-            disconnectedCount = disconnectedCount + 1
+    -- Issue #5 fix: Safe iteration with snapshot to prevent modification during iteration
+    local connectionsSnapshot = {}
+    for connectionName, connectionData in pairs(activeConnections[normalizedPlayerId]) do
+        table.insert(connectionsSnapshot, {name = connectionName, data = connectionData})
+    end
+    
+    for _, connectionInfo in ipairs(connectionsSnapshot) do
+        local connectionData = connectionInfo.data
+        
+        -- Verify connection still exists and is valid
+        if activeConnections[normalizedPlayerId] and activeConnections[normalizedPlayerId][connectionInfo.name] then
+            -- Issue #4 fix: Enhanced type checking with proper validation
+            if connectionData.connection then
+                local connectionType = typeof(connectionData.connection)
+                local hasDisconnectMethod = connectionData.connection.Disconnect and type(connectionData.connection.Disconnect) == "function"
+                
+                if connectionType == "RBXScriptConnection" and hasDisconnectMethod then
+                    local success, disconnectError = pcall(function()
+                        connectionData.connection:Disconnect()
+                    end)
+                    if success then
+                        disconnectedCount = disconnectedCount + 1
+                    else
+                        warn("❌ Error disconnecting " .. connectionInfo.name .. ": " .. tostring(disconnectError))
+                    end
+                end
+            end
+            
+            -- Remove from active connections
+            activeConnections[normalizedPlayerId][connectionInfo.name] = nil
         end
     end
     
-    activeConnections[playerId] = nil
+    -- Clear the player's connection table if empty
+    if getConnectionCount(normalizedPlayerId) == 0 then
+        activeConnections[normalizedPlayerId] = nil
+    end
     
-    if config:Get("memory.TRACKING.ENABLE_DETAILED_LOGGING") then
-        print("🧹 Disconnected " .. disconnectedCount .. " connections for player " .. playerId)
+    if MEMORY_CONFIG.ENABLE_DETAILED_LOGGING then
+        print("🧹 Disconnected " .. disconnectedCount .. " connections for player " .. normalizedPlayerId)
     end
     
     return disconnectedCount

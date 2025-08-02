@@ -3,7 +3,6 @@
 -- Provides BindableEvents, signal systems, and adaptive monitoring
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
 
 local EventDrivenSystem = {}
@@ -12,34 +11,65 @@ local EventDrivenSystem = {}
 -- CONFIGURATION AND STATE
 -- ========================================
 
--- Get configuration instance
-local config = ConfigurationManager.getInstance()
+-- Issue #1 fix: Dynamic configuration access instead of global caching
+local function getConfig()
+    return ConfigurationManager.getInstance()
+end
 
--- Event system state
-local eventSignals = {}
-local adaptiveMonitors = {}
-local periodicTasks = {}
-local eventStatistics = {}
-
--- Event types for different systems
-local EVENT_TYPES = {
-    PLAYER_STAT_CHANGED = "PlayerStatChanged",
-    WORLD_OBJECT_READY = "WorldObjectReady",
-    SYSTEM_HEALTH_UPDATE = "SystemHealthUpdate",
-    PERFORMANCE_THRESHOLD = "PerformanceThreshold",
-    CLEANUP_REQUIRED = "CleanupRequired",
-    PARTY_INVITE_EXPIRED = "PartyInviteExpired",
-    GAME_STATE_CHANGED = "GameStateChanged",
-    MOBILE_OPTIMIZATION = "MobileOptimization"
+-- Issue #2 fix: Encapsulate state in EventDrivenSystem module table
+EventDrivenSystem._state = {
+    eventSignals = {},
+    adaptiveMonitors = {},
+    periodicTasks = {},
+    eventStatistics = {},
+    connectionTracker = {} -- For cleanup tracking
 }
 
--- Adaptive monitoring intervals
-local MONITORING_INTERVALS = {
-    HIGH_FREQUENCY = 0.1,    -- 100ms - only for critical systems
-    MEDIUM_FREQUENCY = 1.0,   -- 1 second - for normal updates
-    LOW_FREQUENCY = 5.0,     -- 5 seconds - for background tasks
-    ULTRA_LOW_FREQUENCY = 30.0 -- 30 seconds - for maintenance
-}
+-- Issue #3 fix: Make event types configurable instead of hardcoded
+local function getEventTypes()
+    local config = getConfig()
+    return config:Get("events.EVENT_TYPES") or {
+        PLAYER_STAT_CHANGED = "PlayerStatChanged",
+        WORLD_OBJECT_READY = "WorldObjectReady", 
+        SYSTEM_HEALTH_UPDATE = "SystemHealthUpdate",
+        PERFORMANCE_THRESHOLD = "PerformanceThreshold",
+        CLEANUP_REQUIRED = "CleanupRequired",
+        PARTY_INVITE_EXPIRED = "PartyInviteExpired",
+        GAME_STATE_CHANGED = "GameStateChanged",
+        MOBILE_OPTIMIZATION = "MobileOptimization"
+    }
+end
+
+-- Issue #4 fix: Configurable monitoring intervals with explanations
+local function getMonitoringIntervals()
+    local config = getConfig()
+    return config:Get("events.MONITORING_INTERVALS") or {
+        HIGH_FREQUENCY = 0.1,    -- 100ms - Critical systems requiring immediate response
+        MEDIUM_FREQUENCY = 1.0,   -- 1 second - Normal updates that need reasonable responsiveness
+        LOW_FREQUENCY = 5.0,     -- 5 seconds - Background tasks that aren't time-sensitive
+        ULTRA_LOW_FREQUENCY = 30.0 -- 30 seconds - Maintenance tasks with minimal resource impact
+    }
+end
+
+-- Helper accessors
+function EventDrivenSystem:GetEventTypes()
+    return getEventTypes()
+end
+
+function EventDrivenSystem:GetMonitoringIntervals() 
+    return getMonitoringIntervals()
+end
+
+-- Legacy compatibility - maintain original globals for existing code
+local config = getConfig()
+local EVENT_TYPES = getEventTypes()
+local MONITORING_INTERVALS = getMonitoringIntervals()
+
+-- Original state variables for compatibility
+local eventSignals = EventDrivenSystem._state.eventSignals
+local adaptiveMonitors = EventDrivenSystem._state.adaptiveMonitors  
+local periodicTasks = EventDrivenSystem._state.periodicTasks
+local eventStatistics = EventDrivenSystem._state.eventStatistics
 
 -- ========================================
 -- CORE EVENT SIGNAL SYSTEM
@@ -47,28 +77,49 @@ local MONITORING_INTERVALS = {
 
 -- Create a new event signal
 function EventDrivenSystem:CreateEventSignal(eventType)
-    if eventSignals[eventType] then
-        return eventSignals[eventType]
+    -- Issue #5 fix: Check if existing signal is still valid before reusing
+    if self._state.eventSignals[eventType] then
+        local existingSignal = self._state.eventSignals[eventType]
+        if existingSignal.event and existingSignal.event.Parent ~= nil then
+            -- Signal is still valid, return it
+            return existingSignal
+        else
+            -- Signal is corrupted, clean it up and create new one
+            self._state.eventSignals[eventType] = nil
+        end
     end
     
+    -- Issue #6 fix: Instance creation with error handling
+    local success, bindableEvent = pcall(function()
+        return Instance.new("BindableEvent")
+    end)
+    
+    if not success then
+        warn("❌ EventDrivenSystem: Failed to create BindableEvent for " .. tostring(eventType) .. ": " .. tostring(bindableEvent))
+        return nil
+    end
+    
+    bindableEvent.Name = eventType .. "_Signal"
+    
     local signal = {
-        event = Instance.new("BindableEvent"),
-        connections = {},
+        event = bindableEvent,
+        connections = {}, -- Issue #7 fix: Track connections for cleanup
         lastFired = 0,
         fireCount = 0,
         subscriptionCount = 0
     }
     
-    eventSignals[eventType] = signal
+    self._state.eventSignals[eventType] = signal
     
     -- Initialize statistics
-    eventStatistics[eventType] = {
+    self._state.eventStatistics[eventType] = {
         totalFires = 0,
         totalSubscriptions = 0,
         averageInterval = 0,
         lastFireTime = 0
     }
     
+    local config = getConfig()
     if config:Get("performance.EVENT_DRIVEN.ENABLE_DETAILED_LOGGING") then
         print(string.format("📡 Created event signal: %s", eventType))
     end
@@ -78,27 +129,101 @@ end
 
 -- Subscribe to an event with automatic cleanup
 function EventDrivenSystem:Subscribe(eventType, callback, owner)
+    -- Issue #8 fix: Owner parameter validation
+    if owner and type(owner) ~= "string" and typeof(owner) ~= "Instance" then
+        warn("❌ EventDrivenSystem: Invalid owner type for subscription to " .. eventType .. ". Expected string or Instance, got " .. type(owner))
+        owner = "InvalidOwner_" .. tostring(owner)
+    end
+    
     local signal = self:CreateEventSignal(eventType)
+    if not signal then
+        warn("❌ EventDrivenSystem: Failed to create signal for " .. eventType)
+        return nil
+    end
+    
     local connection = signal.event.Event:Connect(callback)
     
-    -- Track connection for cleanup
+    -- Issue #7 fix: Track connection for cleanup with proper tracking
     local connectionData = {
         connection = connection,
         owner = owner or "Unknown",
-        subscribedAt = tick()
+        subscribedAt = tick(),
+        eventType = eventType
     }
     
     table.insert(signal.connections, connectionData)
     signal.subscriptionCount = signal.subscriptionCount + 1
     
-    -- Update statistics
-    eventStatistics[eventType].totalSubscriptions = eventStatistics[eventType].totalSubscriptions + 1
+    -- Also add to state's connection tracker for centralized cleanup
+    if not self._state.connectionTracker[eventType] then
+        self._state.connectionTracker[eventType] = {}
+    end
+    table.insert(self._state.connectionTracker[eventType], connectionData)
     
+    -- Update statistics
+    self._state.eventStatistics[eventType].totalSubscriptions = self._state.eventStatistics[eventType].totalSubscriptions + 1
+    
+    local config = getConfig()
     if config:Get("performance.EVENT_DRIVEN.ENABLE_DETAILED_LOGGING") then
-        print(string.format("📨 Subscribed to %s by %s", eventType, owner))
+        print(string.format("📨 Subscribed to %s by %s", eventType, tostring(owner)))
     end
     
     return connection
+end
+
+-- Issue #7 fix: Add cleanup functions for connections
+function EventDrivenSystem:CleanupConnections(eventType)
+    if eventType then
+        -- Clean up specific event type
+        local signal = self._state.eventSignals[eventType]
+        if signal then
+            for _, connectionData in ipairs(signal.connections) do
+                if connectionData.connection then
+                    connectionData.connection:Disconnect()
+                end
+            end
+            signal.connections = {}
+            signal.subscriptionCount = 0
+        end
+        
+        if self._state.connectionTracker[eventType] then
+            self._state.connectionTracker[eventType] = {}
+        end
+    else
+        -- Clean up all connections
+        for _, signal in pairs(self._state.eventSignals) do
+            for _, connectionData in ipairs(signal.connections) do
+                if connectionData.connection then
+                    connectionData.connection:Disconnect()
+                end
+            end
+            signal.connections = {}
+            signal.subscriptionCount = 0
+        end
+        
+        self._state.connectionTracker = {}
+    end
+end
+
+function EventDrivenSystem:CleanupConnectionsByOwner(owner)
+    if not owner then return end
+    
+    for eventType, signal in pairs(self._state.eventSignals) do
+        local connectionsToRemove = {}
+        
+        for i, connectionData in ipairs(signal.connections) do
+            if connectionData.owner == owner then
+                connectionData.connection:Disconnect()
+                table.insert(connectionsToRemove, i)
+            end
+        end
+        
+        -- Remove in reverse order to maintain indices
+        for i = #connectionsToRemove, 1, -1 do
+            table.remove(signal.connections, connectionsToRemove[i])
+            signal.subscriptionCount = signal.subscriptionCount - 1
+        end
+    end
 end
 
 -- Fire an event with rate limiting

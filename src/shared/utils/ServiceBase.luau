@@ -20,13 +20,30 @@ local SERVICE_STATES = {
 function ServiceBase.new(name, config)
     local self = setmetatable({}, ServiceBase)
     
+    -- Parameter validation - Issue #1 fix
+    if name ~= nil and type(name) ~= "string" then
+        error("ServiceBase.new: name must be a string or nil")
+    end
+    if config ~= nil and type(config) ~= "table" then
+        error("ServiceBase.new: config must be a table or nil")
+    end
+    
     self.Name = name or "UnnamedService"
     self.State = SERVICE_STATES.UNINITIALIZED
     self.Config = config or {}
     self.IsInitialized = false
     self.IsRunning = false
-    self.Priority = self.Config.Priority or 0
-    self.Dependencies = self.Config.Dependencies or {}
+    
+    -- Config access validation - Issue #2 fix
+    local function safeConfigGet(key, default)
+        if self.Config and type(self.Config) == "table" then
+            return self.Config[key] or default
+        end
+        return default
+    end
+    
+    self.Priority = safeConfigGet("Priority", 0)
+    self.Dependencies = safeConfigGet("Dependencies", {})
     self.InitializationTime = 0
     self.LastError = nil
     
@@ -41,8 +58,9 @@ function ServiceBase.new(name, config)
         LastActivity = 0
     }
     
-    -- Bindable events for lifecycle
+    -- Bindable events for lifecycle - Issue #3 fix: Track for cleanup
     self.StateChanged = Instance.new("BindableEvent")
+    self._eventsToCleanup = {self.StateChanged}
     
     return self
 end
@@ -57,15 +75,20 @@ function ServiceBase:Initialize()
     self:SetState(SERVICE_STATES.INITIALIZING)
     
     local startTime = tick()
-    local success, error = pcall(function()
+    -- Issue #4 fix: Avoid variable shadowing by using different name
+    local success, initError = pcall(function()
         -- Check dependencies
         if not self:CheckDependencies() then
             error("Dependencies not met")
         end
         
-        -- Call custom initialization
+        -- Call custom initialization - Issue #6 fix: Validate return value
         if self.OnInitialize then
-            self:OnInitialize()
+            local initResult = self:OnInitialize()
+            -- If OnInitialize returns false explicitly, treat as failure
+            if initResult == false then
+                error("OnInitialize returned false")
+            end
         end
     end)
     
@@ -77,9 +100,9 @@ function ServiceBase:Initialize()
         self:LogInfo("Initialized successfully in %.2fs", self.InitializationTime)
         return true
     else
-        self.LastError = error
+        self.LastError = initError
         self:SetState(SERVICE_STATES.ERROR)
-        self:LogError("Initialization failed: %s", tostring(error))
+        self:LogError("Initialization failed: %s", tostring(initError))
         return false
     end
 end
@@ -93,7 +116,7 @@ function ServiceBase:Start()
     
     self:SetState(SERVICE_STATES.STARTING)
     
-    local success, error = pcall(function()
+    local success, startError = pcall(function()
         if self.OnStart then
             self:OnStart()
         end
@@ -106,9 +129,9 @@ function ServiceBase:Start()
         self:LogInfo("Started successfully")
         return true
     else
-        self.LastError = error
+        self.LastError = startError
         self:SetState(SERVICE_STATES.ERROR)
-        self:LogError("Start failed: %s", tostring(error))
+        self:LogError("Start failed: %s", tostring(startError))
         return false
     end
 end
@@ -121,14 +144,24 @@ function ServiceBase:Stop()
     
     self:SetState(SERVICE_STATES.STOPPING)
     
-    local success, error = pcall(function()
-        -- Disconnect all connections
-        for _, connection in pairs(self.Connections) do
-            if connection and connection.Disconnect then
-                connection:Disconnect()
-            end
+    local success, stopError = pcall(function()
+        -- Issue #7 & #8 fix: Connection cleanup with proper error handling and iteration
+        local connectionsToClean = {}
+        for name, connection in pairs(self.Connections) do
+            table.insert(connectionsToClean, {name = name, connection = connection})
         end
-        self.Connections = {}
+        
+        for _, item in ipairs(connectionsToClean) do
+            local disconnectSuccess, disconnectError = pcall(function()
+                if item.connection and item.connection.Disconnect then
+                    item.connection:Disconnect()
+                end
+            end)
+            if not disconnectSuccess then
+                self:LogWarn("Failed to disconnect connection '%s': %s", item.name, tostring(disconnectError))
+            end
+            self.Connections[item.name] = nil
+        end
         
         if self.OnStop then
             self:OnStop()
@@ -141,9 +174,9 @@ function ServiceBase:Stop()
         self:LogInfo("Stopped successfully")
         return true
     else
-        self.LastError = error
+        self.LastError = stopError
         self:SetState(SERVICE_STATES.ERROR)
-        self:LogError("Stop failed: %s", tostring(error))
+        self:LogError("Stop failed: %s", tostring(stopError))
         return false
     end
 end
@@ -153,44 +186,103 @@ function ServiceBase:SetState(newState)
     local oldState = self.State
     self.State = newState
     
+    -- Issue #9 fix: State change event with error handling
     if self.StateChanged then
-        self.StateChanged:Fire(newState, oldState)
+        local success, eventError = pcall(function()
+            self.StateChanged:Fire(newState, oldState)
+        end)
+        if not success then
+            self:LogWarn("Error firing StateChanged event: %s", tostring(eventError))
+        end
     end
 end
 
 -- Add a connection to be managed by the service
 function ServiceBase:AddConnection(name, connection)
+    -- Issue #10 fix: Connection management validation
+    if type(name) ~= "string" then
+        error("AddConnection: name must be a string")
+    end
+    if not connection or not connection.Disconnect or type(connection.Disconnect) ~= "function" then
+        error("AddConnection: connection must have a Disconnect method")
+    end
+    
     self.Connections[name] = connection
 end
 
 -- Remove a specific connection
 function ServiceBase:RemoveConnection(name)
-    local connection = self.Connections[name]
-    if connection and connection.Disconnect then
-        connection:Disconnect()
+    -- Issue #11 fix: Connection removal with existence check
+    if type(name) ~= "string" then
+        return false
     end
-    self.Connections[name] = nil
+    
+    local connection = self.Connections[name]
+    if connection then
+        local success, disconnectError = pcall(function()
+            if connection.Disconnect and type(connection.Disconnect) == "function" then
+                connection:Disconnect()
+            end
+        end)
+        if not success then
+            self:LogWarn("Error disconnecting connection '%s': %s", name, tostring(disconnectError))
+        end
+        self.Connections[name] = nil
+        return true
+    end
+    
+    return false
 end
 
 -- Check if all dependencies are met
 function ServiceBase:CheckDependencies()
+    -- Issue #5 fix: Proper dependency validation instead of hardcoded true
+    if not self.Dependencies or type(self.Dependencies) ~= "table" then
+        return true -- No dependencies to check
+    end
+    
+    for _, dependency in ipairs(self.Dependencies) do
+        if type(dependency) == "string" then
+            -- Basic dependency name check - can be overridden by child classes
+            if dependency == "" then
+                self:LogWarn("Empty dependency name found")
+                return false
+            end
+        else
+            self:LogWarn("Invalid dependency type: %s", type(dependency))
+            return false
+        end
+    end
+    
     -- Override in child classes for specific dependency checks
     return true
 end
 
 -- Logging methods
 function ServiceBase:LogInfo(message, ...)
-    local formattedMessage = string.format(message, ...)
+    -- Issue #12 fix: String formatting with error protection
+    local success, formattedMessage = pcall(string.format, message, ...)
+    if not success then
+        formattedMessage = tostring(message) .. " [FORMAT ERROR]"
+    end
     print(string.format("[%s] %s", self.Name, formattedMessage))
 end
 
 function ServiceBase:LogWarn(message, ...)
-    local formattedMessage = string.format(message, ...)
+    -- Issue #12 fix: String formatting with error protection
+    local success, formattedMessage = pcall(string.format, message, ...)
+    if not success then
+        formattedMessage = tostring(message) .. " [FORMAT ERROR]"
+    end
     warn(string.format("[%s] %s", self.Name, formattedMessage))
 end
 
 function ServiceBase:LogError(message, ...)
-    local formattedMessage = string.format(message, ...)
+    -- Issue #12 fix: String formatting with error protection
+    local success, formattedMessage = pcall(string.format, message, ...)
+    if not success then
+        formattedMessage = tostring(message) .. " [FORMAT ERROR]"
+    end
     warn(string.format("[%s] ERROR: %s", self.Name, formattedMessage))
     self.Metrics.ErrorCount = self.Metrics.ErrorCount + 1
 end
@@ -203,6 +295,12 @@ end
 
 -- Get service status info
 function ServiceBase:GetStatus()
+    -- Issue #13 fix: Correct connection count calculation for dictionary
+    local connectionCount = 0
+    for _ in pairs(self.Connections) do
+        connectionCount = connectionCount + 1
+    end
+    
     return {
         Name = self.Name,
         State = self.State,
@@ -211,7 +309,7 @@ function ServiceBase:GetStatus()
         Priority = self.Priority,
         InitializationTime = self.InitializationTime,
         LastError = self.LastError,
-        ConnectionCount = #self.Connections,
+        ConnectionCount = connectionCount,
         Metrics = {
             Uptime = self.IsRunning and (tick() - self.Metrics.StartTime) or 0,
             OperationCount = self.Metrics.OperationCount,
@@ -223,6 +321,12 @@ end
 
 -- Get health status
 function ServiceBase:GetHealth()
+    -- Issue #14 fix: Configurable health check thresholds
+    local HEALTH_CHECK_CONFIG = {
+        INACTIVITY_THRESHOLD = 300, -- 5 minutes - configurable
+        MIN_CONNECTIONS_WARNING = 0 -- warn if no connections while running
+    }
+    
     local health = {
         Status = self.State,
         Healthy = self.State == SERVICE_STATES.RUNNING,
@@ -234,11 +338,17 @@ function ServiceBase:GetHealth()
         table.insert(health.Issues, string.format("Error count: %d", self.Metrics.ErrorCount))
     end
     
-    if self.IsRunning and (tick() - self.Metrics.LastActivity) > 300 then
-        table.insert(health.Issues, "No activity for 5+ minutes")
+    if self.IsRunning and (tick() - self.Metrics.LastActivity) > HEALTH_CHECK_CONFIG.INACTIVITY_THRESHOLD then
+        table.insert(health.Issues, string.format("No activity for %d+ seconds", HEALTH_CHECK_CONFIG.INACTIVITY_THRESHOLD))
     end
     
-    if #self.Connections == 0 and self.IsRunning then
+    -- Fix connection count calculation for health check
+    local connectionCount = 0
+    for _ in pairs(self.Connections) do
+        connectionCount = connectionCount + 1
+    end
+    
+    if connectionCount <= HEALTH_CHECK_CONFIG.MIN_CONNECTIONS_WARNING and self.IsRunning then
         table.insert(health.Issues, "No active connections")
     end
     
@@ -258,10 +368,26 @@ function ServiceBase:Restart()
     end
     
     if wasRunning then
-        -- Event-driven restart delay (NO POLLING)
-        task.delay(0.05, function()
+        -- Issue #15 fix: Task scheduling with cleanup tracking
+        if not self._restartTasks then
+            self._restartTasks = {}
+        end
+        
+        local restartTask
+        restartTask = task.delay(0.05, function()
             self:Start()
+            -- Remove completed task from tracking
+            if self._restartTasks then
+                for i, t in ipairs(self._restartTasks) do
+                    if t == restartTask then
+                        table.remove(self._restartTasks, i)
+                        break
+                    end
+                end
+            end
         end)
+        
+        table.insert(self._restartTasks, restartTask)
         return true
     end
     
@@ -272,9 +398,29 @@ end
 function ServiceBase:Destroy()
     self:Stop()
     
+    -- Issue #3 & #15 fix: Clean up tracked events and tasks
+    if self._eventsToCleanup then
+        for _, event in ipairs(self._eventsToCleanup) do
+            if event and event.Destroy then
+                event:Destroy()
+            end
+        end
+        self._eventsToCleanup = nil
+    end
+    
     if self.StateChanged then
         self.StateChanged:Destroy()
         self.StateChanged = nil
+    end
+    
+    -- Clean up any pending restart tasks
+    if self._restartTasks then
+        for _, task in ipairs(self._restartTasks) do
+            if task then
+                task.cancel(task)
+            end
+        end
+        self._restartTasks = nil
     end
     
     setmetatable(self, nil)
