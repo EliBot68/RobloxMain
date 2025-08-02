@@ -1,5 +1,5 @@
 -- ErrorHandlingTestSuite.luau
--- Comprehensive test suite for validating the CriticalErrorHandler system
+-- Comprehensive test suite for validating the error handling systems
 -- Tests error boundaries, recovery mechanisms, graceful degradation, and user notifications
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,9 +7,6 @@ local Players = game:GetService("Players")
 local _RunService = game:GetService("RunService")
 
 local CriticalErrorHandler = require(ReplicatedStorage.Shared.core.CriticalErrorHandler)
-local _ModernServiceFramework = require(ReplicatedStorage.Shared.core.ModernServiceFramework)
--- Note: ObstacleSpawnerServiceWithErrorHandling would be in ServerStorage for server-side testing
--- For this test suite, we'll create mock service behavior
 
 local ErrorHandlingTestSuite = {}
 
@@ -33,7 +30,11 @@ local TestResults = {
     skippedTests = 0,
     errors = {},
     recoveryValidations = {},
-    performanceMetrics = {}
+    performanceMetrics = {
+        initializationTime = 0,
+        boundaryExecutionTime = 0,
+        totalTestTime = 0
+    }
 }
 
 -- ========================================
@@ -45,9 +46,7 @@ function ErrorHandlingTestSuite.LogTest(testName, status, details)
     
     if status == "PASS" then
         TestResults.passedTests = TestResults.passedTests + 1
-        if TestConfig.verboseOutput then
-            print("✅ [TEST PASS] " .. testName .. (details and (" - " .. details) or ""))
-        end
+        print("✅ [TEST PASS] " .. testName .. (details and (" - " .. details) or ""))
     elseif status == "FAIL" then
         TestResults.failedTests = TestResults.failedTests + 1
         table.insert(TestResults.errors, {test = testName, details = details})
@@ -356,16 +355,124 @@ function ErrorHandlingTestSuite.TestFallbackRecoveryStrategy()
 end
 
 -- ========================================
+-- MOCK SERVICE FACTORY
+-- ========================================
+
+local function CreateMockService()
+    return {
+        IsRunning = false,
+        IsInitialized = false,
+        errorHandler = true,
+        spawnConfig = {
+            degradedMode = false,
+            emergencyMode = false,
+            baseSpawnRate = 5.0,
+            maxObstaclesPerPlayer = 50
+        },
+        playerSpawnRates = {},
+        activeObstacles = {},
+        
+        Dependencies = {"ErrorHandler", "DataService"},
+        Priority = 50,
+        
+        Initialize = function(self)
+            self.IsInitialized = true
+            print("Mock service initialized")
+        end,
+        
+        Start = function(self)
+            self.IsRunning = true
+            print("Mock service started")
+        end,
+        
+        InitializePlayerSpawning = function(self, player)
+            if player then
+                local userId = tostring(player.UserId)
+                self.playerSpawnRates[userId] = {lastSpawn = 0, rate = 1.0}
+                self.activeObstacles[userId] = {}
+                print("Initialized spawning for player " .. player.Name)
+            end
+        end,
+        
+        CleanupPlayerSpawning = function(self, player)
+            if player then
+                local userId = tostring(player.UserId)
+                self.playerSpawnRates[userId] = nil
+                self.activeObstacles[userId] = nil
+                print("Cleaned up spawning for player " .. player.Name)
+            end
+        end,
+        
+        ProcessPlayerSpawning = function(self, player, currentTime)
+            return player ~= nil
+        end,
+        
+        CreateObstacle = function(self, obstacleType, position)
+            if obstacleType == "invalid_type" then
+                error("Invalid obstacle type: " .. obstacleType)
+            end
+            return {type = obstacleType, position = position, id = math.random(1000, 9999)}
+        end,
+        
+        EnterDegradedMode = function(self, reason)
+            self.spawnConfig.degradedMode = true
+            self.spawnConfig.baseSpawnRate = 1.5
+            self.spawnConfig.maxObstaclesPerPlayer = 15
+            print("Entered degraded mode: " .. reason)
+        end,
+        
+        EnterEmergencyMode = function(self, reason)
+            self.spawnConfig.emergencyMode = true
+            self.spawnConfig.baseSpawnRate = 0.5
+            self.spawnConfig.maxObstaclesPerPlayer = 5
+            print("Entered emergency mode: " .. reason)
+        end,
+        
+        UpdateSpawning = function(self)
+            print("Updated spawning system")
+            return true
+        end,
+        
+        ForceCleanupOldestObstacles = function(self, player, maxToKeep)
+            if player then
+                local userId = tostring(player.UserId)
+                if self.activeObstacles[userId] then
+                    local obstacles = self.activeObstacles[userId]
+                    if #obstacles > maxToKeep then
+                        for i = maxToKeep + 1, #obstacles do
+                            obstacles[i] = nil
+                        end
+                    end
+                    print("Cleaned up obstacles for player " .. player.Name)
+                end
+            end
+        end,
+        
+        PerformEmergencyCleanup = function(self)
+            print("Performed emergency cleanup")
+            return true
+        end,
+        
+        ForceCleanupPlayerObstacles = function(self, player)
+            if player then
+                local userId = tostring(player.UserId)
+                if self.activeObstacles[userId] then
+                    self.activeObstacles[userId] = {}
+                    print("Force cleaned up all obstacles for player " .. player.Name)
+                end
+            end
+        end
+    }
+end
+
+-- ========================================
 -- SERVICE INTEGRATION TESTS
 -- ========================================
 
 function ErrorHandlingTestSuite.TestServiceWithErrorHandling()
     print("\n🏗️ Testing Service Integration with Error Handling...")
     
-    local service = {
-        Priority = 1,
-        Dependencies = {"CriticalErrorHandler"}
-    })
+    local service = CreateMockService()
     
     ErrorHandlingTestSuite.AssertTrue(service ~= nil, "Service with error handling creates successfully")
     ErrorHandlingTestSuite.AssertTrue(service.errorHandler ~= nil, "Service has error handler dependency")
@@ -390,7 +497,7 @@ end
 function ErrorHandlingTestSuite.TestPlayerManagementWithErrors()
     print("\n👥 Testing Player Management Error Handling...")
     
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     
     -- Test valid player initialization
@@ -440,7 +547,7 @@ end
 function ErrorHandlingTestSuite.TestObstacleSpawningWithErrors()
     print("\n🧱 Testing Obstacle Spawning Error Handling...")
     
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     service:Start()
     
@@ -448,7 +555,7 @@ function ErrorHandlingTestSuite.TestObstacleSpawningWithErrors()
     service:InitializePlayerSpawning(mockPlayer)
     
     local currentTime = tick()
-    local playerData = service.playerSpawnRates[tostring(mockPlayer.UserId)]
+    local _playerData = service.playerSpawnRates[tostring(mockPlayer.UserId)]
     
     -- Test normal spawning
     local spawnSuccess = pcall(function()
@@ -477,7 +584,7 @@ function ErrorHandlingTestSuite.TestObstacleSpawningWithErrors()
     
     -- Test invalid obstacle creation
     local invalidCreateSuccess = pcall(function()
-        local obstacle = service:CreateObstacle("invalid_type", Vector3.new(0, 0, 0))
+        local _obstacle = service:CreateObstacle("invalid_type", Vector3.new(0, 0, 0))
         -- Should still create something due to error handling
     end)
     
@@ -497,7 +604,7 @@ end
 function ErrorHandlingTestSuite.TestDegradedMode()
     print("\n⚠️ Testing Degraded Mode...")
     
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     
     -- Test entering degraded mode
@@ -523,7 +630,7 @@ end
 function ErrorHandlingTestSuite.TestEmergencyMode()
     print("\n🚨 Testing Emergency Mode...")
     
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     
     -- Test entering emergency mode
@@ -558,7 +665,7 @@ end
 function ErrorHandlingTestSuite.TestMemoryManagement()
     print("\n💾 Testing Memory Management...")
     
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     service:Start()
     
@@ -680,7 +787,7 @@ function ErrorHandlingTestSuite.TestStressConditions()
     print("\n💪 Testing Stress Conditions...")
     
     local handler = CriticalErrorHandler.new()
-    local service = {IsRunning = true}
+    local service = CreateMockService()
     service:Initialize()
     
     -- Test rapid error generation

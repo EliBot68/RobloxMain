@@ -748,8 +748,8 @@ end
 
 function CriticalErrorHandler:SetupGlobalErrorHandling()
     -- Wrap common global functions with error boundaries
-    local originalSpawn = spawn;
-    spawn = function(func)
+    local originalSpawn = spawn
+    local function wrappedSpawn(func)
         return originalSpawn(function()
             self:CreateErrorBoundary("spawned_function", func, {
                 category = ERROR_CATEGORIES.SYSTEM,
@@ -758,6 +758,13 @@ function CriticalErrorHandler:SetupGlobalErrorHandling()
             })()
         end)
     end
+    
+    -- Store wrapped functions for use by framework
+    self.wrappedSpawn = wrappedSpawn
+    
+    -- Note: Global spawn override is intentional for comprehensive error handling
+    -- This ensures all spawned functions are wrapped with error boundaries
+    getfenv()["spawn"] = wrappedSpawn
     
     local originalTask = task.spawn
     task.spawn = function(func, ...)
@@ -1031,11 +1038,11 @@ function CriticalErrorHandler:SetupPerformanceMonitoring()
     
     -- Event-driven memory monitoring (NO POLLING)
     task.spawn(function()
-        local memoryMonitorEvent = Instance.new("BindableEvent")
+        local _memoryMonitorEvent = Instance.new("BindableEvent")
         local checkInterval = 5 -- Start with 5 second intervals
         local maxInterval = 60 -- Maximum interval of 1 minute
         
-        local function performMemoryCheck()
+        local function _performMemoryCheck()
             if not self.IsRunning then return end
             
             local memoryUsage = collectgarbage("count")
