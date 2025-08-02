@@ -364,10 +364,8 @@ DifficultyService.SpikeActivated:Connect(function(data)
     playSpikeAnimation(data)
 end)
 
--- Initial difficulty request
-spawn(function()
-    wait(2) -- Wait for services to fully initialize
-    
+-- Initial difficulty request (NO POLLING)
+task.delay(2, function() -- Non-blocking initialization wait
     local initialDifficulty = DifficultyService:GetCurrentDifficulty()
     if initialDifficulty then
         updateDifficultyDisplay(initialDifficulty)

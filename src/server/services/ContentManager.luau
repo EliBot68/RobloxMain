@@ -523,12 +523,12 @@ function ContentManager:CheckForContentUpdates()
 end
 
 function ContentManager:SetupPlayerConnections()
-    -- Handle player joining for content sync
+    -- Handle player joining for content sync (NO POLLING)
     Players.PlayerAdded:Connect(function(player)
-        wait(2) -- Allow player to load
-        
-        -- Send all active content to new player
-        RemoteEvents.ContentUpdate:FireClient(player, "full_sync", activeContent)
+        task.delay(2, function() -- Non-blocking player load wait
+            -- Send all active content to new player
+            RemoteEvents.ContentUpdate:FireClient(player, "full_sync", activeContent)
+        end)
     end)
 end
 

@@ -539,9 +539,8 @@ function BuffController:CreateTimeFreezeEffect()
     )
     pulseTween:Play()
     
-    -- Remove after 15 seconds
-    spawn(function()
-        wait(15)
+    -- Remove after 15 seconds (NO POLLING)
+    task.delay(15, function()
         pulseTween:Cancel()
         screenEffect:Destroy()
     end)
@@ -657,14 +656,15 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Handle character respawn
+-- Handle character respawn (NO POLLING)
 player.CharacterAdded:Connect(function()
-    wait(1)
-    -- Clear active buffs on respawn
-    for buffType, _ in pairs(activeBuffElements) do
-        BuffController:RemoveBuffDisplay(buffType)
-    end
-    activeBuffElements = {}
+    task.delay(1, function() -- Non-blocking character load wait
+        -- Clear active buffs on respawn
+        for buffType, _ in pairs(activeBuffElements) do
+            BuffController:RemoveBuffDisplay(buffType)
+        end
+        activeBuffElements = {}
+    end)
 end)
 
 return BuffController

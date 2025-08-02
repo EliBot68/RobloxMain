@@ -466,20 +466,27 @@ end
 function BuffService:StartBuffTimer(player, buffType, buffData)
     local userId = tostring(player.UserId)
     
-    spawn(function()
-        while tick() < buffData.endTime do
-            wait(1)
-            
-            -- Update client with remaining time
-            RemoteEvents.BuffTimeUpdate:FireClient(player, {
-                buffType = buffType,
-                timeRemaining = buffData.endTime - tick()
-            })
+    -- Event-driven timer (NO POLLING)
+    local function updateTimer()
+        local timeRemaining = buffData.endTime - tick()
+        
+        if timeRemaining <= 0 then
+            -- Buff expired
+            self:RemoveBuff(player, buffType)
+            return
         end
         
-        -- Buff expired
-        self:RemoveBuff(player, buffType)
-    end)
+        -- Update client with remaining time
+        RemoteEvents.BuffTimeUpdate:FireClient(player, {
+            buffType = buffType,
+            timeRemaining = timeRemaining
+        })
+        
+        -- Schedule next update
+        task.delay(1, updateTimer)
+    end
+    
+    updateTimer() -- Start the timer
 end
 
 function BuffService:RemoveBuff(player, buffType)

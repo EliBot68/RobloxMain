@@ -367,11 +367,12 @@ function ConsoleMonitorService:KnitStart()
 	setupScriptErrorMonitoring()
 	setupAssetErrorMonitoring()
 	
-	-- Initial validation checks (if enabled)
+	-- Initial validation checks (if enabled) - NO POLLING
 	if DeveloperConfig.SETTINGS.VALIDATE_ASSETS_ON_START then
-		wait(2) -- Wait for game to load
-		checkWorkspaceObjects()
-		checkReplicatedStorageStructure()
+		task.delay(2, function() -- Non-blocking game load wait
+			checkWorkspaceObjects()
+			checkReplicatedStorageStructure()
+		end)
 	end
 	
 	-- Start real-time monitoring

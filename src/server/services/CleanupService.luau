@@ -279,44 +279,47 @@ function CleanupService:PerformFullCleanup()
     
     -- Step 1: Remove old spawn points
     self:RemoveOldSpawnPoints()
-    wait(1)
     
-    -- Step 2: Remove old buildings
-    self:RemoveOldBuildings() 
-    wait(1)
-    
-    -- Step 3: Optimize performance
-    self:OptimizeWorkspacePerformance()
+    -- Step 2: Remove old buildings (sequenced with task.delay)
     task.delay(1, function()
-        -- Step 4: Clean memory
-        self:CleanupMemoryLeaks()
+        self:RemoveOldBuildings() 
         
-        -- Step 5: Event-driven final garbage collection (NO POLLING)
-        local gcCycles = 0
-        local function finalGarbageCollection()
-            if gcCycles < 5 then
-                collectgarbage("collect")
-                gcCycles = gcCycles + 1
-                task.delay(0.15, finalGarbageCollection) -- Optimized interval
-            else
-                print("✅ Full cleanup and optimization complete!")
+        -- Step 3: Optimize performance (sequenced)
+        task.delay(1, function()
+            self:OptimizeWorkspacePerformance()
+            
+            -- Step 4: Clean memory
+            task.delay(1, function()
+                self:CleanupMemoryLeaks()
                 
-                -- Report final workspace stats
-                local partCount = 0
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("BasePart") then
-                        partCount = partCount + 1
+                -- Step 5: Event-driven final garbage collection (NO POLLING)
+                local gcCycles = 0
+                local function finalGarbageCollection()
+                    if gcCycles < 5 then
+                        collectgarbage("collect")
+                        gcCycles = gcCycles + 1
+                        task.delay(0.15, finalGarbageCollection) -- Optimized interval
+                    else
+                        print("✅ Full cleanup and optimization complete!")
+                        
+                        -- Report final workspace stats
+                        local partCount = 0
+                        for _, obj in pairs(Workspace:GetDescendants()) do
+                            if obj:IsA("BasePart") then
+                                partCount = partCount + 1
+                            end
+                        end
+                        
+                        print("📊 Workspace Stats:")
+                        print("   Parts in workspace: " .. partCount)
+                        print("   Memory usage optimized for better performance")
                     end
                 end
-            end
-        end
-        
-        finalGarbageCollection()
+                
+                finalGarbageCollection()
+            end)
+        end)
     end)
-    
-    print("📊 Workspace Stats:")
-    print("   Parts in workspace: " .. partCount)
-    print("   Memory usage optimized for better performance")
 end
 
 function CleanupService:StartPeriodicCleanup()
@@ -435,9 +438,8 @@ function CleanupService:Init()
         self:CleanupPlayerData(player)
     end)
     
-    -- Initial cleanup on service start
-    task.spawn(function() -- UPDATED for modern API
-        task.wait(5) -- Give other services time to initialize
+    -- Initial cleanup on service start (NO POLLING)
+    task.delay(5, function() -- Non-blocking service initialization
         self:PerformFullCleanup()
     end)
     

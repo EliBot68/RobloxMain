@@ -348,12 +348,13 @@ end
 Players.PlayerAdded:Connect(function(player)
     initializePlayerGameState(player)
     
-    -- Auto-start game when player spawns (for testing)
+    -- Auto-start game when player spawns (for testing) - NO POLLING
     player.CharacterAdded:Connect(function(character)
-        wait(2) -- Wait for character to fully load
-        if not gameStates[player.UserId].isPlaying then
-            startGame(player)
-        end
+        task.delay(2, function() -- Non-blocking character load wait
+            if gameStates[player.UserId] and not gameStates[player.UserId].isPlaying then
+                startGame(player)
+            end
+        end)
     end)
 end)
 
@@ -400,7 +401,7 @@ end
 -- Create game control remotes
 createGameControlRemotes()
 
--- Debug information with adaptive monitoring
+-- Debug information with adaptive monitoring (NO POLLING)
 local debugEvent = Instance.new("BindableEvent")
 
 local function scheduleDebugUpdate()
@@ -411,10 +412,11 @@ local function scheduleDebugUpdate()
         end
     end
     
-    -- Adaptive interval based on activity
+    -- Adaptive interval based on activity - using task.delay instead of wait()
     local interval = activePlayers > 0 and 8 or 15 -- More frequent when players are active
-    wait(interval)
-    debugEvent:Fire()
+    task.delay(interval, function()
+        debugEvent:Fire()
+    end)
 end
 
 debugEvent.Event:Connect(function()
@@ -438,11 +440,13 @@ debugEvent.Event:Connect(function()
         print("📊 Active players: " .. activePlayers)
     end
     
-    spawn(scheduleDebugUpdate)
+    scheduleDebugUpdate() -- Schedule next update with task.delay
 end)
 
--- Start the debug monitoring cycle
-spawn(scheduleDebugUpdate)
+-- Start the debug monitoring cycle (event-driven)
+task.delay(2, function()
+    debugEvent:Fire()
+end)
 
 print("🎮 Game Loop Integration initialized with Difficulty System!")
 print("📍 Key Integration Points:")

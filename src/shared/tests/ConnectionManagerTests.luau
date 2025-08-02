@@ -326,8 +326,8 @@ function ConnectionManagerTests:TestStaleConnectionCleanup()
 		
 		self:Assert(connectionId ~= nil, "Should create connection")
 		
-		-- Wait for timeout
-		wait(0.2)
+		-- Wait for timeout (NO POLLING)
+		task.wait(0.2)
 		
 		-- Force stale cleanup
 		local _cleanedCount = ConnectionManager:CleanupStaleConnections()
