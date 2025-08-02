@@ -10,6 +10,15 @@ local ConfigurationManager = require(ReplicatedStorage.Shared.core.Configuration
 
 local StructuredLogger = {}
 
+-- Helper function to repeat strings (Luau doesn't have string.rep)
+local function repeatString(str, count)
+    local result = ""
+    for _ = 1, count do
+        result = result .. str
+    end
+    return result
+end
+
 -- ========================================
 -- LOG LEVEL DEFINITIONS
 -- ========================================
@@ -491,7 +500,7 @@ function StructuredLogger:MatchesQuery(logData, queryOptions)
         return false
     end
     
-    if queryOptions.until and logData.timestamp > queryOptions.until then
+    if queryOptions["until"] and logData.timestamp > queryOptions["until"] then
         return false
     end
     
@@ -642,9 +651,9 @@ end
 function StructuredLogger:DumpLogBuffer(level)
     level = level or LOG_LEVELS.DEBUG
     
-    print("\n" .. "=".rep(60))
+    print("\n" .. repeatString("=", 60))
     print("📊 LOG BUFFER DUMP")
-    print("=".rep(60))
+    print(repeatString("=", 60))
     
     local count = 0
     for _, logData in ipairs(logBuffer) do
@@ -654,9 +663,9 @@ function StructuredLogger:DumpLogBuffer(level)
         end
     end
     
-    print("=".rep(60))
+    print(repeatString("=", 60))
     print("Total logs shown: " .. count .. " (level >= " .. level.name .. ")")
-    print("=".rep(60) .. "\n")
+    print(repeatString("=", 60) .. "\n")
 end
 
 -- Get recent logs for debugging

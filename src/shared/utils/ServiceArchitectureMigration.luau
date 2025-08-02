@@ -2,7 +2,7 @@
 -- Automated migration script to convert all services to modern architecture
 -- Handles pattern detection, dependency analysis, and service conversion
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local _ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ServiceMigration = {}
 
@@ -75,7 +75,7 @@ function ServiceMigration:DiscoverServices()
     print("🔍 Discovering services for migration...")
     
     local services = {}
-    local patterns = {
+    local _patterns = {
         "src/server/services/*.luau",
         "src/client/controllers/*.luau"
     }

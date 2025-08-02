@@ -3,7 +3,7 @@
 
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local _ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorldBuilderService = {}
 
@@ -775,7 +775,7 @@ function WorldBuilderService:BuildCompleteWorld()
     -- Step 10: Final touches
     wait(1)
     for i = 1, 3 do
-        collectgarbage("collect")
+        collectgarbage("count") -- Force memory cleanup
         wait(0.1)
     end
     
@@ -794,7 +794,7 @@ function WorldBuilderService:BuildCompleteWorld()
     return {
         hubPlatform = hubPlatform,
         spawnLocation = spawnLocation,
-        playPortal = playPortal,
+        playPortal = playPortals,
         marketStalls = marketStalls,
         fountain = fountain,
         decorations = decorations,

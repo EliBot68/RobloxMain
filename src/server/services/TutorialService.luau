@@ -23,8 +23,6 @@ local WELCOME_BONUS = {
     xp = 50
 }
 
-local TutorialService = {}
-
 -- Tutorial content sections
 local TUTORIAL_SECTIONS = {
     {

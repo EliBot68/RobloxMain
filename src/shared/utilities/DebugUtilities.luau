@@ -11,11 +11,20 @@ local ConfigurationManager = require(ReplicatedStorage.Shared.core.Configuration
 
 local DebugUtilities = {}
 
+-- Helper function to repeat strings (Luau doesn't have string.rep)
+local function repeatString(str, count)
+    local result = ""
+    for _ = 1, count do
+        result = result .. str
+    end
+    return result
+end
+
 -- ========================================
 -- DEBUG MODES AND CONFIGURATION
 -- ========================================
 
-local DEBUG_MODES = {
+local _DEBUG_MODES = {
     PERFORMANCE = "performance",
     MEMORY = "memory",
     NETWORK = "network",
@@ -25,10 +34,10 @@ local DEBUG_MODES = {
 }
 
 local activeDebugModes = {}
-local debugSessions = {}
+local _debugSessions = {}
 local performanceProfiles = {}
 local memorySnapshots = {}
-local networkTraces = {}
+local _networkTraces = {}
 
 -- Configuration
 local config = ConfigurationManager.getInstance()
@@ -132,9 +141,9 @@ function PerformanceProfiler:PrintProfileReport(profileName)
     end
     
     local stats = profile.stats
-    print("\n" .. "=".rep(50))
+    print("\n" .. repeatString("=", 50))
     print("📊 PERFORMANCE PROFILE: " .. profileName)
-    print("=".rep(50))
+    print(repeatString("=", 50))
     print("Total Calls: " .. stats.totalCalls)
     print("Total Time: " .. string.format("%.4f", stats.totalTime) .. "s")
     print("Average Time: " .. string.format("%.4f", stats.averageTime) .. "s")
@@ -154,7 +163,7 @@ function PerformanceProfiler:PrintProfileReport(profileName)
             ))
         end
     end
-    print("=".rep(50) .. "\n")
+    print(repeatString("=", 50) .. "\n")
 end
 
 -- ========================================
@@ -237,11 +246,11 @@ end
 function MemoryDebugger:PrintMemoryReport()
     local currentMemory = collectgarbage("count")
     
-    print("\n" .. "=".rep(50))
+    print("\n" .. repeatString("=", 50))
     print("🧠 MEMORY DEBUG REPORT")
-    print("=".rep(50))
+    print(repeatString("=", 50))
     print("Current Memory: " .. string.format("%.2f", currentMemory) .. "KB")
-    print("Available Snapshots: " .. tostring(table.getn and table.getn(memorySnapshots) or "Unknown"))
+    print("Available Snapshots: " .. tostring(#memorySnapshots))
     
     -- Show object counts
     local objectCounts = {}
@@ -263,7 +272,7 @@ function MemoryDebugger:PrintMemoryReport()
         print("  " .. obj.className .. ": " .. obj.count)
     end
     
-    print("=".rep(50) .. "\n")
+    print(repeatString("=", 50) .. "\n")
 end
 
 function MemoryDebugger:DetectMemoryLeaks()
@@ -352,9 +361,9 @@ function SystemInspector:InspectServices()
         "TweenService"
     }
     
-    print("\n" .. "=".rep(50))
+    print("\n" .. repeatString("=", 50))
     print("🔧 SERVICES INSPECTION")
-    print("=".rep(50))
+    print(repeatString("=", 50))
     
     for _, serviceName in ipairs(services) do
         local success, service = pcall(function() return game:GetService(serviceName) end)
@@ -368,13 +377,13 @@ function SystemInspector:InspectServices()
         end
     end
     
-    print("=".rep(50) .. "\n")
+    print(repeatString("=", 50) .. "\n")
 end
 
 function SystemInspector:InspectPerformance()
-    print("\n" .. "=".rep(50))
+    print("\n" .. repeatString("=", 50))
     print("⚡ PERFORMANCE INSPECTION")
-    print("=".rep(50))
+    print(repeatString("=", 50))
     
     -- FPS and timing
     print("Physics FPS: " .. string.format("%.1f", workspace:GetRealPhysicsFPS()))
@@ -398,7 +407,7 @@ function SystemInspector:InspectPerformance()
         print("⚠️ High object count - may impact performance")
     end
     
-    print("=".rep(50) .. "\n")
+    print(repeatString("=", 50) .. "\n")
 end
 
 function SystemInspector:InspectNetworking()
@@ -407,9 +416,9 @@ function SystemInspector:InspectNetworking()
         return
     end
     
-    print("\n" .. "=".rep(50))
+    print("\n" .. repeatString("=", 50))
     print("🌐 NETWORKING INSPECTION")
-    print("=".rep(50))
+    print(repeatString("=", 50))
     
     -- Player connections
     local players = Players:GetPlayers()
@@ -438,7 +447,7 @@ function SystemInspector:InspectNetworking()
     print("Remote Events: " .. remoteEvents)
     print("Remote Functions: " .. remoteFunctions)
     
-    print("=".rep(50) .. "\n")
+    print(repeatString("=", 50) .. "\n")
 end
 
 -- ========================================

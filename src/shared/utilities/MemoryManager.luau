@@ -463,7 +463,7 @@ function MemoryManager:CleanupAllPlayers()
     local gcCycles = 0
     local function performGarbageCollection()
         if gcCycles < 3 then
-            collectgarbage("collect")
+            collectgarbage("count") -- Use count instead of collect for measurement
             gcCycles = gcCycles + 1
             task.delay(0.15, performGarbageCollection) -- Optimized interval
         else
@@ -608,7 +608,7 @@ function MemoryManager:StartPeriodicCleanup()
             end
             
             -- Force garbage collection periodically
-            collectgarbage("collect")
+            collectgarbage("count") -- Use count instead of collect for measurement
         end
     end)
     

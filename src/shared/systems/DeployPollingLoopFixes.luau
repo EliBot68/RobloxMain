@@ -95,7 +95,7 @@ end
 -- PERFORMANCE MEASUREMENT
 -- ========================================
 
-function DeployPollingLoopFixes:measurePerformanceImpact(startTime)
+function DeployPollingLoopFixes:measurePerformanceImpact(performanceStartTime)
     print("Measuring performance impact...")
     
     -- Measure current system performance
@@ -107,26 +107,26 @@ function DeployPollingLoopFixes:measurePerformanceImpact(startTime)
     local maxSamples = 10
     
     local function calculateAverages()
-        local avgFrameRate = 0
-        local avgMemory = 0
+        local localAvgFrameRate = 0
+        local localAvgMemory = 0
         
         for _, fps in ipairs(frameRateSamples) do
-            avgFrameRate = avgFrameRate + fps
+            localAvgFrameRate = localAvgFrameRate + fps
         end
-        avgFrameRate = avgFrameRate / #frameRateSamples
+        localAvgFrameRate = localAvgFrameRate / #frameRateSamples
         
         for _, memory in ipairs(memorySamples) do
-            avgMemory = avgMemory + memory
+            localAvgMemory = localAvgMemory + memory
         end
-        avgMemory = avgMemory / #memorySamples
+        localAvgMemory = localAvgMemory / #memorySamples
         
         -- Performance impact calculation continues...
         local endTime = tick()
-        local elapsedTime = endTime - startTime
+        local elapsedTime = endTime - performanceStartTime
         
         return {
-            averageFrameRate = avgFrameRate,
-            averageMemory = avgMemory,
+            averageFrameRate = localAvgFrameRate,
+            averageMemory = localAvgMemory,
             elapsedTime = elapsedTime
         }
     end
@@ -141,29 +141,29 @@ function DeployPollingLoopFixes:measurePerformanceImpact(startTime)
             sampleCount = sampleCount + 1
             
             task.delay(0.2, takeSample) -- Continue sampling
+            return
         else
             -- Calculate averages after all samples
-            return calculateAverages()
+            local results = calculateAverages()
+            
+            local performance = {
+                currentFrameRate = results.averageFrameRate,
+                currentMemoryUsage = results.averageMemory,
+                measurementTime = results.elapsedTime,
+                estimatedImprovement = {
+                    cpuReduction = 85,      -- Conservative estimate
+                    frameRateIncrease = 20, -- FPS increase
+                    memoryEfficiency = 60,  -- Memory efficiency gain
+                    batteryLife = 300       -- 3x battery life improvement
+                }
+            }
+            
+            print("✅ Performance measurement complete")
+            return performance
         end
     end
     
     return takeSample()
-end
-    
-    local performance = {
-        currentFrameRate = avgFrameRate,
-        currentMemoryUsage = avgMemory,
-        measurementTime = tick() - startTime,
-        estimatedImprovement = {
-            cpuReduction = 85,      -- Conservative estimate
-            frameRateIncrease = 20, -- FPS increase
-            memoryEfficiency = 60,  -- Memory efficiency gain
-            batteryLife = 300       -- 3x battery life improvement
-        }
-    }
-    
-    print("✅ Performance measurement complete")
-    return performance
 end
 
 -- ========================================
