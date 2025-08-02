@@ -17,7 +17,6 @@ local RETRY_ATTEMPTS = 5       -- Increased from 3 for better reliability
 local RETRY_DELAY = 0.05       -- Faster initial retry for responsiveness
 local TIMEOUT_DURATION = 15    -- Increased timeout for complex modules
 local MAX_STACK_DEPTH = 25     -- Increased stack depth for complex dependencies
-local _EXPONENTIAL_BACKOFF = true
 
 -- Error tracking and performance monitoring
 local errorCount = 0
@@ -84,6 +83,7 @@ function SafeRequire.require(modulePath, fallback)
     -- Add to loading stack
     table.insert(loadingStack, modulePathStr)
     
+
     local success, result
     local attempts = 0
     local retryDelay = RETRY_DELAY
@@ -337,6 +337,7 @@ function SafeRequire.requireBatch(moduleList, fallbackMap, options)
         
         -- Process modules with concurrency limit
         local moduleQueue = {table.unpack(moduleList)}
+        
         local function startNext()
             -- Event-driven module processing (NO POLLING)
             local processEvent = Instance.new("BindableEvent")
@@ -361,7 +362,6 @@ function SafeRequire.requireBatch(moduleList, fallbackMap, options)
             
             processEvent.Event:Connect(processNextBatch)
             processNextBatch() -- Start processing
-        end
         end
         
         startNext()
