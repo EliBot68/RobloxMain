@@ -1,0 +1,41 @@
+{
+  "name": "Runner's Paradise - Streamlined",
+  "servePort": 34873,
+  "emitLegacyScripts": true,
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared-core"
+      },
+      "RemoteEvents": {
+        "$path": "src/remoteevents/RemoteEvents.model.json"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "MainServer": {
+        "$path": "src/server-main"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "MainClient": {
+          "$path": "src/client-main"
+        }
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      }
+    }
+  }
+}
