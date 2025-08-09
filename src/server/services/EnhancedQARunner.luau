@@ -4,7 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local SafeRequire = require(game.ReplicatedStorage.Shared.utils.SafeRequire)
 
 local EnhancedQARunner = {}
 

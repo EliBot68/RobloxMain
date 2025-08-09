@@ -123,7 +123,7 @@ function SocialService:PlayerJoined(player)
     self:LoadPlayerSocialData(player)
     
     -- Notify friends that player is online
-    spawn(function()
+    task.spawn(function()
         self:NotifyFriendsOnline(player)
     end)
 end
@@ -143,7 +143,7 @@ function SocialService:PlayerLeft(player)
     self:SavePlayerSocialData(player)
     
     -- Notify friends that player is offline
-    spawn(function()
+    task.spawn(function()
         self:NotifyFriendsOffline(player)
     end)
 end
@@ -158,7 +158,7 @@ end
 function SocialService:LoadPlayerSocialData(player)
     local userId = player.UserId
     
-    spawn(function()
+    task.spawn(function()
         local success, friendData = pcall(function()
             return friendsStore:GetAsync(tostring(userId))
         end)
@@ -204,7 +204,7 @@ function SocialService:SavePlayerSocialData(player)
     local userId = player.UserId
     
     if playerFriends[userId] then
-        spawn(function()
+        task.spawn(function()
             pcall(function()
                 friendsStore:SetAsync(tostring(userId), playerFriends[userId])
             end)
@@ -212,7 +212,7 @@ function SocialService:SavePlayerSocialData(player)
     end
     
     if socialStats[userId] then
-        spawn(function()
+        task.spawn(function()
             pcall(function()
                 socialDataStore:SetAsync(tostring(userId), socialStats[userId])
             end)
@@ -285,7 +285,7 @@ function SocialService:SendFriendRequest(player, targetUserId)
 end
 
 function SocialService:AddReceivedFriendRequest(targetUserId, senderId, senderName)
-    spawn(function()
+    task.spawn(function()
         local success, targetData = pcall(function()
             return friendsStore:GetAsync(tostring(targetUserId))
         end)
@@ -363,7 +363,7 @@ function SocialService:AcceptFriendRequest(player, requesterId)
 end
 
 function SocialService:AddMutualFriend(requesterId, accepterId, accepterName)
-    spawn(function()
+    task.spawn(function()
         local success, requesterData = pcall(function()
             return friendsStore:GetAsync(tostring(requesterId))
         end)
@@ -417,7 +417,7 @@ function SocialService:DeclineFriendRequest(player, requesterId)
 end
 
 function SocialService:RemoveSentFriendRequest(requesterId, targetId)
-    spawn(function()
+    task.spawn(function()
         local success, requesterData = pcall(function()
             return friendsStore:GetAsync(tostring(requesterId))
         end)
@@ -465,7 +465,7 @@ function SocialService:RemoveFriend(player, friendId)
 end
 
 function SocialService:RemoveMutualFriend(friendId, removerId)
-    spawn(function()
+    task.spawn(function()
         local success, friendData = pcall(function()
             return friendsStore:GetAsync(tostring(friendId))
         end)

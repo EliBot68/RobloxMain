@@ -490,7 +490,7 @@ function SafeRequire.requireWithRetry(modulePath, retryCondition, maxRetries, fa
         end
         
         if attempt < maxRetries then
-            wait(CONFIG.RETRY_DELAY * attempt) -- Exponential backoff
+            task.wait(CONFIG.RETRY_DELAY * attempt) -- Exponential backoff
         end
     end
     

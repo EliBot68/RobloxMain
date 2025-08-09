@@ -1,4 +1,4 @@
-﻿-- PetOrchestrationService.luau
+-- PetOrchestrationService.luau
 -- ORCHESTRATION LAYER: Coordinates pet components and advanced pet system features  
 -- Clean orchestrator service that coordinates pet components
 -- Implements clean architecture with proper separation of concerns
@@ -9,12 +9,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local ServiceArchitecture = require(ReplicatedStorage.Shared.core.ServiceArchitecture)
-local ServiceRegistry = require(ReplicatedStorage.Shared.core.ServiceRegistry)
+local ServiceArchitecture = require(game.ReplicatedStorage.Shared.core.ServiceArchitecture)
+local ServiceRegistry = require(game.ReplicatedStorage.Shared.core.ServiceRegistry)
 
 -- Component imports
-local PetRepository = require(ReplicatedStorage.Shared.data.PetRepository)
-local PetDatabase = require(ReplicatedStorage.Shared.data.PetDatabase)
+local PetRepository = require(game.ReplicatedStorage.Shared.data.PetRepository)
+local PetDatabase = require(game.ReplicatedStorage.Shared.data.PetDatabase)
 local PetBehaviorService = require(game.ReplicatedStorage.Shared.services.PetBehaviorService)
 local PetModelService = require(game.ReplicatedStorage.Shared.services.PetModelService)
 
@@ -44,7 +44,7 @@ end
 -- ========================================
 
 function PetOrchestrationService:_initialize()
-    print("ðŸ”§ Initializing Pet Service components...")
+    print("🔧 Initializing Pet Service components...")
     
     -- Initialize components
     self.repository = PetRepository.new()
@@ -54,22 +54,22 @@ function PetOrchestrationService:_initialize()
     -- Validate pet database
     local issues = PetDatabase:ValidatePetData()
     if #issues > 0 then
-        warn("âš ï¸ Pet database validation issues found:")
+        warn("⚠️ Pet database validation issues found:")
         for _, issue in ipairs(issues) do
             warn("  - " .. issue)
         end
     else
-        print("âœ… Pet database validation passed")
+        print("✅ Pet database validation passed")
     end
     
     -- Setup event handlers
     self:_setupEventHandlers()
     
-    print("âœ… Pet Service components initialized")
+    print("✅ Pet Service components initialized")
 end
 
 function PetOrchestrationService:_start()
-    print("ðŸš€ Starting Pet Service...")
+    print("🚀 Starting Pet Service...")
     
     -- Setup player connection handlers
     Players.PlayerAdded:Connect(function(player)
@@ -85,11 +85,11 @@ function PetOrchestrationService:_start()
         self:_onPlayerAdded(player)
     end
     
-    print("âœ… Pet Service started")
+    print("✅ Pet Service started")
 end
 
 function PetOrchestrationService:_stop()
-    print("ðŸ›‘ Stopping Pet Service...")
+    print("🛑 Stopping Pet Service...")
     
     -- Clean up all active pets
     self.modelService:ClearAllModels()
@@ -99,7 +99,7 @@ function PetOrchestrationService:_stop()
         self.behaviorService:DespawnPetBehavior(player.UserId)
     end
     
-    print("âœ… Pet Service stopped")
+    print("✅ Pet Service stopped")
 end
 
 -- ========================================
@@ -134,14 +134,14 @@ end
 function PetOrchestrationService:_onPlayerAdded(player)
     -- Load player's pet data
     local playerPets = self.repository:GetById(player.UserId)
-    print("ðŸ“‚ Loaded " .. #playerPets .. " pets for " .. player.Name)
+    print("📂 Loaded " .. #playerPets .. " pets for " .. player.Name)
     
     -- If player has an equipped pet, spawn it
     -- This would typically check for an "equipped" flag in the data
     if #playerPets > 0 then
         -- For now, equip the first pet (in a real system, check for equipped flag)
-        spawn(function()
-            wait(5) -- Give time for character to load
+        task.spawn(function()
+            task.wait(5) -- Give time for character to load
             self:EquipPet(player, playerPets[1])
         end)
     end
@@ -151,26 +151,26 @@ function PetOrchestrationService:_onPlayerRemoving(player)
     -- Save any pending data and clean up
     self:DespawnPet(player)
     self.repository:ClearCache(player.UserId)
-    print("ðŸ’¾ Saved and cleaned up pet data for " .. player.Name)
+    print("💾 Saved and cleaned up pet data for " .. player.Name)
 end
 
 function PetOrchestrationService:_onPetPurchased(player, petId)
     local success, message = self.repository:AddPetToPlayer(player.UserId, petId)
     if success then
-        print("ðŸ›’ " .. player.Name .. " purchased pet: " .. petId)
+        print("🛒 " .. player.Name .. " purchased pet: " .. petId)
         self:TriggerEvent("pet_inventory_updated", player, petId, "purchased")
     else
-        warn("âŒ Failed to add purchased pet: " .. message)
+        warn("❌ Failed to add purchased pet: " .. message)
     end
 end
 
 function PetOrchestrationService:_onPetEquipped(player, petId)
     local success = self:EquipPet(player, petId)
     if success then
-        print("âœ¨ " .. player.Name .. " equipped pet: " .. petId)
+        print("✨ " .. player.Name .. " equipped pet: " .. petId)
         self:TriggerEvent("pet_equipped_success", player, petId)
     else
-        warn("âŒ Failed to equip pet: " .. petId)
+        warn("❌ Failed to equip pet: " .. petId)
     end
 end
 
@@ -239,7 +239,7 @@ function PetOrchestrationService:AwardPet(player, petId, reason)
     local success, message = self.repository:AddPetToPlayer(player.UserId, petId)
     if success then
         self:TriggerEvent("pet_awarded", player, petId, reason)
-        print("ðŸŽ Awarded pet to " .. player.Name .. ": " .. petId .. " (reason: " .. reason .. ")")
+        print("🎁 Awarded pet to " .. player.Name .. ": " .. petId .. " (reason: " .. reason .. ")")
         return true, "Pet awarded successfully"
     else
         return false, message

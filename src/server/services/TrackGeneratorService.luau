@@ -776,10 +776,10 @@ function TrackGeneratorService:AnimateCollectible(collectible)
     
     -- Rotation animation
     if template.rotationSpeed then
-        spawn(function()
+        task.spawn(function()
             while collectible.Parent do
                 collectible.Rotation = collectible.Rotation + Vector3.new(0, template.rotationSpeed, 0)
-                wait(0.1)
+                task.wait(0.1)
             end
         end)
     end

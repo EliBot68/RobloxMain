@@ -478,7 +478,7 @@ function UpgradeService:PurchaseUpgrade(player, upgradeId)
     self:ApplyUpgradeEffect(player, upgradeId, playerUpgrades[upgradeId].level)
     
     -- Notify quest system
-    local ServiceRegistry = self:SafeRequire(ReplicatedStorage.Shared.utils.ServiceRegistry, "ServiceRegistry", true)
+    local ServiceRegistry = self:SafeRequire(game.ReplicatedStorage.Shared.utils.ServiceRegistry, "ServiceRegistry", true)
     if ServiceRegistry then
         local QuestService = ServiceRegistry:GetService("QuestService")
         if QuestService and QuestService.UpdateProgress then
