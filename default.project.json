@@ -1,5 +1,14 @@
 {
   "name": "Runner's Paradise - Fresh Start",
+  "servePort": 34873,
+  "emitLegacyScripts": true,
+  "globIgnorePaths": [
+    "**/*.md",
+    "**/*.ps1",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.vscode/**"
+  ],
   "tree": {
     "$className": "DataModel",
 
