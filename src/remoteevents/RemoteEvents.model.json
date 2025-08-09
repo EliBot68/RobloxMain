@@ -1,6 +1,23 @@
 {
   "ClassName": "Folder",
+  "Name": "RemoteEvents",
   "Children": [
+    {
+      "Name": "AnalyticsEvent",
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "PlayerDataSync", 
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "SecurityAlert",
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "SystemHealth",
+      "ClassName": "RemoteEvent"
+    },
     {
       "Name": "PlayerDataRequest",
       "ClassName": "RemoteFunction"
@@ -20,6 +37,28 @@
     {
       "Name": "ScoreUpdate",
       "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "MainGameEvents",
+      "ClassName": "Folder",
+      "Children": [
+        {
+          "Name": "StartRun",
+          "ClassName": "RemoteEvent"
+        },
+        {
+          "Name": "EndRun", 
+          "ClassName": "RemoteEvent"
+        },
+        {
+          "Name": "PlayerColorChange",
+          "ClassName": "RemoteEvent"
+        },
+        {
+          "Name": "TrackGeneration",
+          "ClassName": "RemoteEvent"
+        }
+      ]
     }
   ]
 }

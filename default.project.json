@@ -1,13 +1,17 @@
 {
-  "name": "Runner's Paradise - Fresh Start",
-  "servePort": 34873,
+  "name": "Color Rush Enterprise Game",
+  "servePort": 34874,
   "emitLegacyScripts": true,
   "globIgnorePaths": [
     "**/*.md",
     "**/*.ps1",
     "**/node_modules/**",
     "**/.git/**",
-    "**/.vscode/**"
+    "**/.vscode/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/*.spec.luau",
+    "**/temp/**"
   ],
   "tree": {
     "$className": "DataModel",
@@ -17,7 +21,7 @@
         "$path": "src/shared"
       },
       "RemoteEvents": {
-        "$path": "src/remoteevents/RemoteEvents.model.json"
+        "$className": "Folder"
       }
     },
 

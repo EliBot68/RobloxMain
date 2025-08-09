@@ -1,0 +1,235 @@
+{
+  "name": "Color Rush Enterprise Game",
+  "servePort": 34873,
+  "emitLegacyScripts": true,
+  "globIgnorePaths": [
+    "**/*.md",
+    "**/*.ps1",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.vscode/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/*.spec.luau",
+    "**/temp/**"
+  ],
+  "tree": {
+    "$className": "DataModel",
+
+    "HttpService": {
+      "$className": "HttpService",
+      "$properties": {
+        "HttpEnabled": true
+      }
+    },
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "RemoteEvents": {
+        "$className": "Folder",
+        "AnalyticsEvent": {
+          "$className": "RemoteEvent"
+        },
+        "PlayerDataSync": {
+          "$className": "RemoteEvent"
+        },
+        "SecurityAlert": {
+          "$className": "RemoteEvent"
+        },
+        "SystemHealth": {
+          "$className": "RemoteEvent"
+        },
+        "GameStateUpdate": {
+          "$className": "RemoteEvent"
+        },
+        "MainGameEvents": {
+          "$className": "Folder",
+          "StartRun": {
+            "$className": "RemoteEvent"
+          },
+          "EndRun": {
+            "$className": "RemoteEvent"
+          },
+          "PlayerColorChange": {
+            "$className": "RemoteEvent"
+          },
+          "TrackGeneration": {
+            "$className": "RemoteEvent"
+          }
+        }
+      },
+      "RemoteFunctions": {
+        "$className": "Folder",
+        "GetPlayerData": {
+          "$className": "RemoteFunction"
+        },
+        "GetSystemStatus": {
+          "$className": "RemoteFunction"
+        },
+        "ValidatePlayerAction": {
+          "$className": "RemoteFunction"
+        }
+      },
+      "Configuration": {
+        "$className": "Folder",
+        "GameSettings": {
+          "$className": "Configuration",
+          "MaxPlayers": {
+            "$className": "IntValue",
+            "$properties": {
+              "Value": 30
+            }
+          },
+          "EnableAnalytics": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          },
+          "EnableSecurity": {
+            "$className": "BoolValue",
+            "$properties": {
+              "Value": true
+            }
+          }
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": {
+          "$path": "src/client"
+        }
+      },
+      "$properties": {
+        "CharacterWalkSpeed": 16,
+        "CharacterJumpPower": 50,
+        "EnableMouseLockOption": true,
+        "CameraMaxZoomDistance": 400,
+        "CameraMinZoomDistance": 0.5
+      }
+    },
+
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ShowDevelopmentGui": false,
+        "IgnoreGuiInset": true
+      }
+    },
+
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "FilteringEnabled": true,
+        "StreamingEnabled": false,
+        "Gravity": 196.2
+      },
+      "GameWorld": {
+        "$className": "Folder",
+        "SpawnArea": {
+          "$className": "Folder"
+        },
+        "TrackArea": {
+          "$className": "Folder"
+        },
+        "FinishArea": {
+          "$className": "Folder"
+        }
+      },
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Color": [0.38823, 0.37254, 0.38823],
+          "Locked": true,
+          "Position": [0, -10, 0],
+          "Size": [512, 20, 512],
+          "Material": "Grass",
+          "Name": "Baseplate"
+        }
+      }
+    },
+
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Brightness": 2,
+        "Ambient": [70, 70, 80],
+        "ColorShift_Bottom": [100, 100, 120],
+        "ColorShift_Top": [240, 240, 255],
+        "OutdoorAmbient": [128, 128, 128],
+        "FogEnd": 1000,
+        "FogStart": 0,
+        "TimeOfDay": "14:00:00",
+        "ClockTime": 14,
+        "GeographicLatitude": 0,
+        "ShadowSoftness": 0.2,
+        "ExposureCompensation": 0
+      }
+    },
+
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "AmbientReverb": "City",
+        "DistanceFactor": 3.33,
+        "DopplerScale": 1,
+        "RolloffScale": 1,
+        "RespectFilteringEnabled": true
+      }
+    },
+
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": true,
+        "MaxPlayers": 30,
+        "PreferredPlayers": 20,
+        "RespawnTime": 5
+      }
+    },
+
+    "Teams": {
+      "$className": "Teams",
+      "Runners": {
+        "$className": "Team",
+        "$properties": {
+          "Name": "Runners",
+          "TeamColor": "Bright blue",
+          "AutoAssignable": true
+        }
+      }
+    },
+
+    "DataStoreService": {
+      "$className": "DataStoreService"
+    },
+
+    "TeleportService": {
+      "$className": "TeleportService"
+    },
+
+    "MarketplaceService": {
+      "$className": "MarketplaceService"
+    },
+
+    "UserInputService": {
+      "$className": "UserInputService"
+    }
+  }
+}

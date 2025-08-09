@@ -1,0 +1,84 @@
+{
+  "name": "Runner's Paradise - Fresh Start",
+  "servePort": 34873,
+  "emitLegacyScripts": true,
+  "globIgnorePaths": [
+    "**/*.md",
+    "**/*.ps1",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.vscode/**"
+  ],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "RemoteEvents": {
+        "$path": "src/remoteevents/RemoteEvents.model.json"
+      }
+    },
+
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      },
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Color": [0.38823, 0.37254, 0.38823],
+          "Locked": true,
+          "Position": [0, -10, 0],
+          "Size": [512, 20, 512],
+          "Material": "Grass"
+        }
+      }
+    },
+
+    "Lighting": {
+      "$properties": {
+        "Brightness": 1.5,
+        "Ambient": [70, 70, 80],
+        "ColorShift_Bottom": [100, 100, 120],
+        "ColorShift_Top": [240, 240, 255],
+        "OutdoorAmbient": [128, 128, 128],
+        "FogEnd": 500,
+        "FogStart": 0,
+        "TimeOfDay": "14:00:00"
+      }
+    },
+
+    "StarterGui": {
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ShowDevelopmentGui": false
+      }
+    },
+
+    "SoundService": {
+      "$properties": {
+        "AmbientReverb": "City",
+        "DistanceFactor": 3.33,
+        "DopplerScale": 1,
+        "RolloffScale": 1
+      }
+    }
+  }
+}
