@@ -5,7 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Services = require(ReplicatedStorage.Shared.Services)
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
 local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
 local PerformanceMonitoringService = require(ReplicatedStorage.Shared.services.PerformanceMonitoringService)
 

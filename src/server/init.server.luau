@@ -4,36 +4,73 @@ print("🚀 Color Rush Server starting...")
 -- Core Roblox Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
--- Import Services for clean dependency management
-local Services = require(ReplicatedStorage.Shared.Services)
+-- Wait for shared modules to load
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared", 10)
+if not SharedFolder then
+    error("Failed to load shared modules!")
+end
 
--- Initialize essential game services
+-- Get shared utilities
+local _Shared = require(SharedFolder)
+print("✅ Shared modules loaded")
+
+-- Initialize essential game services locally
 print("🔧 Initializing core services...")
 
--- Initialize Services system on server
-Services.Initialize()
-
--- Initialize main game service
-local MainGameService = Services.Get("MainGameService")
-if MainGameService and MainGameService.Initialize then
-    MainGameService:Initialize()
-    print("✅ MainGameService initialized")
+-- Simple service initializer function
+local function InitializeService(serviceName)
+    local success, service = pcall(function()
+        return require(ServerScriptService.Server.services[serviceName])
+    end)
+    
+    if success and service then
+        if service.Initialize then
+            local initSuccess = pcall(function()
+                service:Initialize()
+            end)
+            if initSuccess then
+                print("✅", serviceName, "initialized")
+                return service
+            else
+                warn("❌ Failed to initialize", serviceName)
+            end
+        else
+            warn("⚠️", serviceName, "has no Initialize method")
+        end
+    else
+        warn("❌ Failed to load", serviceName)
+    end
+    return nil
 end
 
--- Initialize track generator
-local TrackGeneratorService = Services.Get("TrackGeneratorService") 
-if TrackGeneratorService and TrackGeneratorService.Initialize then
-    TrackGeneratorService:Initialize()
-    print("✅ TrackGeneratorService initialized")
-end
-
--- Initialize performance monitoring
-local PerformanceService = Services.Get("PerformanceService")
-if PerformanceService and PerformanceService.Initialize then
-    PerformanceService:Initialize()
-    print("✅ PerformanceService initialized")
-end
+-- Initialize core services
+local mainGameService = InitializeService("MainGameService")
+local trackGeneratorService = InitializeService("TrackGeneratorService")
+local performanceService = InitializeService("PerformanceService")
 
 print("🎮 Color Rush Server initialization complete!")
+
+-- Simple player join handling
+Players.PlayerAdded:Connect(function(player)
+    print("👋 Player joined:", player.Name)
+    
+    -- Basic player setup
+    if mainGameService and mainGameService.OnPlayerJoined then
+        pcall(function()
+            mainGameService:OnPlayerJoined(player)
+        end)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    print("👋 Player leaving:", player.Name)
+    
+    -- Basic player cleanup
+    if mainGameService and mainGameService.OnPlayerLeaving then
+        pcall(function()
+            mainGameService:OnPlayerLeaving(player)
+        end)
+    end
+end)

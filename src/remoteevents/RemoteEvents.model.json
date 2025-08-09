@@ -1,0 +1,25 @@
+{
+  "ClassName": "Folder",
+  "Children": [
+    {
+      "Name": "PlayerDataRequest",
+      "ClassName": "RemoteFunction"
+    },
+    {
+      "Name": "PlayerAction",
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "GameStateUpdate",
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "TrackUpdate",
+      "ClassName": "RemoteEvent"
+    },
+    {
+      "Name": "ScoreUpdate",
+      "ClassName": "RemoteEvent"
+    }
+  ]
+}

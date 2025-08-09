@@ -8,7 +8,7 @@
         "$path": "src/shared"
       },
       "RemoteEvents": {
-        "$className": "Folder"
+        "$path": "src/remoteevents/RemoteEvents.model.json"
       }
     },
 

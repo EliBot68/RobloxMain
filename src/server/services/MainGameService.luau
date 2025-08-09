@@ -8,10 +8,58 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
--- Import utilities
-local SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
-local WorldObjectValidator = SafeRequire.require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
-local DeveloperConfig = SafeRequire.require(ReplicatedStorage.Shared.modules.DeveloperConfig)
+-- Wait for shared modules
+local SharedFolder = ReplicatedStorage:WaitForChild("Shared", 10)
+if not SharedFolder then
+    error("MainGameService: Failed to find Shared folder!")
+end
+
+-- Import utilities with proper error handling
+local SafeRequire = nil
+local WorldObjectValidator = nil
+local DeveloperConfig = nil
+
+-- Try to load SafeRequire
+local success, result = pcall(function()
+    local utilsFolder = SharedFolder:WaitForChild("utils", 5)
+    return require(utilsFolder.SafeRequire)
+end)
+
+if success then
+    SafeRequire = result
+else
+    warn("MainGameService: Failed to load SafeRequire, using fallback")
+    SafeRequire = {
+        require = function(moduleScript, defaultValue)
+            local s, r = pcall(require, moduleScript)
+            return s and r or defaultValue
+        end
+    }
+end
+
+-- Try to load WorldObjectValidator
+local success2, result2 = pcall(function()
+    local utilsFolder = SharedFolder:WaitForChild("utils", 5)
+    return require(utilsFolder.WorldObjectValidator)
+end)
+
+if success2 then
+    WorldObjectValidator = result2
+else
+    warn("MainGameService: Failed to load WorldObjectValidator")
+end
+
+-- Try to load DeveloperConfig
+local success3, result3 = pcall(function()
+    local modulesFolder = SharedFolder:WaitForChild("modules", 5)
+    return require(modulesFolder.DeveloperConfig)
+end)
+
+if success3 then
+    DeveloperConfig = result3
+else
+    warn("MainGameService: Failed to load DeveloperConfig")
+end
 
 local MainGameService = {}
 
@@ -169,7 +217,6 @@ function MainGameService:Init()
     end
     
     return true
-end
 end
 
 function MainGameService:LoadCoreModules()
