@@ -8,8 +8,8 @@ local Workspace = game:GetService("Workspace")
 local DataStoreService = game:GetService("DataStoreService")
 local TweenService = game:GetService("TweenService")
 
-local Services = require(ReplicatedStorage.Shared.Services)
-local WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
+local WorldObjectValidator = require(game.ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local UpgradeService = {}
 

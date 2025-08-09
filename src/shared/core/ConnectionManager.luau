@@ -27,7 +27,7 @@ local function safeRequire(module, fallback)
 end
 
 local SafeRequire = safeRequire(ReplicatedStorage.Shared.utils.SafeRequire)
-local StructuredLogger = SafeRequire and SafeRequire.require(ReplicatedStorage.Shared.services.StructuredLogger) or {}
+local StructuredLogger = SafeRequire and SafeRequire.require(game.ReplicatedStorage.Shared.services.StructuredLogger) or {}
 
 local ConnectionManager = {
 	-- Connection storage

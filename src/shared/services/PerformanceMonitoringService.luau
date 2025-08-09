@@ -73,35 +73,35 @@ local REMOTE_ENDPOINTS = {
 local serviceHealthCheckers = {
     TutorialService = function()
         local success, service = pcall(function()
-            return require(game.ServerScriptService.services.TutorialService)
+            return require(game.ServerScriptService.Server.services.TutorialService)
         end)
         return success and service ~= nil
     end,
     
     MainGameService = function()
         local success, service = pcall(function()
-            return require(game.ServerScriptService.services.MainGameService)
+            return require(game.ServerScriptService.Server.services.MainGameService)
         end)
         return success and service ~= nil
     end,
     
     AnalyticsService = function()
         local success, service = pcall(function()
-            return require(game.ServerScriptService.services.AnalyticsService)
+            return require(game.ServerScriptService.Server.services.AnalyticsService)
         end)
         return success and service ~= nil
     end,
     
     UpgradeService = function()
         local success, service = pcall(function()
-            return require(game.ServerScriptService.services.UpgradeService)
+            return require(game.ServerScriptService.Server.services.UpgradeService)
         end)
         return success and service ~= nil
     end,
     
     DataService = function()
         local success, service = pcall(function()
-            return require(game.ServerScriptService.services.DataService)
+            return require(game.ServerScriptService.Server.services.DataService)
         end)
         return success and service ~= nil
     end

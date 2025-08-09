@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 -- Import Services for clean dependency management
-local Services = require(ReplicatedStorage.Shared.Services)
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
 
 -- Initialize essential game services
 print("🔧 Initializing core services...")

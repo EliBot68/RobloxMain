@@ -477,7 +477,7 @@ function ErrorDebugger:CaptureErrorContext(error, additionalContext)
     
     -- Add recent logs if StructuredLogger is available
     local success, logger = pcall(function()
-        return require(ReplicatedStorage.Shared.services.StructuredLogger)
+        return require(game.ReplicatedStorage.Shared.services.StructuredLogger)
     end)
     
     if success and logger.GetRecentLogs then

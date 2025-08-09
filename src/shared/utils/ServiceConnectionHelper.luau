@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local ConnectionManager = require(ReplicatedStorage.Shared.core.ConnectionManager)
+local ConnectionManager = require(game.ReplicatedStorage.Shared.core.ConnectionManager)
 
 local ServiceConnectionHelper = {}
 

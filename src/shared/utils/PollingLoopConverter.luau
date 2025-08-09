@@ -1,10 +1,8 @@
 -- PollingLoopConverter.luau
 -- Scans codebase for performance-destroying polling loops and converts them to event-driven patterns
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- Import is used in generated code examples, not directly in this converter
-local _EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local _EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 local PollingLoopConverter = {}
 
@@ -200,7 +198,7 @@ function PollingLoopConverter:convertToAnalyticsMonitoring(originalCode, context
         original = originalCode,
         converted = [[
 -- CONVERTED: Analytics monitoring polling loop to event-driven adaptive monitoring
-local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 -- Replace polling loop with adaptive monitoring
 local analyticsMonitorId = EventDrivenSystemManager:convertPollingToEvents({
@@ -238,7 +236,7 @@ function PollingLoopConverter:convertToPlayerStatMonitoring(originalCode, contex
         original = originalCode,
         converted = [[
 -- CONVERTED: Player stat polling loop to event-driven monitoring
-local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 -- Create event-driven player stat monitor
 local function setupPlayerStatMonitoring(player, statName)
@@ -284,7 +282,7 @@ function PollingLoopConverter:convertToWorldStateMonitoring(originalCode, contex
         original = originalCode,
         converted = [[
 -- CONVERTED: World state polling loop to event-driven monitoring  
-local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 -- Create event-driven world state monitor
 local worldStateMonitorId = EventDrivenSystemManager:createWorldStateMonitor("]] .. (context.statePath or "Workspace.SomeObject") .. [[", function(newValue, oldValue)
@@ -327,7 +325,7 @@ function PollingLoopConverter:convertToBatchProcessing(originalCode, context)
         original = originalCode,
         converted = [[
 -- CONVERTED: Batch processing polling loop to event-driven system
-local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 -- Create event-driven batch processor
 local batchProcessor = EventDrivenSystemManager:convertBatchOperations({
@@ -369,7 +367,7 @@ function PollingLoopConverter:convertToAdaptiveMonitoring(originalCode, context)
         original = originalCode,
         converted = [[
 -- CONVERTED: Generic polling loop to adaptive monitoring
-local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 -- Replace polling loop with adaptive monitoring
 local monitorId = EventDrivenSystemManager:convertPollingToEvents({

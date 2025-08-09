@@ -15,8 +15,8 @@ local ServiceRegistry = require(ReplicatedStorage.Shared.core.ServiceRegistry)
 -- Component imports
 local PetRepository = require(ReplicatedStorage.Shared.data.PetRepository)
 local PetDatabase = require(ReplicatedStorage.Shared.data.PetDatabase)
-local PetBehaviorService = require(ReplicatedStorage.Shared.services.PetBehaviorService)
-local PetModelService = require(ReplicatedStorage.Shared.services.PetModelService)
+local PetBehaviorService = require(game.ReplicatedStorage.Shared.services.PetBehaviorService)
+local PetModelService = require(game.ReplicatedStorage.Shared.services.PetModelService)
 
 local PetOrchestrationService = {}
 PetOrchestrationService.__index = PetOrchestrationService

@@ -4,7 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local _SafeRequire = require(ReplicatedStorage.Shared.utils.SafeRequire)
+local _SafeRequire = require(game.ReplicatedStorage.Shared.utils.SafeRequire)
 
 local ServiceRegistry = {}
 ServiceRegistry.__index = ServiceRegistry

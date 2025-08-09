@@ -5,8 +5,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local _RunService = game:GetService("RunService")
 
-local ModernServiceFramework = require(ReplicatedStorage.Shared.core.ModernServiceFramework)
-local ComprehensiveServiceTests = require(ReplicatedStorage.Shared.tests.ComprehensiveServiceTests)
+local ModernServiceFramework = require(game.ReplicatedStorage.Shared.core.ModernServiceFramework)
+local ComprehensiveServiceTests = require(game.ReplicatedStorage.Shared.tests.ComprehensiveServiceTests)
 
 local FinalServiceStandardization = {}
 

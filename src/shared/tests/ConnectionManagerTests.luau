@@ -17,7 +17,7 @@ end
 
 local _SafeRequire = safeRequire(ReplicatedStorage.Shared.utils.SafeRequire)
 local ConnectionManager = safeRequire(ReplicatedStorage.Shared.core.ConnectionManager)
-local ConnectionManagerService = safeRequire(ReplicatedStorage.Shared.services.ConnectionManagerService)
+local ConnectionManagerService = safeRequire(game.ReplicatedStorage.Shared.services.ConnectionManagerService)
 
 local ConnectionManagerTests = {
 	TestResults = {},

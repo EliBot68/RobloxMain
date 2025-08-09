@@ -17,7 +17,7 @@ end)
 -- Try to load performance service
 local PerformanceService = nil
 pcall(function()
-    PerformanceService = _G.PerformanceService or require(game.ServerScriptService.services.PerformanceService)
+    PerformanceService = _G.PerformanceService or require(game.ServerScriptService.Server.services.PerformanceService)
 end)
 
 -- Enhanced health check that combines QA and performance data

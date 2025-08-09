@@ -69,6 +69,11 @@ function Services:GetService(serviceName)
     return nil
 end
 
+-- Alias for backward compatibility
+function Services.Get(serviceName)
+    return Services:GetService(serviceName)
+end
+
 -- Backward compatibility getters
 function Services.MainGameService()
     return Services:GetService("MainGameService")

@@ -18,7 +18,7 @@ local function safeRequire(module, fallback)
 end
 
 local SafeRequire = safeRequire(ReplicatedStorage.Shared.utils.SafeRequire)
-local ConnectionManagerService = SafeRequire and SafeRequire.require(ReplicatedStorage.Shared.services.ConnectionManagerService) or safeRequire(ReplicatedStorage.Shared.services.ConnectionManagerService)
+local ConnectionManagerService = SafeRequire and SafeRequire.require(game.ReplicatedStorage.Shared.services.ConnectionManagerService) or safeRequire(game.ReplicatedStorage.Shared.services.ConnectionManagerService)
 
 local ExampleService = {
 	Name = "ExampleService",

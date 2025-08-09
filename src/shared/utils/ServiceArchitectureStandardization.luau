@@ -225,7 +225,7 @@ function ServiceArchitectureStandardization:ConvertServiceBasePattern(serviceAna
     
     -- Add ModernServiceFramework import if not present
     if not fileContent:match("ModernServiceFramework") then
-        local importLine = '\nlocal ModernServiceFramework = require(ReplicatedStorage.Shared.core.ModernServiceFramework)\n'
+        local importLine = '\nlocal ModernServiceFramework = require(game.ReplicatedStorage.Shared.core.ModernServiceFramework)\n'
         fileContent = fileContent:gsub(
             "(local ReplicatedStorage = game:GetService%(\"ReplicatedStorage\"%))",
             "%1" .. importLine

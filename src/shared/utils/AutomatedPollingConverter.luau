@@ -3,11 +3,11 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local PollingLoopConverter = require(ReplicatedStorage.Shared.utils.PollingLoopConverter)
+local PollingLoopConverter = require(game.ReplicatedStorage.Shared.utils.PollingLoopConverter)
 
 -- These variables are used in generated code examples, not directly in this converter
 local _RunService = game:GetService("RunService")
-local _EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
+local _EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)
 
 local AutomatedPollingConverter = {}
 
@@ -291,8 +291,8 @@ function AutomatedPollingConverter:generateConvertedFile(originalFileName, conve
         "local Players = game:GetService('Players')",
         "local RunService = game:GetService('RunService')",
         "",
-        "local EventDrivenSystemManager = require(ReplicatedStorage.Shared.systems.EventDrivenSystemManager)",
-        "local ServiceConnectionHelper = require(ReplicatedStorage.Shared.utils.ServiceConnectionHelper)",
+        "local EventDrivenSystemManager = require(game.ReplicatedStorage.Shared.systems.EventDrivenSystemManager)",
+        "local ServiceConnectionHelper = require(game.ReplicatedStorage.Shared.utils.ServiceConnectionHelper)",
         "",
         "local " .. originalFileName:gsub("%.luau$", "_EventDriven") .. " = {}",
         ""

@@ -3,7 +3,7 @@
 -- Run this to scan your codebase for potential memory leaks
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local _ConnectionManager = require(ReplicatedStorage.Shared.core.ConnectionManager)
+local _ConnectionManager = require(game.ReplicatedStorage.Shared.core.ConnectionManager)
 
 local MigrationHelper = {}
 
@@ -55,7 +55,7 @@ function MigrationHelper:GenerateMigrationSuggestions(scriptName, issues)
     
     table.insert(suggestions, "-- Migration suggestions for " .. scriptName)
     table.insert(suggestions, "-- Add at the top of your script:")
-    table.insert(suggestions, "local ServiceConnectionHelper = require(ReplicatedStorage.Shared.utils.ServiceConnectionHelper)")
+    table.insert(suggestions, "local ServiceConnectionHelper = require(game.ReplicatedStorage.Shared.utils.ServiceConnectionHelper)")
     table.insert(suggestions, "local helper = ServiceConnectionHelper.CreateServiceHelper(\"" .. scriptName .. "\")")
     table.insert(suggestions, "")
     

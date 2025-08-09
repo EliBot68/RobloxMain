@@ -7,9 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
-local Services = require(ReplicatedStorage.Shared.Services)
-local RemoteEvents = require(ReplicatedStorage.Shared.modules.RemoteEvents)
-local WorldObjectValidator = require(ReplicatedStorage.Shared.modules.WorldObjectValidator)
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
+local RemoteEvents = require(game.ReplicatedStorage.Shared.modules.RemoteEvents)
+local WorldObjectValidator = require(game.ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local SocialService = {}
 

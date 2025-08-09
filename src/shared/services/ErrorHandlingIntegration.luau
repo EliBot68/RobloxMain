@@ -6,8 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ConfigurationManager = require(ReplicatedStorage.Shared.core.ConfigurationManager)
 
-local ErrorHandler = require(ReplicatedStorage.Shared.services.ErrorHandler)
-local StructuredLogger = require(ReplicatedStorage.Shared.services.StructuredLogger)
+local ErrorHandler = require(game.ReplicatedStorage.Shared.services.ErrorHandler)
+local StructuredLogger = require(game.ReplicatedStorage.Shared.services.StructuredLogger)
 local DebugUtilities = require(ReplicatedStorage.Shared.utilities.DebugUtilities)
 
 local ErrorHandlingIntegration = {}

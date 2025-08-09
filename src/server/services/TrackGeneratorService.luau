@@ -9,8 +9,8 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Debris = game:GetService("Debris")
 
-local Services = require(ReplicatedStorage.Shared.Services)
-local WorldObjectValidator = require(ReplicatedStorage.Shared.utils.WorldObjectValidator)
+local Services = require(game.ReplicatedStorage.Shared.core.Services)
+local WorldObjectValidator = require(game.ReplicatedStorage.Shared.utils.WorldObjectValidator)
 
 local TrackGeneratorService = {}
 

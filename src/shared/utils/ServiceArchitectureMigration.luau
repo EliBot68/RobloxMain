@@ -234,7 +234,7 @@ function ServiceMigration:GenerateModernServiceTemplate(serviceName, serviceInfo
 -- Original pattern: %s
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ModernServiceFramework = require(ReplicatedStorage.Shared.core.ModernServiceFramework)
+local ModernServiceFramework = require(game.ReplicatedStorage.Shared.core.ModernServiceFramework)
 
 -- Create modern service with dependencies and error handling
 local %s = ModernServiceFramework.CreateService("%s", {

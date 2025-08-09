@@ -7,8 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local _Players = game:GetService("Players")
 local _RunService = game:GetService("RunService")
 
-local PollingLoopConverter = require(ReplicatedStorage.Shared.utils.PollingLoopConverter)
-local AutomatedPollingConverter = require(ReplicatedStorage.Shared.utils.AutomatedPollingConverter)
+local PollingLoopConverter = require(game.ReplicatedStorage.Shared.utils.PollingLoopConverter)
+local AutomatedPollingConverter = require(game.ReplicatedStorage.Shared.utils.AutomatedPollingConverter)
 
 local PollingLoopConversionDemo = {}
 
@@ -230,7 +230,7 @@ function PollingLoopConversionDemo:initialize()
     
     for _, moduleName in ipairs(requiredModules) do
         local success, module = pcall(function()
-            return require(ReplicatedStorage.Shared.utils[moduleName])
+            return require(game.ReplicatedStorage.Shared.utils[moduleName])
         end)
         
         if success then
